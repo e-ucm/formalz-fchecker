@@ -4,6 +4,8 @@ import Language.Java.Syntax
 import Language.Java.Lexer
 import Language.Java.Parser
 
+import Verifier
+
 
 
 type StmtAlgebra r = (Block -> r,           
@@ -55,20 +57,22 @@ foldStmt (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhancedFor, fEm
                   _ -> error "TODO: complete foldStmt cases"
     
 -- | The algebra that defines the wlp transformer for statements
-wlpStmtAlgebra :: StmtAlgebra (Exp -> Exp)
+--   The synthesized attribute is the resulting transformer. 
+--   The inherited attribute represent the accumulated transformer up till the last block (this is used when handling break statements etc.)
+wlpStmtAlgebra :: StmtAlgebra ((Exp -> Exp) -> (Exp -> Exp))
 wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhancedFor, fEmpty, fExpStmt, fAssert, fSwitch, fDo, fBreak, fContinue, fReturn, fSynchronized, fThrow, fTry, fLabeled) where
-    fStmtBlock (Block bs)   = foldr ((.) . wlpBlock) id bs
-    fIfThen e s1            = fIfThenElse e s1 id
-    fIfThenElse e s1 s2     = (\q -> (e &* s1 q) |* (neg e &* s2 q))
-    fWhile              = undefined
+    fStmtBlock (Block bs) inh   = let x = foldr ((.) . wlpBlock x) id bs in x
+    fIfThen e s1                = fIfThenElse e s1 (const id)
+    fIfThenElse e s1 s2 inh     = (\q -> (e &* (s1 inh) q) |* (neg e &* (s2 inh) q))
+    fWhile e s inh              = (\q -> if isTrue ((inv &* neg e) `imp` q) then inv else (neg e &* q)) -- We assume the given invariant is correct
     fBasicFor           = undefined
     fEnhancedFor        = undefined
-    fEmpty              = id
+    fEmpty inh                  = id
     fExpStmt            = undefined
     fAssert             = undefined
     fSwitch             = undefined
     fDo                 = undefined
-    fBreak              = undefined
+    fBreak _ inh                = inh
     fContinue           = undefined
     fReturn             = undefined
     fSynchronized       = undefined
@@ -76,13 +80,18 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     fTry                = undefined
     fLabeled            = undefined
     -- Helper functions
-    wlpBlock b = case b of
-                     BlockStmt s            -> wlp s
-                     LocalClass _           -> id
-                     LocalVars mods t vars  -> undefined
+    wlpBlock inh b = case b of
+                        BlockStmt s            -> wlp' inh s
+                        LocalClass _           -> id
+                        LocalVars mods t vars  -> undefined
+    inv = Lit (Boolean True) -- for simplicity, "True" is used as an invariant for now
     
     
 -- | Calculates the weakest liberal pre-condition of a statement and a given post-condition
 wlp :: Stmt -> Exp -> Exp
-wlp = foldStmt wlpStmtAlgebra
+wlp = wlp' id
+
+-- wlp' lets you specify the inherited attribute
+wlp' :: (Exp -> Exp) -> Stmt -> Exp -> Exp
+wlp' inh s = foldStmt wlpStmtAlgebra s inh
 
