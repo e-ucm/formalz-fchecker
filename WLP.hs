@@ -53,45 +53,73 @@ foldStmt (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhancedFor, fEm
                   IfThen e stmt -> fIfThen e (fold stmt)	
                   IfThenElse e stmt1 stmt2 -> fIfThenElse e (fold stmt1) (fold stmt2)
                   While e stmt -> fWhile e (fold stmt)
-                  BasicFor init e es stmt -> fBasicFor init e es (fold stmt)
+                  BasicFor init e incr stmt -> fBasicFor init e incr (fold stmt)
                   _ -> error "TODO: complete foldStmt cases"
+    
+
+-- | A type synonym for the inherited attribute
+
+
+type Inh = (Exp -> Exp, -- The accumulated transformer up till the last loop (this is used when handling break statements etc.)
+            Exp -> Exp  -- The wlp of the current loop statement not including initialization code. It refers to the loop starting from the loop continuation point.
+            )
     
 -- | The algebra that defines the wlp transformer for statements
 --   The synthesized attribute is the resulting transformer. 
---   The inherited attribute represent the accumulated transformer up till the last block (this is used when handling break statements etc.)
-wlpStmtAlgebra :: StmtAlgebra ((Exp -> Exp) -> (Exp -> Exp))
+wlpStmtAlgebra :: StmtAlgebra (Inh -> Exp -> Exp)
 wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhancedFor, fEmpty, fExpStmt, fAssert, fSwitch, fDo, fBreak, fContinue, fReturn, fSynchronized, fThrow, fTry, fLabeled) where
-    fStmtBlock (Block bs) inh   = let x = foldr ((.) . wlpBlock x) id bs in x
-    fIfThen e s1                = fIfThenElse e s1 (const id)
-    fIfThenElse e s1 s2 inh     = (\q -> (e &* (s1 inh) q) |* (neg e &* (s2 inh) q))
-    fWhile e s inh              = (\q -> if isTrue ((inv &* neg e) `imp` q) then inv else (neg e &* q)) -- We assume the given invariant is correct
-    fBasicFor           = undefined
-    fEnhancedFor        = undefined
-    fEmpty inh                  = id
+    fStmtBlock (Block bs) inh               = foldr ((.) . wlpBlock inh) id bs
+    fIfThen e s1                            = fIfThenElse e s1 (const id)
+    fIfThenElse e s1 s2 inh                 = (\q -> (e &* s1 inh q) |* (neg e &* s2 inh q))
+    fWhile e s (acc, _)                     = let loop = (\q -> if isTrue (((inv &* neg e) `imp` q) &* ((inv &* e) `imp` s (acc, loop) inv)) then inv else (neg e &* q)) in loop
+    fBasicFor init e incr s inh@(acc, _)    = wlp' inh (initToStmt init) . let loop = fWhile (fromMaybeGuard e) (\inh' -> s (acc, loop) . wlp' inh' (incrToStmt incr)) inh in loop
+    fEnhancedFor                            = error "TODO: EnhancedFor"
+    fEmpty inh                              = id
     fExpStmt            = undefined
     fAssert             = undefined
     fSwitch             = undefined
     fDo                 = undefined
-    fBreak _ inh                = inh
-    fContinue           = undefined
+    fBreak _ (acc, _)                       = acc
+    fContinue _ (acc, loop)                 = loop . acc
     fReturn             = undefined
     fSynchronized       = undefined
     fThrow              = undefined
     fTry                = undefined
     fLabeled            = undefined
+    
     -- Helper functions
+    wlpBlock :: Inh -> BlockStmt -> Exp -> Exp
     wlpBlock inh b = case b of
                         BlockStmt s            -> wlp' inh s
                         LocalClass _           -> id
-                        LocalVars mods t vars  -> undefined
-    inv = Lit (Boolean True) -- for simplicity, "True" is used as an invariant for now
+                        LocalVars mods t vars  -> error "TODO: LocalVars"
+                        
+    inv = true -- for simplicity, "True" is used as an invariant for now
     
+    -- Converts initialization code of a for loop to a statement
+    initToStmt :: Maybe ForInit -> Stmt
+    initToStmt Nothing                      = Empty
+    initToStmt (Just (ForInitExps es))      = StmtBlock (Block (map (BlockStmt . ExpStmt) es))
+    initToStmt (Just (ForLocalVars _ _ _))  = error "TODO: ForLocalVars"
+    
+    -- Replaces an absent guard with "True"
+    fromMaybeGuard :: Maybe Exp -> Exp
+    fromMaybeGuard Nothing  = true
+    fromMaybeGuard (Just e) = e
+    
+    -- Converts increment code of a for loop to a statement
+    incrToStmt :: Maybe [Exp] -> Stmt
+    incrToStmt Nothing   = Empty
+    incrToStmt (Just es) = StmtBlock (Block (map (BlockStmt . ExpStmt) es))
+    
+true :: Exp
+true = Lit (Boolean True)
     
 -- | Calculates the weakest liberal pre-condition of a statement and a given post-condition
 wlp :: Stmt -> Exp -> Exp
-wlp = wlp' id
+wlp = wlp' (id, id)
 
--- wlp' lets you specify the inherited attribute
-wlp' :: (Exp -> Exp) -> Stmt -> Exp -> Exp
+-- wlp' lets you specify the inherited attributes
+wlp' :: Inh -> Stmt -> Exp -> Exp
 wlp' inh s = foldStmt wlpStmtAlgebra s inh
 
