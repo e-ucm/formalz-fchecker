@@ -75,10 +75,10 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     fBasicFor init e incr s inh@(acc, _)    = wlp' inh (initToStmt init) . let loop = fWhile (fromMaybeGuard e) (\inh' -> s (acc, loop) . wlp' inh' (incrToStmt incr)) inh in loop
     fEnhancedFor                            = error "TODO: EnhancedFor"
     fEmpty inh                              = id
-    fExpStmt            = undefined
-    fAssert             = undefined
-    fSwitch             = undefined
-    fDo                 = undefined
+    fExpStmt                                = error "TODO: ExpStmt"
+    fAssert e _ inh                         = (e &*)
+    fSwitch e bs inh                        = let (e', s1, s2) = desugarSwitch e bs in fIfThenElse e' (flip wlp' s1) (flip wlp' s2) inh
+    fDo s e (acc, _)                        = let loop = s (acc, loop) . fWhile e s (acc, loop) in loop -- Do is just a while with the statement block executed one additional time. Break and continue still have to be handled in this additional execution.
     fBreak _ (acc, _)                       = acc
     fContinue _ (acc, loop)                 = loop . acc
     fReturn             = undefined
@@ -112,6 +112,16 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     incrToStmt Nothing   = Empty
     incrToStmt (Just es) = StmtBlock (Block (map (BlockStmt . ExpStmt) es))
     
+    -- Converts a switch into nested if-then-else statements. The switch is assumed to be non-trivial.
+    desugarSwitch :: Exp -> [SwitchBlock] -> (Exp, Stmt, Stmt)
+    desugarSwitch e [SwitchBlock l bs]       = case l of
+                                                    SwitchCase e' -> (BinOp e Equal e', StmtBlock (Block bs), Empty)
+                                                    Default -> (true, StmtBlock (Block bs), Empty)
+    desugarSwitch e (SwitchBlock l bs:sbs)   = case l of
+                                                    SwitchCase e' -> (BinOp e Equal e', StmtBlock (Block bs), sbscode)
+                                                    Default -> (true, StmtBlock (Block bs), sbscode)
+        where sbscode = let (e, s1, s2) = desugarSwitch e sbs in IfThenElse e s1 s2
+                                            
 true :: Exp
 true = Lit (Boolean True)
     
