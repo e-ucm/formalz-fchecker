@@ -5,28 +5,9 @@ import Language.Java.Lexer
 import Language.Java.Parser
 import Data.Maybe
 
+import Folds
 import Verifier
-
-
-type StmtAlgebra r = (Block -> r,           
-                      Exp -> r -> r,        
-                      Exp -> r -> r -> r,
-                      Exp -> r -> r,
-                      (Maybe ForInit) -> (Maybe Exp) -> (Maybe [Exp]) -> r -> r,
-                      [Modifier] -> Type -> Ident -> Exp -> r -> r,
-                      r, 
-                      Exp -> r,
-                      Exp -> (Maybe Exp) -> r,
-                      Exp -> [SwitchBlock] -> r,
-                      r -> Exp -> r,
-                      Maybe Ident -> r,
-                      Maybe Ident -> r,
-                      Maybe Exp -> r, 
-                      Exp -> Block -> r,
-                      Exp -> r,
-                      Block -> [Catch] -> (Maybe Block) -> r,
-                      Ident -> r -> r
-                      )
+import Substitute
     
 
 -- Some constants:
@@ -56,18 +37,6 @@ imp :: Exp -> Exp -> Exp
 e1 `imp` e2 =  (e1 &* e2) |* neg e1
 
 
-
-    
--- | A fold function over a java statement.
-foldStmt :: StmtAlgebra r -> Stmt -> r
-foldStmt (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhancedFor, fEmpty, fExpStmt, fAssert, fSwitch, fDo, fBreak, fContinue, fReturn, fSynchronized, fThrow, fTry, fLabeled) s = fold s where
-    fold s = case s of
-                  StmtBlock b -> fStmtBlock b
-                  IfThen e stmt -> fIfThen e (fold stmt)	
-                  IfThenElse e stmt1 stmt2 -> fIfThenElse e (fold stmt1) (fold stmt2)
-                  While e stmt -> fWhile e (fold stmt)
-                  BasicFor init e incr stmt -> fBasicFor init e incr (fold stmt)
-                  _ -> error "TODO: complete foldStmt cases"
     
 
 -- | A type synonym for the inherited attribute
@@ -92,7 +61,7 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     fBasicFor init e incr s inh@(acc, br, loop, catch)  = let loop' = fWhile (fromMaybeGuard e) (\inh' -> s (wlp' inh' (incrToStmt incr), br, loop', catch)) inh in wlp' (loop', br, loop, catch) (initToStmt init) 
     fEnhancedFor                                        = error "TODO: EnhancedFor"
     fEmpty (acc, _, _, _)                               = acc -- Empty does nothing, but still passes control to the next statement
-    fExpStmt                                            = error "TODO: ExpStmt"
+    fExpStmt e inh                                      = snd $ foldExp wlpExpAlgebra e inh
     fAssert e _ inh@(acc, _, _, _)                      = (e &*) . acc
     fSwitch e bs inh@(acc, _, _, _)                     = let (e', s1, s2) = desugarSwitch e bs in fIfThenElse e' (flip wlp' s1) (flip wlp' s2) inh . acc
     fDo s e (acc, br, _, catch)                         = let loop = s (fWhile e s (acc, br, loop, catch), br, loop, catch) in loop -- Do is just a while with the statement block executed one additional time. Break and continue still have to be handled in this additional execution.
@@ -108,10 +77,15 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     
     -- Helper functions
     wlpBlock :: Inh -> BlockStmt -> Syn
-    wlpBlock inh b = case b of
-                        BlockStmt s            -> wlp' inh s
-                        LocalClass _           -> id
-                        LocalVars mods t vars  -> error "TODO: LocalVars"
+    wlpBlock inh@(acc, br, loop, catch) b = case b of
+                                                BlockStmt s            -> wlp' inh s
+                                                LocalClass _           -> acc
+                                                LocalVars mods t vars  -> foldr (\v r -> wlpDeclAssignment (r, br, loop, catch) v) acc vars
+                
+    -- wlp of a var declaration that also assigns a value            
+    wlpDeclAssignment :: Inh -> VarDecl -> Syn
+    wlpDeclAssignment (acc, _, _, _) (VarDecl _ Nothing) = acc
+    wlpDeclAssignment (acc, _, _, _) (VarDecl (VarId ident) (Just (InitExp e))) = substVar (NameLhs (Name [ident])) e . acc
                         
     inv = true -- for simplicity, "True" is used as an invariant for now
     
@@ -150,6 +124,48 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     
     catches :: FormalParam -> Exp -> Bool
     catches (FormalParam _ t _ _) e = True -- TODO
+    
+-- | The algebra that defines the wlp transformer for expressions with side effects
+--   The first attribute is the expression itself (this is passed to handle substitutions in case of assignments)
+wlpExpAlgebra :: ExpAlgebra (Inh -> (Exp, Syn))
+wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualInstanceCreation, fArrayCreate, fArrayCreateInit, fFieldAccess, fMethodInv, fArrayAccess, fExpName, fPostIncrement, fPostDecrement, fPreIncrement, fPreDecrement, fPrePlus, fPreMinus, fPreBitCompl, fPreNot, fCast, fBinOp, fInstanceOf, fCond, fAssign, fLambda, fMethodRef) where
+    fLit lit (acc, _, _, _) = (Lit lit, acc)
+    fClassLit = undefined
+    fThis = undefined
+    fThisClass = undefined
+    fInstanceCreation = undefined
+    fQualInstanceCreation = undefined
+    fArrayCreate = undefined
+    fArrayCreateInit = undefined
+    fFieldAccess = undefined
+    fMethodInv = undefined
+    fArrayAccess = undefined
+    fExpName name (acc, _, _, _) = (ExpName name, acc)
+    fPostIncrement e inh@(acc, _, _, _) = case fst $ e inh of
+                                            var@(ExpName name) -> (BinOp var Add (Lit (Int 1)), substVar (NameLhs name) (BinOp var Add (Lit (Int 1))) . acc)
+                                            exp  -> (BinOp exp Add (Lit (Int 1)), acc)
+    fPostDecrement = undefined
+    fPreIncrement = undefined
+    fPreDecrement = undefined
+    fPrePlus = undefined
+    fPreMinus = undefined
+    fPreBitCompl = undefined
+    fPreNot = undefined
+    fCast = undefined
+    fBinOp = undefined
+    fInstanceOf = undefined
+    fCond = undefined
+    fAssign lhs op e inh@(acc, _, _, _) = (Assign lhs op (getExp e inh), substVar lhs (desugarAssign lhs op (getExp e inh)) . getSyn e inh . acc)
+    fLambda = undefined
+    fMethodRef = undefined
+    
+    -- Helper functions:
+    getExp :: (Inh -> (Exp, Syn)) -> Inh -> Exp
+    getExp f inh = fst $ f inh
+    
+    getSyn :: (Inh -> (Exp, Syn)) -> Inh -> Syn
+    getSyn f inh = snd $ f inh
+
     
 -- | Calculates the weakest liberal pre-condition of a statement and a given post-condition
 wlp :: Stmt -> Exp -> Exp
