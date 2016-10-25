@@ -57,7 +57,7 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     fStmtBlock (Block bs) (acc, br, loop, catch)        = foldr (\b r -> wlpBlock (r, br, loop, catch) b) acc bs -- The result of the last block-statement will be the accumulated transformer for the second-last etc.
     fIfThen e s1                                        = fIfThenElse e s1 (const id) -- if-then is just an if-then-else with an empty else-block
     fIfThenElse e s1 s2 inh@(acc, _, _, _)              = (\q -> (e &* s1 inh q) |* (neg e &* s2 inh q)) . acc
-    fWhile e s (acc, br, _, catch)                      = let loop = (\q -> if isTrue (((inv &* neg e) `imp` q) &* ((inv &* e) `imp` s (id, br, loop, catch) inv)) then inv else (neg e &* q)) in loop . acc
+    fWhile e s (acc, br, _, catch)                      = let loop = (\q -> if unsafeIsTrue (((inv &* neg e) `imp` q) &* ((inv &* e) `imp` s (id, br, loop, catch) inv)) then inv else (neg e &* q)) in loop . acc
     fBasicFor init e incr s inh@(acc, br, loop, catch)  = let loop' = fWhile (fromMaybeGuard e) (\inh' -> s (wlp' inh' (incrToStmt incr), br, loop', catch)) inh in wlp' (loop', br, loop, catch) (initToStmt init) 
     fEnhancedFor                                        = error "TODO: EnhancedFor"
     fEmpty (acc, _, _, _)                               = acc -- Empty does nothing, but still passes control to the next statement
@@ -122,6 +122,7 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     getCatch e []             = Nothing
     getCatch e (Catch p b:cs) = if p `catches` e then Just b else getCatch e cs
     
+    -- Checks whether a catch block catches a certain error
     catches :: FormalParam -> Exp -> Bool
     catches (FormalParam _ t _ _) e = True -- TODO
     
@@ -141,18 +142,26 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fMethodInv = undefined
     fArrayAccess = undefined
     fExpName name (acc, _, _, _) = (ExpName name, acc)
+    -- x++ increments x but evaluates to the original value
     fPostIncrement e inh@(acc, _, _, _) = case fst $ e inh of
+                                            var@(ExpName name) -> (var, substVar (NameLhs name) (BinOp var Add (Lit (Int 1))) . acc)
+                                            exp  -> (exp, acc)
+    fPostDecrement e inh@(acc, _, _, _) = case fst $ e inh of
+                                            var@(ExpName name) -> (var, substVar (NameLhs name) (BinOp var Rem (Lit (Int 1))) . acc)
+                                            exp  -> (exp, acc)
+    -- ++x increments x and evaluates to the new value of x
+    fPreIncrement e inh@(acc, _, _, _) = case fst $ e inh of
                                             var@(ExpName name) -> (BinOp var Add (Lit (Int 1)), substVar (NameLhs name) (BinOp var Add (Lit (Int 1))) . acc)
                                             exp  -> (BinOp exp Add (Lit (Int 1)), acc)
-    fPostDecrement = undefined
-    fPreIncrement = undefined
-    fPreDecrement = undefined
-    fPrePlus = undefined
-    fPreMinus = undefined
-    fPreBitCompl = undefined
-    fPreNot = undefined
+    fPreDecrement e inh@(acc, _, _, _) = case fst $ e inh of
+                                            var@(ExpName name) -> (BinOp var Rem (Lit (Int 1)), substVar (NameLhs name) (BinOp var Rem (Lit (Int 1))) . acc)
+                                            exp  -> (BinOp exp Rem (Lit (Int 1)), acc)
+    fPrePlus e inh@(acc, _, _, _) = (fst $ e inh, acc)
+    fPreMinus e inh@(acc, _, _, _) = (PreMinus . fst $ e inh, acc)
+    fPreBitCompl e inh@(acc, _, _, _) = (PreBitCompl . fst $ e inh, acc)
+    fPreNot e inh@(acc, _, _, _) = (PreNot . fst $ e inh, acc)
     fCast = undefined
-    fBinOp = undefined
+    fBinOp e1 op e2 inh@(acc, _, _, _) = (BinOp (fst $ e1 inh) op (fst $ e2 inh), acc) 
     fInstanceOf = undefined
     fCond = undefined
     fAssign lhs op e inh@(acc, _, _, _) = (Assign lhs op (getExp e inh), substVar lhs (desugarAssign lhs op (getExp e inh)) . getSyn e inh . acc)
