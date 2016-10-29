@@ -21,9 +21,15 @@ main = do
     let result = parser compilationUnit source
     
     
+    putStrLn "-----WLP-----"
     case result of
         Left error -> print error
         Right compUnit -> putStrLn . prettyPrint $ wlp (getStmt compUnit) postCond
+        
+    putStrLn "-----Code-----"
+    case result of
+        Left error -> print error
+        Right compUnit -> print (getStmt compUnit)
     
 
 -- Gets the statement(-block) defining the main method for simple tests
