@@ -9,36 +9,14 @@ import Data.List
 import Folds
 import Verifier
 import Substitute
+import HelperFunctions
 
 
--- Some constants:
+-- Settings:
 
 -- Differentiate between different exceptions?
 diffExc :: Bool
 diffExc = False
-
-true :: Exp
-true = Lit (Boolean True)
-
-false :: Exp
-false = Lit (Boolean False)
-    
-    
--- Logical operators for expressions:
-(&*) :: Exp -> Exp -> Exp
-e1 &* e2 = BinOp e1 And e2
-
-(|*) :: Exp -> Exp -> Exp
-e1 |* e2 = BinOp e1 Or e2
-
-neg :: Exp -> Exp
-neg = PreNot
-
-imp :: Exp -> Exp -> Exp
-e1 `imp` e2 =  (e1 &* e2) |* neg e1
-
-
-
     
 
 -- | A type synonym for the inherited attribute
@@ -142,8 +120,10 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     
     -- Checks whether a catch block catches a certain error
     catches :: TypeEnv -> FormalParam -> Exp -> Bool
-    catches env (FormalParam _ t _ _) e = case e of
+    catches env (FormalParam _ t _ _) e = t == RefType (ClassRefType (ClassType [(Ident "Exception", [])])) || 
+                                          case e of
                                             ExpName name -> lookupType env name == t
+                                            InstanceCreation _ t' _ _ -> t == RefType (ClassRefType t')
     
 -- | The algebra that defines the wlp transformer for expressions with side effects
 --   The first attribute is the expression itself (this is passed to handle substitutions in case of assignments)
@@ -155,11 +135,11 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fThisClass = undefined
     fInstanceCreation = undefined
     fQualInstanceCreation = undefined
-    fArrayCreate = undefined
-    fArrayCreateInit = undefined
+    fArrayCreate t dimLengths dim inh@(acc, _, _, _, env) = (ArrayCreate t (map (flip getExp inh) dimLengths) dim, (acc, env))
+    fArrayCreateInit t dim init inh@(acc, _, _, _, env) = (ArrayCreateInit t dim init, (acc, env))
     fFieldAccess = undefined
     fMethodInv = undefined
-    fArrayAccess = undefined
+    fArrayAccess arrayIndex inh@(acc, _, _, _, env) = (ArrayAccess arrayIndex, (acc, env))
     fExpName name (acc, _, _, _, env) = (ExpName name, (acc, env))
     -- x++ increments x but evaluates to the original value
     fPostIncrement e inh@(acc, _, _, _, env) = case fst $ e inh of
@@ -183,9 +163,10 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fBinOp e1 op e2 inh@(acc, _, _, _, env)   = (BinOp (fst $ e1 inh) op (fst $ e2 inh), (acc, env)) 
     fInstanceOf = undefined
     fCond = undefined
-    fAssign lhs op e inh@(acc, _, _, _, env)  = (Assign lhs op (getExp e inh), (substVar lhs (desugarAssign lhs op (getExp e inh)) . getTrans e inh . acc, env))
+    fAssign lhs op e inh@(acc, _, _, _, env)  = let rhs = desugarAssign lhs op (getExp e inh) in (rhs, (substVar lhs rhs . getTrans e inh, env))
     fLambda = undefined
     fMethodRef = undefined
+    
     
 
 -- | Gets the expression attribute
@@ -203,7 +184,6 @@ getEnv f inh = let (_, (_, env)) = f inh in env
 -- | Retrieves the type from the environment
 lookupType :: TypeEnv -> Name -> Type
 lookupType env name = fromJust (lookup name env)
-
 
 
 

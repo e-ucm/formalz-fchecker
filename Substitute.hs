@@ -1,8 +1,10 @@
 module Substitute where
 
 import Language.Java.Syntax
+import Data.List
 
 import Folds
+import HelperFunctions
  
 
 substVarExpAlgebra :: ExpAlgebra ((Lhs, Exp) -> Exp)
@@ -21,8 +23,8 @@ substVarExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQu
                                                                         SuperFieldAccess ident -> error "todo: fieldAccess substitution"
                                                                         ClassFieldAccess name ident -> error "todo: fieldAccess substitution"
     fMethodInv invocation _ = MethodInv invocation
-    fArrayAccess (ArrayIndex a is) (lhs, rhs) = case lhs of
-                                                    ArrayLhs arrayIndex -> error "todo: array substitution"
+    fArrayAccess (ArrayIndex a i) (lhs, rhs) = case lhs of
+                                                    ArrayLhs (ArrayIndex a' i') -> Cond (foldr (\(i1, i2) e -> e &* (i1 ==* i2)) (a ==* a') (zip i i')) rhs (ArrayAccess (ArrayIndex a i))
     fExpName name (lhs, rhs) = case lhs of
                                     NameLhs name' -> if name == name' then rhs else ExpName name
     fPostIncrement e inh = PostIncrement (e inh)
