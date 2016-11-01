@@ -133,39 +133,39 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fClassLit = undefined
     fThis = undefined
     fThisClass = undefined
-    fInstanceCreation = undefined
-    fQualInstanceCreation = undefined
+    fInstanceCreation typeArgs t args mBody inh@(acc, _, _, _, env) = (InstanceCreation typeArgs t args mBody, (acc, env))
+    fQualInstanceCreation e typeArgs t args mBody inh@(acc, _, _, _, env) = (QualInstanceCreation (getExp e inh) typeArgs t args mBody, (getTrans e inh, env))
     fArrayCreate t dimLengths dim inh@(acc, _, _, _, env) = (ArrayCreate t (map (flip getExp inh) dimLengths) dim, (acc, env))
     fArrayCreateInit t dim init inh@(acc, _, _, _, env) = (ArrayCreateInit t dim init, (acc, env))
     fFieldAccess = undefined
-    fMethodInv = undefined
+    fMethodInv                                      = error "method call"
     fArrayAccess arrayIndex inh@(acc, _, _, _, env) = (ArrayAccess arrayIndex, (acc, env))
-    fExpName name (acc, _, _, _, env) = (ExpName name, (acc, env))
+    fExpName name (acc, _, _, _, env)               = (ExpName name, (acc, env))
     -- x++ increments x but evaluates to the original value
-    fPostIncrement e inh@(acc, _, _, _, env) = case fst $ e inh of
-                                                var@(ExpName name) -> (var, (substVar (NameLhs name) (BinOp var Add (Lit (Int 1))) . acc, env))
-                                                exp  -> (exp, (acc, env))
-    fPostDecrement e inh@(acc, _, _, _, env) = case fst $ e inh of
-                                                var@(ExpName name) -> (var, (substVar (NameLhs name) (BinOp var Rem (Lit (Int 1))) . acc, env))
-                                                exp  -> (exp, (acc, env))
+    fPostIncrement e inh@(acc, _, _, _, env)        = case getExp e inh of
+                                                        var@(ExpName name) -> (var, (substVar (NameLhs name) (BinOp var Add (Lit (Int 1))) . acc, env))
+                                                        exp  -> (exp, (acc, env))
+    fPostDecrement e inh@(acc, _, _, _, env)        = case getExp e inh of
+                                                        var@(ExpName name) -> (var, (substVar (NameLhs name) (BinOp var Rem (Lit (Int 1))) . acc, env))
+                                                        exp  -> (exp, (acc, env))
     -- ++x increments x and evaluates to the new value of x
-    fPreIncrement e inh@(acc, _, _, _, env) = case fst $ e inh of
-                                                var@(ExpName name) -> (BinOp var Add (Lit (Int 1)), (substVar (NameLhs name) (BinOp var Add (Lit (Int 1))) . acc, env))
-                                                exp  -> (BinOp exp Add (Lit (Int 1)), (acc, env))
-    fPreDecrement e inh@(acc, _, _, _, env) = case fst $ e inh of
-                                                var@(ExpName name) -> (BinOp var Rem (Lit (Int 1)), (substVar (NameLhs name) (BinOp var Rem (Lit (Int 1))) . acc, env))
-                                                exp  -> (BinOp exp Rem (Lit (Int 1)), (acc, env))
-    fPrePlus e inh@(acc, _, _, _, env)        = (fst $ e inh, (acc, env))
-    fPreMinus e inh@(acc, _, _, _, env)       = (PreMinus . fst $ e inh, (acc, env))
-    fPreBitCompl e inh@(acc, _, _, _, env)    = (PreBitCompl . fst $ e inh, (acc, env))
-    fPreNot e inh@(acc, _, _, _, env)         = (PreNot . fst $ e inh, (acc, env))
-    fCast = undefined
-    fBinOp e1 op e2 inh@(acc, _, _, _, env)   = (BinOp (fst $ e1 inh) op (fst $ e2 inh), (acc, env)) 
+    fPreIncrement e inh@(acc, _, _, _, env)         = case getExp e inh of
+                                                        var@(ExpName name) -> (BinOp var Add (Lit (Int 1)), (substVar (NameLhs name) (BinOp var Add (Lit (Int 1))) . acc, env))
+                                                        exp  -> (BinOp exp Add (Lit (Int 1)), (acc, env))
+    fPreDecrement e inh@(acc, _, _, _, env)         = case getExp e inh of
+                                                        var@(ExpName name) -> (BinOp var Rem (Lit (Int 1)), (substVar (NameLhs name) (BinOp var Rem (Lit (Int 1))) . acc, env))
+                                                        exp  -> (BinOp exp Rem (Lit (Int 1)), (acc, env))
+    fPrePlus e inh@(acc, _, _, _, env)              = (getExp e inh, (acc, env))
+    fPreMinus e inh@(acc, _, _, _, env)             = (PreMinus $ getExp e inh, (acc, env))
+    fPreBitCompl e inh@(acc, _, _, _, env)          = (PreBitCompl $ getExp e inh, (acc, env))
+    fPreNot e inh@(acc, _, _, _, env)               = (PreNot $ getExp e inh, (acc, env))
+    fCast t e inh@(acc, _, _, _, env)               = (getExp e inh, (acc, env))
+    fBinOp e1 op e2 inh@(acc, br, loop, catch, env) = (BinOp (getExp e1 inh) op (getExp e2 inh), (getTrans e1 (getTrans e2 inh, br, loop, catch, env), env)) 
     fInstanceOf = undefined
-    fCond = undefined
-    fAssign lhs op e inh@(acc, _, _, _, env)  = let rhs = desugarAssign lhs op (getExp e inh) in (rhs, (substVar lhs rhs . getTrans e inh, env))
-    fLambda = undefined
-    fMethodRef = undefined
+    fCond g e1 e2 inh@(acc, br, loop, catch, env)   = (Cond (getExp g inh) (getExp e1 inh) (getExp e2 inh), (getTrans g (id, br, loop, catch, env) . (\q -> (getExp g inh &* getTrans e1 (id, br, loop, catch, env) q) |* (neg (getExp g inh) &* getTrans e2 (id, br, loop, catch, env) q)) . acc, env))
+    fAssign lhs op e inh@(acc, _, _, _, env)        = let rhs = desugarAssign lhs op (getExp e inh) in (rhs, (substVar lhs rhs . getTrans e inh, env))
+    fLambda                                         = error "lambda"
+    fMethodRef                                      = error "method reference"
     
     
 
