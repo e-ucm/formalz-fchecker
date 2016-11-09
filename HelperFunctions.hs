@@ -2,25 +2,41 @@
 module HelperFunctions where
 
 import Language.Java.Syntax
-import System.IO
-import System.IO.Unsafe
-import Data.IORef
+import Language.Java.Pretty
+import Data.Maybe
 
+type TypeEnv = [(Name, Type)]
 
-heap :: Exp
-heap = FieldAccess (ClassFieldAccess (Name []) (Ident "<heap>"))
-
-heapPointer :: IORef Integer
-heapPointer = unsafePerformIO $ newIORef 0
-
--- | Gets the current heap pointer and increases the pointer by 1
-getIncrPointer :: IORef Integer -> Integer
-getIncrPointer ref = unsafePerformIO $
-    do
-        p <- readIORef ref
-        writeIORef ref (p + 1)
-        return p
-
+-- | Retrieves the type from the environment
+lookupType :: [TypeDecl] -> TypeEnv -> Name -> Type
+lookupType decls env (Name idents) = case lookup (Name [head idents]) env of
+                                        Just t  -> getFieldType decls t (Name (tail idents))
+                                        Nothing -> error ("can't find type of " ++ prettyPrint (Name idents) ++ "\r\n TypeEnv: " ++ show env)
+                                        
+-- | Gets the type of a field of an object of given type
+getFieldType :: [TypeDecl] -> Type -> Name -> Type
+getFieldType _ t (Name []) = t
+getFieldType decls (RefType (ClassRefType t)) (Name (f:fs)) = getFieldType decls (getFieldTypeFromClassDecl (getDecl t decls) f) (Name fs)
+    where
+        getFieldTypeFromClassDecl :: ClassDecl -> Ident -> Type
+        getFieldTypeFromClassDecl (ClassDecl _ _ _ _ _ (ClassBody decls)) id = getFieldTypeFromMemberDecls decls id
+        
+        getFieldTypeFromMemberDecls :: [Decl] -> Ident -> Type
+        getFieldTypeFromMemberDecls [] _ = error "getFieldTypeFromMemberDecls"
+        getFieldTypeFromMemberDecls (MemberDecl (FieldDecl mods t (VarDecl varId _ : vars)) : decls) id = if getId varId == id then t else getFieldTypeFromMemberDecls (MemberDecl (FieldDecl mods t vars) : decls) id
+        getFieldTypeFromMemberDecls (_ : decls) id = getFieldTypeFromMemberDecls decls id
+        
+         -- Gets the class declaration that matches a given type
+        getDecl :: ClassType -> [TypeDecl] -> ClassDecl
+        getDecl t@(ClassType [(ident, typeArgs)]) (x:xs)    = case x of
+                                                                ClassTypeDecl decl@(ClassDecl _ ident' _ _ _ _) -> if ident == ident' then decl else getDecl t xs
+                                                                _ -> getDecl t xs
+        getDecl _ _ = error "nested class"
+        
+getId :: VarDeclId -> Ident
+getId (VarId id) = id
+getId (VarDeclArray id) = getId id
+        
 true :: Exp
 true = Lit (Boolean True)
 

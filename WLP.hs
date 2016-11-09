@@ -25,15 +25,14 @@ data Inh = Inh {acc     :: Exp -> Exp,  -- The accumulated transformer of the cu
                 loop    :: Exp -> Exp,  -- The wlp of the current loop statement not including initialization code. It refers to the loop starting from the loop continuation point.
                 catch   :: Maybe ([Catch], Bool), -- The catches when executing a block in a try statement, and a Bool indicating wether there is a finally-block
                 env     :: TypeEnv,     -- The type environment for typing expressions
-                decls   :: [ClassDecl]} -- Class declarations
+                decls   :: [TypeDecl] -- Class declarations
+                }
             
            
 -- | A type synonym for the synthesized attributea
 type Syn = (Exp -> Exp, -- The wlp transformer
             TypeEnv)    -- The type environment
 
-type TypeEnv = [(Name, Type)]
-    
 -- | The algebra that defines the wlp transformer for statements
 --   The synthesized attribute is the resulting transformer. 
 --   Statements that pass control to the next statement have to explicitly combine their wlp function with the accumulated function, as some statements (e.g. break) ignore the accumulated function.
@@ -59,7 +58,7 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     fSynchronized _                 = fStmtBlock
     fThrow e inh                    = case catch inh of
                                         Nothing      -> ((\q -> q &* throwException e), env inh) -- acc is ignored, as the rest of the block is not executed
-                                        Just (cs, f) -> (maybe (if f then id else (\q -> q &* throwException e), env inh) (flip fStmtBlock (inh {acc = id, catch = Nothing})) (getCatch (env inh) e cs))
+                                        Just (cs, f) -> (maybe (if f then id else (\q -> q &* throwException e), env inh) (flip fStmtBlock (inh {acc = id, catch = Nothing})) (getCatch (decls inh) (env inh) e cs))
     fTry b cs f inh                 = let (r, env') = (fStmtBlock b (inh {acc = id, catch = Just (cs, isJust f)})) in (r . maybe (acc inh) (fst . flip fStmtBlock (inh {env = env'})) f, env inh) -- The finally-block is always executed
     fLabeled _ s                    = s
     
@@ -81,8 +80,8 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
                 
     -- wlp of a var declaration that also assigns a value. Declaring without assignment assigns the default value
     wlpDeclAssignment :: Type -> Inh -> VarDecl -> Exp -> Exp
-    wlpDeclAssignment t inh (VarDecl (VarId ident) Nothing)             = substVar (NameLhs (Name [ident])) (getInitValue t) . acc inh
-    wlpDeclAssignment t inh (VarDecl (VarId ident) (Just (InitExp e)))  = substVar (NameLhs (Name [ident])) e . acc inh
+    wlpDeclAssignment t inh (VarDecl (VarId ident) Nothing)             = substVar (env inh) (decls inh) (NameLhs (Name [ident])) (getInitValue t) . acc inh
+    wlpDeclAssignment t inh (VarDecl (VarId ident) (Just (InitExp e)))  = substVar (env inh) (decls inh) (NameLhs (Name [ident])) e . acc inh
                         
     inv = true -- for simplicity, "True" is used as an invariant for now
     
@@ -115,16 +114,16 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     throwException :: Exp -> Exp
     throwException e = if diffExc then MethodInv (MethodCall (Name [Ident "Exception"]) [e]) else false
     
-    getCatch :: TypeEnv -> Exp -> [Catch] -> Maybe Block
-    getCatch env e []             = Nothing
-    getCatch env e (Catch p b:cs) = if catches env p e then Just b else getCatch env e cs
+    getCatch :: [TypeDecl] -> TypeEnv -> Exp -> [Catch] -> Maybe Block
+    getCatch decls env e []             = Nothing
+    getCatch decls env e (Catch p b:cs) = if catches decls env p e then Just b else getCatch decls env e cs
     
     -- Checks whether a catch block catches a certain error
-    catches :: TypeEnv -> FormalParam -> Exp -> Bool
-    catches env (FormalParam _ t _ _) e = t == RefType (ClassRefType (ClassType [(Ident "Exception", [])])) || 
-                                          case e of
-                                            ExpName name -> lookupType env name == t
-                                            InstanceCreation _ t' _ _ -> t == RefType (ClassRefType t')
+    catches :: [TypeDecl] -> TypeEnv -> FormalParam -> Exp -> Bool
+    catches decls env (FormalParam _ t _ _) e = t == RefType (ClassRefType (ClassType [(Ident "Exception", [])])) || 
+                                                  case e of
+                                                    ExpName name -> lookupType decls env name == t
+                                                    InstanceCreation _ t' _ _ -> t == RefType (ClassRefType t')
     
 -- | The algebra that defines the wlp transformer for expressions with side effects
 --   The first attribute is the expression itself (this is passed to handle substitutions in case of assignments)
@@ -134,29 +133,29 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fClassLit = undefined
     fThis = undefined
     fThisClass = undefined
-    fInstanceCreation typeArgs t args mBody inh         = let p = getIncrPointer heapPointer in (ArrayAccess (ArrayIndex heap [Lit (Int p)]), (substVar (ArrayLhs (ArrayIndex heap [Lit (Int p)])) (makeObjectArray (decls inh) t args mBody) . acc inh, env inh)) -- TODO: assign default values to fields. basically the WLP of: heap[p] = new object[#fields]
+    fInstanceCreation typeArgs t args mBody inh         = (InstanceCreation typeArgs t args mBody, (acc inh, env inh)) --let p = getIncrPointer heapPointer in (ExpName (Name [Ident (show p)]), (substVar (env inh) (decls inh) (ArrayLhs (ArrayIndex heap [Lit (Int p)])) (makeObjectArray (decls inh) t args mBody) . acc inh, env inh)) -- TODO: assign default values to fields. basically the WLP of: heap[p] = new object[#fields]
     fQualInstanceCreation e typeArgs t args mBody inh   = (QualInstanceCreation (getExp e inh) typeArgs t args mBody, (getTrans e inh, env inh))
     fArrayCreate t dimLengths dim inh                   = (ArrayCreate t (map (flip getExp inh) dimLengths) dim, (acc inh, env inh))
     fArrayCreateInit t dim init inh                     = (ArrayCreateInit t dim init, (acc inh, env inh))
     fFieldAccess fieldAccess inh                        = case fieldAccess of
-                                                            PrimaryFieldAccess e (Ident field) -> (ArrayAccess (ArrayIndex e [Lit (String field)]), (acc inh, env inh)) -- Objects are modelled as arrays
-                                                            _ -> undefined
+                                                            PrimaryFieldAccess e (Ident field) -> (ArrayAccess (ArrayIndex (getExp (foldExp wlpExpAlgebra e) inh) [Lit (String field)]), (acc inh, env inh)) -- Objects are modelled as arrays
+                                                            _ -> error "fieldaccess"
     fMethodInv                                          = error "method call"
     fArrayAccess arrayIndex inh                         = (ArrayAccess arrayIndex, (acc inh, env inh))
     fExpName name inh                                   = (ExpName name, (acc inh, env inh))
     -- x++ increments x but evaluates to the original value
     fPostIncrement e inh                                = case getExp e inh of
-                                                            var@(ExpName name) -> (var, (substVar (NameLhs name) (BinOp var Add (Lit (Int 1))) . acc inh, env inh))
+                                                            var@(ExpName name) -> (var, (substVar (env inh) (decls inh) (NameLhs name) (BinOp var Add (Lit (Int 1))) . acc inh, env inh))
                                                             exp  -> (exp, (acc inh, env inh))
     fPostDecrement e inh                                = case getExp e inh of
-                                                            var@(ExpName name) -> (var, (substVar (NameLhs name) (BinOp var Rem (Lit (Int 1))) . acc inh, env inh))
+                                                            var@(ExpName name) -> (var, (substVar (env inh) (decls inh) (NameLhs name) (BinOp var Rem (Lit (Int 1))) . acc inh, env inh))
                                                             exp  -> (exp, (acc inh, env inh))
     -- ++x increments x and evaluates to the new value of x
     fPreIncrement e inh                                 = case getExp e inh of
-                                                            var@(ExpName name) -> (BinOp var Add (Lit (Int 1)), (substVar (NameLhs name) (BinOp var Add (Lit (Int 1))) . acc inh, env inh))
+                                                            var@(ExpName name) -> (BinOp var Add (Lit (Int 1)), (substVar (env inh) (decls inh) (NameLhs name) (BinOp var Add (Lit (Int 1))) . acc inh, env inh))
                                                             exp  -> (BinOp exp Add (Lit (Int 1)), (acc inh, env inh))
     fPreDecrement e inh                                 = case getExp e inh of
-                                                            var@(ExpName name) -> (BinOp var Rem (Lit (Int 1)), (substVar (NameLhs name) (BinOp var Rem (Lit (Int 1))) . acc inh, env inh))
+                                                            var@(ExpName name) -> (BinOp var Rem (Lit (Int 1)), (substVar (env inh) (decls inh) (NameLhs name) (BinOp var Rem (Lit (Int 1))) . acc inh, env inh))
                                                             exp  -> (BinOp exp Rem (Lit (Int 1)), (acc inh, env inh))
     fPrePlus e inh                                      = (getExp e inh, (acc inh, env inh))
     fPreMinus e inh                                     = (PreMinus $ getExp e inh, (acc inh, env inh))
@@ -166,7 +165,8 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fBinOp e1 op e2 inh                                 = (BinOp (getExp e1 inh) op (getExp e2 inh), (getTrans e1 (inh {acc = getTrans e2 inh}), env inh)) 
     fInstanceOf                                         = error "TODO: instanceOf"
     fCond g e1 e2 inh                                   = (Cond (getExp g inh) (getExp e1 inh) (getExp e2 inh), (getTrans g (inh {acc = id}) . (\q -> (getExp g inh &* getTrans e1 (inh {acc = id}) q) |* (neg (getExp g inh) &* getTrans e2 (inh {acc = id}) q)) . acc inh, env inh))
-    fAssign lhs op e inh                                = let rhs = desugarAssign lhs op (getExp e inh) in (rhs, (substVar lhs rhs . getTrans e inh, env inh))
+    fAssign lhs op e inh                                = let rhs = desugarAssign lhs op (getExp e inh) 
+                                                          in  (rhs, (substVar (env inh) (decls inh) lhs rhs . getTrans e inh, env inh))
     fLambda                                             = error "lambda"
     fMethodRef                                          = error "method reference"
     
@@ -184,22 +184,54 @@ getTrans f inh = let (_, (trans, _)) = f inh in trans
 getEnv :: (Inh -> (Exp, Syn)) -> Inh -> TypeEnv
 getEnv f inh = let (_, (_, env)) = f inh in env
 
--- | Retrieves the type from the environment
-lookupType :: TypeEnv -> Name -> Type
-lookupType env name = fromJust (lookup name env)
-
 
 -- | Creates an array that represents an object
-makeObjectArray :: [ClassDecl] -> ClassType -> [Argument] -> (Maybe ClassBody) -> Exp
-makeObjectArray decls t args mBody = undefined 
-
+{- makeObjectArray :: [TypeDecl] -> ClassType -> [Argument] -> (Maybe ClassBody) -> Exp
+makeObjectArray decls t = makeObjectArray' (getDecl t decls)
+    where
+        makeObjectArray' :: ClassDecl -> [Argument] -> (Maybe ClassBody) -> Exp
+        makeObjectArray' (ClassDecl _ _ _ _ _ (ClassBody decls)) args mbody = initObj decls
+        
+        -- Gets the class declaration that matches a given type
+        getDecl :: ClassType -> [TypeDecl] -> ClassDecl
+        getDecl t@(ClassType [(ident, typeArgs)]) (x:xs)    = case x of
+                                                                ClassTypeDecl decl@(ClassDecl _ ident' _ _ _ _) -> if ident == ident' then decl else getDecl t xs
+                                                                _ -> getDecl t xs
+        getDecl _ _ = error "nested class"
+        
+        -- Initializes the member variables (without calling the constructor etc.)
+        initObj :: [Decl] -> Exp
+        initObj decls = foldr (\(ident, e) arr -> Assign (ArrayLhs (ArrayIndex arr [Lit (String ident)])) EqualA e) (ArrayCreate (RefType (ClassRefType (ClassType []))) [Lit (Int (toEnum (length decls)))] 0) (getFields decls)
+        
+        getFields :: [Decl] -> [(String, Exp)]
+        getFields = foldr f []
+            where
+                f (MemberDecl (FieldDecl mods t (v : vars))) = f (MemberDecl (FieldDecl mods t vars)) . f' (MemberDecl (FieldDecl mods t [v]))
+                f _ = id
+                f' (MemberDecl (FieldDecl _ t [(VarDecl ident mInit)])) = case mInit of
+                                                                            Nothing                     -> ((getId ident, getInitValue t) :)
+                                                                            Just (InitExp e)            -> ((getId ident, e) :)
+                                                                            Just (InitArray arrayInit)  -> ((getId ident, ArrayCreateInit t (getDims ident) arrayInit) :)
+                getId (VarId (Ident id)) = id
+                getId (VarDeclArray id) = getId id
+                getDims (VarId id) = 0
+                getDims (VarDeclArray id) = getDims id + 1 -}
+                
 -- Initializes the heap
 initHeap :: Exp
-initHeap = Assign (NameLhs (Name [Ident "<heap>"])) EqualA (ArrayCreate (RefType undefined) [Lit (Int 10000)] 0)
+initHeap = Assign (NameLhs (Name [Ident "<heap>"])) EqualA (Lit Null) --(ArrayCreate objectType [Lit (Int 10000)] 0)
+
+-- gets a value from the heap
+--getFromHeap :: Name -> Exp
+--getFromHeap (Name idents) = foldl (\e (Ident id) -> ArrayAccess (ArrayIndex e [Lit (String id)])) heap idents
     
 -- | Calculates the weakest liberal pre-condition of a statement and a given post-condition
-wlp :: Stmt -> Exp -> Exp
-wlp = fst . (wlp' (Inh id id id Nothing [] undefined))
+wlp :: [TypeDecl] -> Stmt -> Exp -> Exp
+wlp decls = fst . (wlp' (Inh id id id Nothing [] decls))
+
+-- | wlp with a given type environment
+wlpWithEnv :: [TypeDecl] -> TypeEnv -> Stmt -> Exp -> Exp
+wlpWithEnv decls env = fst . (wlp' (Inh id id id Nothing env decls))
 
 -- wlp' lets you specify the inherited attributes
 wlp' :: Inh -> Stmt -> Syn

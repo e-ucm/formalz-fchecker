@@ -7,7 +7,7 @@ import Folds
 import HelperFunctions
  
 
-substVarExpAlgebra :: ExpAlgebra ((Lhs, Exp) -> Exp)
+substVarExpAlgebra :: ExpAlgebra ((Lhs, Exp, TypeEnv, [TypeDecl]) -> Exp)
 substVarExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualInstanceCreation, fArrayCreate, fArrayCreateInit, fFieldAccess, fMethodInv, fArrayAccess, fExpName, fPostIncrement, fPostDecrement, fPreIncrement, fPreDecrement, fPrePlus, fPreMinus, fPreBitCompl, fPreNot, fCast, fBinOp, fInstanceOf, fCond, fAssign, fLambda, fMethodRef) where
     fLit lit _ = Lit lit
     fClassLit mt _ = ClassLit mt
@@ -17,16 +17,33 @@ substVarExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQu
     fQualInstanceCreation e typeArgs ident args mBody inh = QualInstanceCreation (e inh) typeArgs ident args mBody
     fArrayCreate t exps dim inh = ArrayCreate t (map ($ inh) exps) dim
     fArrayCreateInit t dim arrayInit _ = ArrayCreateInit t dim arrayInit
-    fFieldAccess fieldAccess (lhs, rhs) = case lhs of
-                                            FieldLhs fieldAccess' -> case fieldAccess of
-                                                                        PrimaryFieldAccess e ident -> error "todo: fieldAccess substitution"
-                                                                        SuperFieldAccess ident -> error "todo: fieldAccess substitution"
-                                                                        ClassFieldAccess name ident -> error "todo: fieldAccess substitution"
+    fFieldAccess fieldAccess (lhs, rhs, env, decls) = case lhs of
+                                                        FieldLhs fieldAccess' -> case fieldAccess of
+                                                                                PrimaryFieldAccess e ident -> error "todo: fieldAccess substitution"
+                                                                                SuperFieldAccess ident -> error "todo: fieldAccess substitution"
+                                                                                ClassFieldAccess name ident -> error "todo: fieldAccess substitution"
+                                                        _ -> FieldAccess fieldAccess
     fMethodInv invocation _ = MethodInv invocation
-    fArrayAccess (ArrayIndex a i) (lhs, rhs) = case lhs of
-                                                    ArrayLhs (ArrayIndex a' i') -> Cond (foldr (\(i1, i2) e -> e &* (i1 ==* i2)) (a ==* a') (zip i i')) rhs (ArrayAccess (ArrayIndex a i))
-    fExpName name (lhs, rhs) = case lhs of
-                                    NameLhs name' -> if name == name' then rhs else ExpName name
+    fArrayAccess (ArrayIndex a i) (lhs, rhs, env, decls) =  let a' = substVar env decls lhs rhs a
+                                                                i' = map (substVar env decls lhs rhs) i in
+                                                            case lhs of
+                                                                ArrayLhs (ArrayIndex a'' i'') -> Cond (foldr (\(i1, i2) e -> e &* (i1 ==* i2)) (a' ==* a'') (zip i' i'')) rhs (ArrayAccess (ArrayIndex a' i'))
+                                                                _ -> ArrayAccess (ArrayIndex a' i')
+    fExpName (Name name) (lhs, rhs, env, decls)    = case lhs of
+                                                        NameLhs (Name name') -> case lookupType decls env (Name name')  of
+                                                                                    PrimType _  | name' == name -> rhs 
+                                                                                                | otherwise     -> ExpName (Name name)
+                                                                                    RefType t  -> let getFields e []       = e
+                                                                                                      getFields e (f : fs) = getFields (FieldAccess (PrimaryFieldAccess e f)) fs
+                                                                                                  in if [head name] == name' then getFields rhs (tail name) else Cond (ExpName (Name [head name]) ==* ExpName (Name name')) (getFields rhs (tail name)) (ExpName (Name name))
+                                                
+                                                
+                                                
+                                                                 --   | name' == name         -> rhs 
+                                                                 --   | isPrefixOf name' name -> let getFields e [f]      = FieldAccess (PrimaryFieldAccess e f)
+                                                                 --                                  getFields e (f : fs) = getFields (FieldAccess (PrimaryFieldAccess e f)) fs
+                                                                 --                              in  getFields rhs (drop (length name') name)
+                                                                 --   | otherwise             -> Cond (ExpName (Name [head name]) ==* ExpName (Name [head name'])) rhs (ExpName (Name name))
     fPostIncrement e inh = PostIncrement (e inh)
     fPostDecrement e inh = PostDecrement  (e inh)
     fPreIncrement e inh = PreIncrement (e inh)
@@ -39,7 +56,7 @@ substVarExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQu
     fBinOp e1 op e2 inh = BinOp (e1 inh) op (e2 inh)
     fInstanceOf e refType inh = InstanceOf (e inh) refType
     fCond g e1 e2 inh = Cond (g inh) (e1 inh) (e2 inh)
-    fAssign lhs assOp e inh = Assign lhs assOp (e inh) -- TODO
+    fAssign lhs assOp e inh = Assign lhs assOp (e inh)
     fLambda lParams lExp _ = Lambda lParams lExp
     fMethodRef className methodName _ = MethodRef className methodName
  
@@ -64,5 +81,5 @@ desugarAssign lhs op e = case op of
         lhsToExp (ArrayLhs arrayIndex) = undefined
         
 -- | Substitutes all occurences of a specific free variable by an expression
-substVar :: Lhs -> Exp -> Exp -> Exp
-substVar lhs rhs e = foldExp substVarExpAlgebra e (lhs, rhs)
+substVar :: TypeEnv -> [TypeDecl] -> Lhs -> Exp -> Exp -> Exp
+substVar env decls lhs rhs e = foldExp substVarExpAlgebra e (lhs, rhs, env, decls)

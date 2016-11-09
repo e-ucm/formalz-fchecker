@@ -1,16 +1,16 @@
 public class HelloWorld 
 {
     static int c;
-    static Circle circle;
+    static Circle circle1, circle2;
 
     public static void main(String[] args) 
     {
-        c = 0;
-        int x = 1;
-        bool b;
-        if(b)
-            x = 2;
-       // circle = new Circle(1, 1);
+        float x = 1;
+        circle1 = new Circle(2, 2);
+        circle2 = new Circle(2, 2);
+        circle2 = circle1;
+        circle2.center = 3;
+        x = circle1.center;
     }
 
     private static void someOtherFunction()
