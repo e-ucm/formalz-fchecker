@@ -11,7 +11,7 @@ import HelperFunctions
 
 
 
-testFile = "objects"
+testFile = "arrays"
 
 
 
@@ -62,4 +62,6 @@ getStaticVars compUnit = concatMap fromTypeDecls (getDecls compUnit) where
 
 -- The post-condition (for testing)
 postCond :: Exp
-postCond = BinOp (ExpName (Name [Ident "x"])) Equal (Lit (Float 2))
+postCond = case parser Language.Java.Parser.exp "x == 2" of
+            Right e -> e
+            _       -> error "syntax error in post-condition"

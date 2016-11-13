@@ -133,12 +133,12 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fClassLit = undefined
     fThis = undefined
     fThisClass = undefined
-    fInstanceCreation typeArgs t args mBody inh         = (InstanceCreation typeArgs t args mBody, (acc inh, env inh)) --let p = getIncrPointer heapPointer in (ExpName (Name [Ident (show p)]), (substVar (env inh) (decls inh) (ArrayLhs (ArrayIndex heap [Lit (Int p)])) (makeObjectArray (decls inh) t args mBody) . acc inh, env inh)) -- TODO: assign default values to fields. basically the WLP of: heap[p] = new object[#fields]
+    fInstanceCreation typeArgs t args mBody inh         = (InstanceCreation typeArgs t args mBody, (acc inh, env inh))
     fQualInstanceCreation e typeArgs t args mBody inh   = (QualInstanceCreation (getExp e inh) typeArgs t args mBody, (getTrans e inh, env inh))
     fArrayCreate t dimLengths dim inh                   = (ArrayCreate t (map (flip getExp inh) dimLengths) dim, (acc inh, env inh))
     fArrayCreateInit t dim init inh                     = (ArrayCreateInit t dim init, (acc inh, env inh))
     fFieldAccess fieldAccess inh                        = case fieldAccess of
-                                                            PrimaryFieldAccess e (Ident field) -> (ArrayAccess (ArrayIndex (getExp (foldExp wlpExpAlgebra e) inh) [Lit (String field)]), (acc inh, env inh)) -- Objects are modelled as arrays
+                                                            PrimaryFieldAccess e (Ident field) -> (ArrayAccess (ArrayIndex (getExp (foldExp wlpExpAlgebra e) inh) [Lit (String field)]), (acc inh, env inh)) 
                                                             _ -> error "fieldaccess"
     fMethodInv                                          = error "method call"
     fArrayAccess arrayIndex inh                         = (ArrayAccess arrayIndex, (acc inh, env inh))

@@ -6,10 +6,10 @@ public class HelloWorld
     public static void main(String[] args) 
     {
         float x = 1;
-        circle1 = new Circle(2, 2);
-        circle2 = new Circle(2, 2);
-        circle2 = circle1;
-        circle2.center = 3;
+        circle1 = new Circle(0, 0);
+        circle2 = new Circle(0, 0);
+        circle1 = circle2;
+        circle1.center = 2;
         x = circle1.center;
     }
 

@@ -65,14 +65,19 @@ expAssertAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQual
     fClassLit = undefined
     fThis = undefined
     fThisClass = undefined
-    fInstanceCreation _ _ _ _ = mkInteger 2-- TODO
+    fInstanceCreation = undefined
     fQualInstanceCreation = undefined
     fArrayCreate = undefined
     fArrayCreateInit = undefined
-    fFieldAccess fieldAccess = mkInteger 2-- TODO
+    fFieldAccess fieldAccess        = case fieldAccess of
+                                        PrimaryFieldAccess e id         -> case e of
+                                                                            InstanceCreation _ t args _ -> undefined
+                                                                            _ -> undefined
+                                        SuperFieldAccess id             -> mkStringSymbol (prettyPrint (Name [id])) >>= mkIntVar
+                                        ClassFieldAccess (Name name) id -> mkStringSymbol (prettyPrint (Name (name ++ [id]))) >>= mkIntVar
     fMethodInv = undefined
-    fArrayAccess _ = mkInteger 2-- TODO
-    fExpName name = mkStringSymbol (prettyPrint name) >>= mkIntVar
+    fArrayAccess _ = undefined
+    fExpName name = stringToBv (prettyPrint name)
     fPostIncrement = undefined
     fPostDecrement = undefined
     fPreIncrement = undefined
@@ -168,8 +173,9 @@ expAssertAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQual
                             astg <- g
                             assert astg
                             result <- check
+                            solverReset 
                             case result of
-                                Sat -> e1
+                                Sat     -> e1
                                 Unsat   -> e2
                                 _ -> error "can't evaluate if-condition"
     fAssign = undefined
