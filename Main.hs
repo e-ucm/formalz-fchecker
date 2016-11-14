@@ -11,7 +11,7 @@ import HelperFunctions
 
 
 
-testFile = "objects"
+testFile = "arrays"
 postCond = "x == 2"
 
 

@@ -5,6 +5,13 @@ public class Arrays
         int x;
         int[] a = new int[12];
         a[5] = 2;
-        x = a[5];
+        try 
+            {
+                x = a[12];
+            }
+        catch (ArrayIndexOutOfBoundsException y) 
+            {
+                x = a[5];
+            }
     }
 }

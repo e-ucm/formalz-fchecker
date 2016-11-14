@@ -12,7 +12,8 @@ data SubstInh = SubstInh {  lhs         :: Lhs,         -- Left hand side of the
                             rhs         :: Exp,         -- Right hand side
                             env         :: TypeEnv,
                             decls       :: [TypeDecl],   -- Class declarations
-                            arrayLookup :: Bool         -- true iff the current expression is an array that we're trying to access
+                            arrayLookup :: Bool,         -- true iff the current expression is an array that we're trying to access
+                            combs       :: Maybe [([Ident], [Ident])] -- The combinations of prefixes we still have to check when substituting a name
                 }
 
 substVarExpAlgebra :: ExpAlgebra (SubstInh -> Exp)
@@ -37,19 +38,28 @@ substVarExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQu
                                           case lhs inh of
                                             ArrayLhs (ArrayIndex a'' i'') -> Cond (foldr (\(i1, i2) e -> e &* (i1 ==* i2)) (a' ==* a'') (zip i' i'')) (rhs inh) (arrayAccess a' i')
                                             _ -> arrayAccess a' i'
-    fExpName (Name name) inh         =  case lhs inh of
-                                            NameLhs (Name lhsName) -> case lookupType (decls inh) (env inh) (Name [head lhsName]) of
+    fExpName (Name name) inh = case combs inh of
+                                -- fill in the combs and recurse:
+                                Nothing -> case lhs inh of
+                                                NameLhs (Name lhsName) -> fExpName (Name name) (inh {combs = Just (getCombs name lhsName)})
+                                                _ -> ExpName (Name name)
+                                -- done:
+                                Just [] -> ExpName (Name name)
+                                -- check a combination and recurse:
+                                Just ((nameInit, lhsNameInit) : combs') -> flip (foldExp substVarExpAlgebra) (inh {combs = Just combs'}) $
+                                    case lhs inh of
+                                            NameLhs (Name lhsName) -> case lookupType (decls inh) (env inh) (Name lhsNameInit) of
                                                                         PrimType _  | lhsName == name   -> rhs inh
-                                                                        RefType t   | lookupType (decls inh) (env inh) (Name [head name]) == RefType t -> case rhs inh of
+                                                                        RefType t   | lookupType (decls inh) (env inh) (Name nameInit) == RefType t -> case rhs inh of
                                                                                                                                                             ExpName (Name rhsName)      | take (length lhsName) name == lhsName                 -> ExpName (Name (rhsName ++ drop (length lhsName) name))
                                                                                                                                                                                         -- accessing o1.x might affect o2.x if o1 and o2 point to the same object:
-                                                                                                                                                                                        | name == head name : tail lhsName && length name > 1   -> Cond (ExpName (Name [head name]) ==* ExpName (Name [head lhsName])) (rhs inh) (ExpName (Name name))
+                                                                                                                                                                                        | name == nameInit ++ drop (length lhsNameInit) lhsName && length name > length nameInit -> Cond (ExpName (Name nameInit) ==* ExpName (Name lhsNameInit)) (rhs inh) (ExpName (Name name))
                                                                                                                                                                                         | otherwise                                             -> ExpName (Name name) 
                                                                                                                                                             
                                                                                                                                                             -- we substitute instance creation only if we access a field, to not lose pointer information
                                                                                                                                                             -- example: {x = new obj} doesn't affect {x = y} but it does affect {x.a = y.a}
                                                                                                                                                             InstanceCreation _ _ _ _    | length lhsName < length name && take (length lhsName) name == lhsName                     -> getFields (decls inh) (rhs inh) (drop (length lhsName) name)
-                                                                                                                                                                                        | length lhsName < length name && take (length lhsName) name == head name : tail lhsName    -> Cond (ExpName (Name [head name]) ==* ExpName (Name [head lhsName])) (getFields (decls inh) (rhs inh) (drop (length lhsName) name)) (ExpName (Name name))
+                                                                                                                                                                                        | length lhsName < length name && take (length lhsName) name == nameInit ++ drop (length nameInit) lhsName    -> Cond (ExpName (Name nameInit) ==* ExpName (Name lhsNameInit)) (getFields (decls inh) (rhs inh) (drop (length lhsName) name)) (ExpName (Name name))
                                                                                                                                                                                         | otherwise                                                                                 -> ExpName (Name name)
                                                                                                                                                                                         
                                                                                                                                                             -- the same idea for arrays
@@ -57,7 +67,7 @@ substVarExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQu
                                                                                                                                                             ArrayCreateInit _ _ _       | not $ arrayLookup inh   -> ExpName (Name name) 
                                                                                                                                                                                         
                                                                                                                                                             _                           | take (length lhsName) name == lhsName                 -> getFields (decls inh) (rhs inh) (drop (length lhsName) name)
-                                                                                                                                                                                        | name == head name : tail lhsName  -> Cond (ExpName (Name [head name]) ==* ExpName (Name [head lhsName])) (rhs inh) (ExpName (Name name))
+                                                                                                                                                                                        | name == nameInit ++ drop (length lhsNameInit) lhsName  -> Cond (ExpName (Name nameInit) ==* ExpName (Name lhsNameInit)) (rhs inh) (ExpName (Name name))
                                                                                                                                                                                         -- the assignment doesn't affect this expression:
                                                                                                                                                                                         | otherwise -> ExpName (Name name)
                                                                         _ -> ExpName (Name name)
@@ -119,4 +129,4 @@ desugarAssign lhs op e = case op of
         
 -- | Substitutes all occurences of a specific free variable by an expression
 substVar :: TypeEnv -> [TypeDecl] -> Lhs -> Exp -> Exp -> Exp
-substVar env decls lhs rhs e = foldExp substVarExpAlgebra e (SubstInh lhs rhs env decls False)
+substVar env decls lhs rhs e = foldExp substVarExpAlgebra e (SubstInh lhs rhs env decls False Nothing)
