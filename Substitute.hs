@@ -37,33 +37,31 @@ substVarExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQu
                                           case lhs inh of
                                             ArrayLhs (ArrayIndex a'' i'') -> Cond (foldr (\(i1, i2) e -> e &* (i1 ==* i2)) (a' ==* a'') (zip i' i'')) (rhs inh) (arrayAccess a' i')
                                             _ -> arrayAccess a' i'
-    fExpName (Name name) inh            = case lhs inh of
+    fExpName (Name name) inh         =  case lhs inh of
                                             NameLhs (Name lhsName) -> case lookupType (decls inh) (env inh) (Name [head lhsName]) of
                                                                         PrimType _  | lhsName == name   -> rhs inh
-                                                                                    | otherwise         -> ExpName (Name name)
-                                                                        RefType t  -> case rhs inh of
-                                                                                        ExpName (Name rhsName)      | take (length lhsName) name == lhsName                 -> ExpName (Name (rhsName ++ drop (length lhsName) name))
-                                                                                                                    -- accessing o1.x might affect o2.x if o1 and o2 point to the same object:
-                                                                                                                    | name == head name : tail lhsName && length name > 1   -> Cond (ExpName (Name [head name]) ==* ExpName (Name [head lhsName])) (rhs inh) (ExpName (Name name))
-                                                                                                                    -- the assignment doesn't affect this expression:
-                                                                                                                    | otherwise                                             -> ExpName (Name name) 
-                                                                                        
-                                                                                        -- we substitute instance creation only if we access a field, to not lose pointer information
-                                                                                        -- example: {x = new obj} doesn't affect {x = y} but it does affect {x.a = y.a}
-                                                                                        InstanceCreation _ _ _ _    | length lhsName < length name && take (length lhsName) name == lhsName                     -> getFields (decls inh) (rhs inh) (drop (length lhsName) name)
-                                                                                                                    | length lhsName < length name && take (length lhsName) name == head name : tail lhsName    -> Cond (ExpName (Name [head name]) ==* ExpName (Name [head lhsName])) (getFields (decls inh) (rhs inh) (drop (length lhsName) name)) (ExpName (Name name))
-                                                                                                                    -- the assignment doesn't affect this expression:
-                                                                                                                    | otherwise                                                                                 -> ExpName (Name name) 
-                                                                                                                    
-                                                                                        -- the same idea for arrays
-                                                                                        ArrayCreate _ _ _           | not $ arrayLookup inh   -> ExpName (Name name) 
-                                                                                        ArrayCreateInit _ _ _       | not $ arrayLookup inh   -> ExpName (Name name) 
-                                                                                                                    
-                                                                                        _                           | take (length lhsName) name == lhsName                 -> getFields (decls inh) (rhs inh) (drop (length lhsName) name)
-                                                                                                                    | name == head name : tail lhsName  -> Cond (ExpName (Name [head name]) ==* ExpName (Name [head lhsName])) (rhs inh) (ExpName (Name name))
-                                                                                                                    -- the assignment doesn't affect this expression:
-                                                                                                                    | otherwise                         -> ExpName (Name name) 
-                                            _                      -> ExpName (Name name)
+                                                                        RefType t   | lookupType (decls inh) (env inh) (Name [head name]) == RefType t -> case rhs inh of
+                                                                                                                                                            ExpName (Name rhsName)      | take (length lhsName) name == lhsName                 -> ExpName (Name (rhsName ++ drop (length lhsName) name))
+                                                                                                                                                                                        -- accessing o1.x might affect o2.x if o1 and o2 point to the same object:
+                                                                                                                                                                                        | name == head name : tail lhsName && length name > 1   -> Cond (ExpName (Name [head name]) ==* ExpName (Name [head lhsName])) (rhs inh) (ExpName (Name name))
+                                                                                                                                                                                        | otherwise                                             -> ExpName (Name name) 
+                                                                                                                                                            
+                                                                                                                                                            -- we substitute instance creation only if we access a field, to not lose pointer information
+                                                                                                                                                            -- example: {x = new obj} doesn't affect {x = y} but it does affect {x.a = y.a}
+                                                                                                                                                            InstanceCreation _ _ _ _    | length lhsName < length name && take (length lhsName) name == lhsName                     -> getFields (decls inh) (rhs inh) (drop (length lhsName) name)
+                                                                                                                                                                                        | length lhsName < length name && take (length lhsName) name == head name : tail lhsName    -> Cond (ExpName (Name [head name]) ==* ExpName (Name [head lhsName])) (getFields (decls inh) (rhs inh) (drop (length lhsName) name)) (ExpName (Name name))
+                                                                                                                                                                                        | otherwise                                                                                 -> ExpName (Name name)
+                                                                                                                                                                                        
+                                                                                                                                                            -- the same idea for arrays
+                                                                                                                                                            ArrayCreate _ _ _           | not $ arrayLookup inh   -> ExpName (Name name) 
+                                                                                                                                                            ArrayCreateInit _ _ _       | not $ arrayLookup inh   -> ExpName (Name name) 
+                                                                                                                                                                                        
+                                                                                                                                                            _                           | take (length lhsName) name == lhsName                 -> getFields (decls inh) (rhs inh) (drop (length lhsName) name)
+                                                                                                                                                                                        | name == head name : tail lhsName  -> Cond (ExpName (Name [head name]) ==* ExpName (Name [head lhsName])) (rhs inh) (ExpName (Name name))
+                                                                                                                                                                                        -- the assignment doesn't affect this expression:
+                                                                                                                                                                                        | otherwise -> ExpName (Name name)
+                                                                        _ -> ExpName (Name name)
+                                            _ -> ExpName (Name name)
     fPostIncrement e inh = PostIncrement (e inh)
     fPostDecrement e inh = PostDecrement  (e inh)
     fPreIncrement e inh = PreIncrement (e inh)
@@ -89,9 +87,15 @@ substVarExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQu
     -- Gets the value from an array
     arrayAccess :: Exp -> [Exp] -> Exp
     arrayAccess a i = case a of
-                        ArrayCreate t exps dim          -> getInitValue t
+                        ArrayCreate t exps dim          -> Cond (foldr (\(i, l) e -> e &* (BinOp i LThan l)) true (zip i exps)) (getInitValue t) (MethodInv (MethodCall (Name [Ident "ArrayIndexOutOfBoundsException"]) [])) -- Throw an exception if not within range, otherwise return the init value of the element
                         ArrayCreateInit t dim arrayInit -> getInitValue t
                         _                               -> ArrayAccess (ArrayIndex a i)
+            
+    -- for arguments xs and ys, gets all combinations of non-empty prefixes xs' of xs and ys' of ys
+    getCombs :: [a] -> [a] -> [([a], [a])]
+    getCombs xs ys = [(x, y) | x <- xs', y <- ys'] where
+        xs' = drop 1 (inits xs)
+        ys' = drop 1 (inits ys)
  
 -- | Desugars to a basic assignment, returning the new righ hand side. For example: desugaring x += 3 returns the new rhs x + 3
 desugarAssign :: Lhs -> AssignOp -> Exp -> Exp

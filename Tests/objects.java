@@ -1,21 +1,25 @@
 public class HelloWorld 
 {
     static int c;
-    static Circle circle1, circle2;
+    static Chain chain1, chain2;
 
     public static void main(String[] args) 
     {
         float x = 1;
+        Circle circle1, circle2;
         circle1 = new Circle(0, 0);
         circle2 = new Circle(0, 0);
-        circle1 = circle2;
-        circle1.center = 2;
-        x = circle1.center;
+        chain1 = new Chain();
+        chain1.tail = chain2;
+        chain1.circle = circle1;
+        chain2.circle = circle2;
+        circle2.center = 2;
+        
+        x = chain1.tail.circle.center;
     }
 
-    private static void someOtherFunction()
+    private static void someFunction()
     {
-        // increase c, because why not?
         c = c + 1;
     }
 }
@@ -23,7 +27,7 @@ public class HelloWorld
 // The circle class
 public class Circle
 {
-    float center, radius;
+    public float center, radius;
     
     public Circle(float center, float radius)
     {
@@ -31,3 +35,11 @@ public class Circle
         this.radius = radius;
     }
 }
+
+// A chain of circles
+public class Chain
+{
+    public Circle circle;
+    public Chain tail;
+}
+

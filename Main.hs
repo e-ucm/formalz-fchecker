@@ -11,8 +11,8 @@ import HelperFunctions
 
 
 
-testFile = "arrays"
-
+testFile = "objects"
+postCond = "x == 2"
 
 
 main :: IO ()
@@ -33,7 +33,7 @@ main = do
         Left error -> print error
         Right compUnit -> do
                             putStrLn "\r\n-----WLP-----"
-                            let pred = wlpWithEnv (getDecls compUnit) (getStaticVars compUnit) (getStmt compUnit) postCond
+                            let pred = wlpWithEnv (getDecls compUnit) (getStaticVars compUnit) (getStmt compUnit) postCond'
                             putStrLn . prettyPrint $ pred
                             putStrLn "\r\n-----Correctness-----"
                             if unsafeIsTrue pred then putStrLn "WLP evaluates to true" else (if unsafeIsFalse pred then putStrLn "WLP evaluates to false" else putStrLn "undecidable")
@@ -61,7 +61,7 @@ getStaticVars compUnit = concatMap fromTypeDecls (getDecls compUnit) where
     fromVarDecl t (VarDecl varId _) = (Name [getId varId], t)
 
 -- The post-condition (for testing)
-postCond :: Exp
-postCond = case parser Language.Java.Parser.exp "x == 2" of
+postCond' :: Exp
+postCond' = case parser Language.Java.Parser.exp postCond of
             Right e -> e
             _       -> error "syntax error in post-condition"

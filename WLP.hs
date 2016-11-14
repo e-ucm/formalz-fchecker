@@ -80,7 +80,10 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
                 
     -- wlp of a var declaration that also assigns a value. Declaring without assignment assigns the default value
     wlpDeclAssignment :: Type -> Inh -> VarDecl -> Exp -> Exp
-    wlpDeclAssignment t inh (VarDecl (VarId ident) Nothing)             = substVar (env inh) (decls inh) (NameLhs (Name [ident])) (getInitValue t) . acc inh
+    wlpDeclAssignment t inh (VarDecl (VarId ident) Nothing) = case t of 
+                                                                PrimType _ -> substVar (env inh) (decls inh) (NameLhs (Name [ident])) (getInitValue t) . acc inh
+                                                                -- We don't initialize ref types to null, because we want to keep pointer information
+                                                                RefType _ -> acc inh 
     wlpDeclAssignment t inh (VarDecl (VarId ident) (Just (InitExp e)))  = substVar (env inh) (decls inh) (NameLhs (Name [ident])) e . acc inh
                         
     inv = true -- for simplicity, "True" is used as an invariant for now
