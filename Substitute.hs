@@ -36,8 +36,8 @@ substVarExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQu
     fArrayAccess (ArrayIndex a i) inh   = let a' = foldExp substVarExpAlgebra a (inh {arrayLookup = True})
                                               i' = map (flip (foldExp substVarExpAlgebra) inh) i in
                                           case lhs inh of
-                                            ArrayLhs (ArrayIndex a'' i'') -> Cond (foldr (\(i1, i2) e -> e &* (i1 ==* i2)) (a' ==* a'') (zip i' i'')) (rhs inh) (arrayAccess a' i')
-                                            _ -> arrayAccess a' i'
+                                            ArrayLhs (ArrayIndex a'' i'') -> Cond (foldr (\(i1, i2) e -> e &* (i1 ==* i2)) (a' ==* a'') (zip i' i'')) (rhs inh) (ArrayAccess (ArrayIndex a' i'))
+                                            _ -> ArrayAccess (ArrayIndex a' i')
     fExpName (Name name) inh = case combs inh of
                                 -- fill in the combs and recurse:
                                 Nothing -> case lhs inh of
@@ -93,13 +93,6 @@ substVarExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQu
     getFields decls e                           []       = e
     getFields decls (InstanceCreation _ t _ _)  (f:fs)   = getFields decls (getInitValue (getFieldType decls (RefType (ClassRefType t)) (Name [f]))) fs
     getFields decls e                           (f : fs) = getFields decls (FieldAccess (PrimaryFieldAccess e f)) fs
-    
-    -- Gets the value from an array
-    arrayAccess :: Exp -> [Exp] -> Exp
-    arrayAccess a i = case a of
-                        ArrayCreate t exps dim          -> Cond (foldr (\(i, l) e -> e &* (BinOp i LThan l)) true (zip i exps)) (getInitValue t) (MethodInv (MethodCall (Name [Ident "ArrayIndexOutOfBoundsException"]) [])) -- Throw an exception if not within range, otherwise return the init value of the element
-                        ArrayCreateInit t dim arrayInit -> getInitValue t
-                        _                               -> ArrayAccess (ArrayIndex a i)
             
     -- for arguments xs and ys, gets all combinations of non-empty prefixes xs' of xs and ys' of ys
     getCombs :: [a] -> [a] -> [([a], [a])]

@@ -11,12 +11,6 @@ import Verifier
 import Substitute
 import HelperFunctions
 
-
--- Settings:
-
--- Differentiate between different exceptions?
-diffExc :: Bool
-diffExc = False
     
 
 -- | A type for the inherited attribute
@@ -114,19 +108,19 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
                                                     Default -> (true, StmtBlock (Block (bs ++ [BlockStmt sbscode])), sbscode)
         where sbscode = let (e, s1, s2) = desugarSwitch e sbs in IfThenElse e s1 s2
         
-    throwException :: Exp -> Exp
-    throwException e = if diffExc then MethodInv (MethodCall (Name [Ident "Exception"]) [e]) else false
+throwException :: Exp -> Exp
+throwException e = false
     
-    getCatch :: [TypeDecl] -> TypeEnv -> Exp -> [Catch] -> Maybe Block
-    getCatch decls env e []             = Nothing
-    getCatch decls env e (Catch p b:cs) = if catches decls env p e then Just b else getCatch decls env e cs
-    
-    -- Checks whether a catch block catches a certain error
-    catches :: [TypeDecl] -> TypeEnv -> FormalParam -> Exp -> Bool
-    catches decls env (FormalParam _ t _ _) e = t == RefType (ClassRefType (ClassType [(Ident "Exception", [])])) || 
-                                                  case e of
-                                                    ExpName name -> lookupType decls env name == t
-                                                    InstanceCreation _ t' _ _ -> t == RefType (ClassRefType t')
+getCatch :: [TypeDecl] -> TypeEnv -> Exp -> [Catch] -> Maybe Block
+getCatch decls env e []             = Nothing
+getCatch decls env e (Catch p b:cs) = if catches decls env p e then Just b else getCatch decls env e cs
+
+-- Checks whether a catch block catches a certain error
+catches :: [TypeDecl] -> TypeEnv -> FormalParam -> Exp -> Bool
+catches decls env (FormalParam _ t _ _) e = t == RefType (ClassRefType (ClassType [(Ident "Exception", [])])) || 
+                                              case e of
+                                                ExpName name -> lookupType decls env name == t
+                                                InstanceCreation _ t' _ _ -> t == RefType (ClassRefType t')
     
 -- | The algebra that defines the wlp transformer for expressions with side effects
 --   The first attribute is the expression itself (this is passed to handle substitutions in case of assignments)
@@ -144,7 +138,11 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
                                                             PrimaryFieldAccess e (Ident field) -> (ArrayAccess (ArrayIndex (getExp (foldExp wlpExpAlgebra e) inh) [Lit (String field)]), (acc inh, env inh)) 
                                                             _ -> error "fieldaccess"
     fMethodInv                                          = error "method call"
-    fArrayAccess arrayIndex inh                         = (ArrayAccess arrayIndex, (acc inh, env inh))
+    fArrayAccess arrayIndex inh                         = case catch inh of
+                                                            Nothing      -> (arrayAccess arrayIndex, (acc inh, env inh))
+                                                            Just (cs, f) -> let e = InstanceCreation [] (ClassType [(Ident "ArrayIndexOutOfBoundsException", [])]) [] Nothing
+                                                                            in (arrayAccess arrayIndex, (maybe (if f then id else (\q -> q &* throwException e), env inh) (wlp' (inh {acc = id, catch = Nothing}) . StmtBlock) (getCatch (decls inh) (env inh) e cs)))
+    
     fExpName name inh                                   = (ExpName name, (acc inh, env inh))
     -- x++ increments x but evaluates to the original value
     fPostIncrement e inh                                = case getExp e inh of
@@ -173,6 +171,12 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fLambda                                             = error "lambda"
     fMethodRef                                          = error "method reference"
     
+    -- Gets the value from an array
+    arrayAccess :: ArrayIndex -> Exp
+    arrayAccess (ArrayIndex a i) = case a of
+                                    ArrayCreate t exps dim          -> Cond (foldr (\(i, l) e -> e &* (BinOp i LThan l)) true (zip i exps)) (getInitValue t) (MethodInv (MethodCall (Name [Ident "ArrayIndexOutOfBoundsException"]) [])) -- Throw an exception if not within range, otherwise return the init value of the element
+                                    ArrayCreateInit t dim arrayInit -> getInitValue t
+                                    _                               -> ArrayAccess (ArrayIndex a i)
     
 
 -- | Gets the expression attribute
