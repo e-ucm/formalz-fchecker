@@ -10,14 +10,7 @@ import Folds
 
 -- | Checks wether the negation is unsatisfiable
 isTrue :: Exp -> Z3 Bool
-isTrue e = 
-    do
-        ast <- foldExp expAssertAlgebra (PreNot e)
-        assert ast
-        result <- check
-        case result of
-            Unsat -> return True
-            _     -> return False
+isTrue e = isFalse (PreNot e)
             
           
 -- | Checks wether the expression is unsatisfiable
@@ -25,8 +18,9 @@ isFalse :: Exp -> Z3 Bool
 isFalse e = 
     do
         ast <- foldExp expAssertAlgebra e
-        assert ast
+        assert ast -- seq (unsafePerformIO . (>>= putStrLn) . evalZ3 . astToString $ ast) (assert ast)
         result <- check
+        solverReset
         case result of
             Unsat -> return True
             _     -> return False
@@ -82,7 +76,9 @@ expAssertAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQual
                                                                                                     _                               -> undefined
                                     _ -> undefined
     fArrayAccess _ = undefined
-    fExpName name = stringToBv (prettyPrint name)
+    fExpName name   = do
+                        symbol <- mkStringSymbol (prettyPrint name)
+                        mkIntVar symbol
     fPostIncrement = undefined
     fPostDecrement = undefined
     fPreIncrement = undefined

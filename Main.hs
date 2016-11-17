@@ -8,11 +8,7 @@ import Data.List
 import WLP
 import Verifier
 import HelperFunctions
-
-
-
-testFile = "arrays"
-postCond = "x == 2"
+import Settings
 
 
 main :: IO ()

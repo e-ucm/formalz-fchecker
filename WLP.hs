@@ -10,13 +10,13 @@ import Folds
 import Verifier
 import Substitute
 import HelperFunctions
+import Settings
 
     
 
 -- | A type for the inherited attribute
 data Inh = Inh {acc     :: Exp -> Exp,  -- The accumulated transformer of the current block up until the current statement
                 br      :: Exp -> Exp,  -- The accumulated transformer up until the last loop (this is used when handling break statements etc.)
-                loop    :: Exp -> Exp,  -- The wlp of the current loop statement not including initialization code. It refers to the loop starting from the loop continuation point.
                 catch   :: Maybe ([Catch], Bool), -- The catches when executing a block in a try statement, and a Bool indicating wether there is a finally-block
                 env     :: TypeEnv,     -- The type environment for typing expressions
                 decls   :: [TypeDecl] -- Class declarations
@@ -35,16 +35,16 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     fStmtBlock (Block bs) inh       = foldr (\b (r, env') -> wlpBlock (inh {acc = r, env = env'}) b) (acc inh, envBlock bs (env inh)) bs -- The result of the last block-statement will be the accumulated transformer for the second-last etc. The type environment is build from the left, so it has to be done seperately.
     fIfThen e s1                    = fIfThenElse e s1 (const (id, [])) -- if-then is just an if-then-else with an empty else-block
     fIfThenElse e s1 s2 inh         = ((\q -> (e &* fst (s1 inh) q) |* (neg e &* fst (s2 inh) q)) . acc inh, env inh)
-    fWhile e s inh                  = let loop' = (\q -> if unsafeIsTrue (((inv &* neg e) `imp` q) &* ((inv &* e) `imp` fst (s (inh {loop = loop'})) inv)) then inv else (neg e &* q)) in (loop' . acc inh, env inh)
-    fBasicFor init me incr s inh    = let loop' = fst (fWhile (fromMaybeGuard me) (\inh' -> s (inh {acc = fst (wlp' inh' (incrToStmt incr)), loop = loop'})) inh) in wlp' (inh {acc = loop'}) (initToStmt init)
-    fEnhancedFor                    = error "TODO: EnhancedFor"
+    fWhile e s inh                  = ((\q -> if unsafeIsTrue (((inv &* neg e) `imp` q) &* ((inv &* e) `imp` fst (s inh) inv) &* ((inv &* e) `imp` fst (s inh {br = const q}) true)) then inv else (neg e &* q)) . acc inh, env inh)
+    fBasicFor init me incr s inh    = let loop = fst (fWhile (fromMaybeGuard me) (\inh' -> s (inh {acc = fst (wlp' inh' (incrToStmt incr))})) inh) in wlp' (inh {acc = loop}) (initToStmt init)
+    fEnhancedFor                    = error "EnhancedFor"
     fEmpty inh                      = (acc inh, env inh) -- Empty does nothing, but still passes control to the next statement
     fExpStmt e inh                  = snd $ foldExp wlpExpAlgebra e inh
     fAssert e _ inh                 = ((e &*) . acc inh, env inh)
     fSwitch e bs inh                = let (e', s1, s2) = desugarSwitch e bs in fIfThenElse e' (flip wlp' s1) (flip wlp' s2) (inh {acc = id, br = acc inh})
-    fDo s e inh                     = let loop' = fst (s (inh {acc = fst (fWhile e s (inh {loop = loop'})), loop = loop'})) in (loop', env inh) -- Do is just a while with the statement block executed one additional time. Break and continue still have to be handled in this additional execution.
-    fBreak _ inh                    = (br inh, env inh) -- wlp of the breakpoint
-    fContinue _ inh                 = (loop inh, env inh) -- wlp of the loop
+    fDo s e inh                     = (fst (s (inh {acc = fst (fWhile e s inh)})), env inh) -- Do is just a while with the statement block executed one additional time. Break and continue still have to be handled in this additional execution.
+    fBreak _ inh                    = (br inh, env inh) -- wlp of the breakpoint. Control is passed to the statement after the loop
+    fContinue _ inh                 = (id, env inh)     -- at a continue statement it's as if the body of the loop is fully executed
     fReturn me inh                  = case me of
                                         Nothing -> (id, env inh) -- Return ignores acc, as it terminates the method
                                         Just e  -> fExpStmt (Assign (NameLhs (Name [Ident "return"])) EqualA e) inh -- We treat "return e" as an assignment to the variable return
@@ -68,8 +68,9 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     -- Adds declarations within a block to a type environment
     envBlock :: [BlockStmt] -> TypeEnv -> TypeEnv
     envBlock bs env = foldl f env bs 
-        where f env (LocalVars mods t vars) = foldr (\v env' -> (varName v, t):env') env vars
-              f env _                       = env
+        where f env (LocalVars mods t vars)                                         = foldr (\v env' -> (varName v, t):env') env vars
+              f env (BlockStmt (BasicFor (Just (ForLocalVars mods t vars)) _ _ _))  = foldr (\v env' -> (varName v, t):env') env vars
+              f env _                                                               = env
               varName (VarDecl (VarId id) _) = Name [id]
                 
     -- wlp of a var declaration that also assigns a value. Declaring without assignment assigns the default value
@@ -80,13 +81,17 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
                                                                 RefType _ -> acc inh 
     wlpDeclAssignment t inh (VarDecl (VarId ident) (Just (InitExp e)))  = substVar (env inh) (decls inh) (NameLhs (Name [ident])) e . acc inh
                         
-    inv = true -- for simplicity, "True" is used as an invariant for now
+    --inv = true -- for simplicity, "True" is used as an invariant for now
+    inv = case parser Language.Java.Parser.exp invariant of
+            Right e -> e
+            _       -> error "syntax error in post-condition"
+    
     
     -- Converts initialization code of a for loop to a statement
     initToStmt :: Maybe ForInit -> Stmt
-    initToStmt Nothing                      = Empty
-    initToStmt (Just (ForInitExps es))      = StmtBlock (Block (map (BlockStmt . ExpStmt) es))
-    initToStmt (Just (ForLocalVars _ _ _))  = error "TODO: ForLocalVars"
+    initToStmt Nothing                              = Empty
+    initToStmt (Just (ForInitExps es))              = StmtBlock (Block (map (BlockStmt . ExpStmt) es))
+    initToStmt (Just (ForLocalVars mods t vars))    = StmtBlock (Block [LocalVars mods t vars])
     
     -- Replaces an absent guard with "True"
     fromMaybeGuard :: Maybe Exp -> Exp
@@ -236,11 +241,11 @@ initHeap = Assign (NameLhs (Name [Ident "<heap>"])) EqualA (Lit Null) --(ArrayCr
     
 -- | Calculates the weakest liberal pre-condition of a statement and a given post-condition
 wlp :: [TypeDecl] -> Stmt -> Exp -> Exp
-wlp decls = fst . (wlp' (Inh id id id Nothing [] decls))
+wlp decls = fst . (wlp' (Inh id id Nothing [] decls))
 
 -- | wlp with a given type environment
 wlpWithEnv :: [TypeDecl] -> TypeEnv -> Stmt -> Exp -> Exp
-wlpWithEnv decls env = fst . (wlp' (Inh id id id Nothing env decls))
+wlpWithEnv decls env = fst . (wlp' (Inh id id Nothing env decls))
 
 -- wlp' lets you specify the inherited attributes
 wlp' :: Inh -> Stmt -> Syn
