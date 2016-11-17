@@ -32,12 +32,14 @@ substVarExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQu
                                                                                 SuperFieldAccess ident -> error "todo: fieldAccess substitution"
                                                                                 ClassFieldAccess name ident -> error "todo: fieldAccess substitution"
                                                         _ -> FieldAccess fieldAccess
-    fMethodInv invocation _ = MethodInv invocation
+    fMethodInv invocation inh           = case invocation of 
+                                            MethodCall name exps -> MethodInv (MethodCall name (map (flip (foldExp substVarExpAlgebra) (inh {arrayLookup = True})) exps))
+                                            _                    -> MethodInv invocation
     fArrayAccess (ArrayIndex a i) inh   = let a' = foldExp substVarExpAlgebra a (inh {arrayLookup = True})
                                               i' = map (flip (foldExp substVarExpAlgebra) inh) i in
                                           case lhs inh of
-                                            ArrayLhs (ArrayIndex a'' i'') -> Cond (foldr (\(i1, i2) e -> e &* (i1 ==* i2)) (a' ==* a'') (zip i' i'')) (rhs inh) (ArrayAccess (ArrayIndex a' i'))
-                                            _ -> ArrayAccess (ArrayIndex a' i')
+                                            ArrayLhs (ArrayIndex a'' i'') -> Cond (foldr (\(i1, i2) e -> e &* (i1 ==* i2)) (a' ==* a'') (zip i' i'')) (rhs inh) (arrayAccess a' i')
+                                            _ -> arrayAccess a' i'
     fExpName (Name name) inh = case combs inh of
                                 -- fill in the combs and recurse:
                                 Nothing -> case lhs inh of

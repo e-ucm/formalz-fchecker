@@ -63,6 +63,13 @@ e1 ==* e2 = BinOp e1 Equal e2
 (/=*) :: Exp -> Exp -> Exp
 e1 /=* e2 = neg (e1 ==* e2)
 
+-- Gets the value from an array
+arrayAccess :: Exp -> [Exp] -> Exp
+arrayAccess a i = case a of
+                    ArrayCreate t exps dim          -> getInitValue t
+                    ArrayCreateInit t dim arrayInit -> getInitValue t
+                    _                               -> ArrayAccess (ArrayIndex a i)
+
 -- | Gets the initial value for a given type
 getInitValue :: Type -> Exp
 getInitValue (PrimType t) = case t of

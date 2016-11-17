@@ -69,13 +69,18 @@ expAssertAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQual
     fQualInstanceCreation = undefined
     fArrayCreate = undefined
     fArrayCreateInit = undefined
-    fFieldAccess fieldAccess        = case fieldAccess of
-                                        PrimaryFieldAccess e id         -> case e of
-                                                                            InstanceCreation _ t args _ -> undefined
-                                                                            _ -> undefined
-                                        SuperFieldAccess id             -> mkStringSymbol (prettyPrint (Name [id])) >>= mkIntVar
-                                        ClassFieldAccess (Name name) id -> mkStringSymbol (prettyPrint (Name (name ++ [id]))) >>= mkIntVar
-    fMethodInv = undefined
+    fFieldAccess fieldAccess    = case fieldAccess of
+                                    PrimaryFieldAccess e id         -> case e of
+                                                                        InstanceCreation _ t args _ -> undefined
+                                                                        _ -> undefined
+                                    SuperFieldAccess id             -> mkStringSymbol (prettyPrint (Name [id])) >>= mkIntVar
+                                    ClassFieldAccess (Name name) id -> mkStringSymbol (prettyPrint (Name (name ++ [id]))) >>= mkIntVar
+    fMethodInv invocation       = case invocation of
+                                    MethodCall (Name [Ident "length"]) [a, (Lit (Int n))] -> case a of
+                                                                                                    ArrayCreate t exps dim          -> foldExp expAssertAlgebra (if fromEnum n < length exps then (exps !! fromEnum n) else Lit (Int 0))
+                                                                                                    ArrayCreateInit t dim arrayInit -> mkInteger 0
+                                                                                                    _                               -> undefined
+                                    _ -> undefined
     fArrayAccess _ = undefined
     fExpName name = stringToBv (prettyPrint name)
     fPostIncrement = undefined
