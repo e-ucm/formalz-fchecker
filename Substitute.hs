@@ -118,9 +118,9 @@ desugarAssign lhs op e = case op of
                             XorA -> BinOp e Xor (lhsToExp lhs)
                             OrA -> BinOp e Or (lhsToExp lhs)
     where 
-        lhsToExp (NameLhs name) = ExpName name
-        lhsToExp (FieldLhs fieldAccess) = undefined
-        lhsToExp (ArrayLhs arrayIndex) = undefined
+        lhsToExp (NameLhs name)         = ExpName name
+        lhsToExp (FieldLhs fieldAccess) = FieldAccess fieldAccess
+        lhsToExp (ArrayLhs arrayIndex)  = ArrayAccess arrayIndex
         
 -- | Substitutes all occurences of a specific free variable by an expression
 substVar :: TypeEnv -> [TypeDecl] -> Lhs -> Exp -> Exp -> Exp

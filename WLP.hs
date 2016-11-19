@@ -131,10 +131,10 @@ catches decls env (FormalParam _ t _ _) e = t == RefType (ClassRefType (ClassTyp
 --   The first attribute is the expression itself (this is passed to handle substitutions in case of assignments)
 wlpExpAlgebra :: ExpAlgebra (Inh -> (Exp, Syn))
 wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualInstanceCreation, fArrayCreate, fArrayCreateInit, fFieldAccess, fMethodInv, fArrayAccess, fExpName, fPostIncrement, fPostDecrement, fPreIncrement, fPreDecrement, fPrePlus, fPreMinus, fPreBitCompl, fPreNot, fCast, fBinOp, fInstanceOf, fCond, fAssign, fLambda, fMethodRef) where
-    fLit lit inh = (Lit lit, (acc inh, env inh))
-    fClassLit = undefined
-    fThis = undefined
-    fThisClass = undefined
+    fLit lit inh                                        = (Lit lit, (acc inh, env inh))
+    fClassLit mType inh                                 = (ClassLit mType, (acc inh, env inh))
+    fThis inh                                           = (This, (acc inh, env inh))
+    fThisClass name inh                                 = (ThisClass name, (acc inh, env inh))
     fInstanceCreation typeArgs t args mBody inh         = (InstanceCreation typeArgs t args mBody, (acc inh, env inh))
     fQualInstanceCreation e typeArgs t args mBody inh   = (QualInstanceCreation (getExp e inh) typeArgs t args mBody, (getTrans e inh, env inh))
     fArrayCreate t dimLengths dim inh                   = (ArrayCreate t (map (flip getExp inh) dimLengths) dim, (acc inh, env inh))
@@ -197,47 +197,6 @@ getTrans f inh = let (_, (trans, _)) = f inh in trans
 -- | Gets the typeEnv attribute
 getEnv :: (Inh -> (Exp, Syn)) -> Inh -> TypeEnv
 getEnv f inh = let (_, (_, env)) = f inh in env
-
-
--- | Creates an array that represents an object
-{- makeObjectArray :: [TypeDecl] -> ClassType -> [Argument] -> (Maybe ClassBody) -> Exp
-makeObjectArray decls t = makeObjectArray' (getDecl t decls)
-    where
-        makeObjectArray' :: ClassDecl -> [Argument] -> (Maybe ClassBody) -> Exp
-        makeObjectArray' (ClassDecl _ _ _ _ _ (ClassBody decls)) args mbody = initObj decls
-        
-        -- Gets the class declaration that matches a given type
-        getDecl :: ClassType -> [TypeDecl] -> ClassDecl
-        getDecl t@(ClassType [(ident, typeArgs)]) (x:xs)    = case x of
-                                                                ClassTypeDecl decl@(ClassDecl _ ident' _ _ _ _) -> if ident == ident' then decl else getDecl t xs
-                                                                _ -> getDecl t xs
-        getDecl _ _ = error "nested class"
-        
-        -- Initializes the member variables (without calling the constructor etc.)
-        initObj :: [Decl] -> Exp
-        initObj decls = foldr (\(ident, e) arr -> Assign (ArrayLhs (ArrayIndex arr [Lit (String ident)])) EqualA e) (ArrayCreate (RefType (ClassRefType (ClassType []))) [Lit (Int (toEnum (length decls)))] 0) (getFields decls)
-        
-        getFields :: [Decl] -> [(String, Exp)]
-        getFields = foldr f []
-            where
-                f (MemberDecl (FieldDecl mods t (v : vars))) = f (MemberDecl (FieldDecl mods t vars)) . f' (MemberDecl (FieldDecl mods t [v]))
-                f _ = id
-                f' (MemberDecl (FieldDecl _ t [(VarDecl ident mInit)])) = case mInit of
-                                                                            Nothing                     -> ((getId ident, getInitValue t) :)
-                                                                            Just (InitExp e)            -> ((getId ident, e) :)
-                                                                            Just (InitArray arrayInit)  -> ((getId ident, ArrayCreateInit t (getDims ident) arrayInit) :)
-                getId (VarId (Ident id)) = id
-                getId (VarDeclArray id) = getId id
-                getDims (VarId id) = 0
-                getDims (VarDeclArray id) = getDims id + 1 -}
-                
--- Initializes the heap
-initHeap :: Exp
-initHeap = Assign (NameLhs (Name [Ident "<heap>"])) EqualA (Lit Null) --(ArrayCreate objectType [Lit (Int 10000)] 0)
-
--- gets a value from the heap
---getFromHeap :: Name -> Exp
---getFromHeap (Name idents) = foldl (\e (Ident id) -> ArrayAccess (ArrayIndex e [Lit (String id)])) heap idents
     
 -- | Calculates the weakest liberal pre-condition of a statement and a given post-condition
 wlp :: [TypeDecl] -> Stmt -> Exp -> Exp
