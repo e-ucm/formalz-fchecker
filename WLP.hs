@@ -34,8 +34,10 @@ wlpStmtAlgebra :: StmtAlgebra (Inh -> Syn)
 wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhancedFor, fEmpty, fExpStmt, fAssert, fSwitch, fDo, fBreak, fContinue, fReturn, fSynchronized, fThrow, fTry, fLabeled) where
     fStmtBlock (Block bs) inh       = foldr (\b (r, env') -> wlpBlock (inh {acc = r, env = env'}) b) (acc inh, envBlock bs (env inh)) bs -- The result of the last block-statement will be the accumulated transformer for the second-last etc. The type environment is build from the left, so it has to be done seperately.
     fIfThen e s1                    = fIfThenElse e s1 (const (id, [])) -- if-then is just an if-then-else with an empty else-block
-    fIfThenElse e s1 s2 inh         = ((\q -> (e &* fst (s1 inh) q) |* (neg e &* fst (s2 inh) q)) . acc inh, env inh)
-    fWhile e s inh                  = ((\q -> if unsafeIsTrue (((inv &* neg e) `imp` q) &* ((inv &* e) `imp` fst (s inh) inv) &* ((inv &* e) `imp` fst (s inh {br = const q}) true)) then inv else (neg e &* q)) . acc inh, env inh)
+    fIfThenElse e s1 s2 inh         = let e' = getExp (foldExp wlpExpAlgebra e) inh 
+                                      in ((\q -> (e' &* fst (s1 inh) q) |* (neg e' &* fst (s2 inh) q)) . acc inh, env inh)
+    fWhile e s inh                  = let e' = getExp (foldExp wlpExpAlgebra e) inh 
+                                      in ((\q -> if unsafeIsTrue (((inv &* neg e') `imp` q) &* ((inv &* e') `imp` fst (s inh) inv) &* ((inv &* e') `imp` fst (s inh {br = const q}) true)) then inv else (neg e' &* q)) . acc inh, env inh)
     fBasicFor init me incr s inh    = let loop = fst (fWhile (fromMaybeGuard me) (\inh' -> s (inh {acc = fst (wlp' inh' (incrToStmt incr))})) inh) in wlp' (inh {acc = loop}) (initToStmt init)
     fEnhancedFor                    = error "EnhancedFor"
     fEmpty inh                      = (acc inh, env inh) -- Empty does nothing, but still passes control to the next statement
@@ -139,10 +141,8 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fQualInstanceCreation e typeArgs t args mBody inh   = (QualInstanceCreation (getExp e inh) typeArgs t args mBody, (getTrans e inh, env inh))
     fArrayCreate t dimLengths dim inh                   = (ArrayCreate t (map (flip getExp inh) dimLengths) dim, (acc inh, env inh))
     fArrayCreateInit t dim init inh                     = (ArrayCreateInit t dim init, (acc inh, env inh))
-    fFieldAccess fieldAccess inh                        = case fieldAccess of
-                                                            PrimaryFieldAccess e (Ident field) -> (ArrayAccess (ArrayIndex (getExp (foldExp wlpExpAlgebra e) inh) [Lit (String field)]), (acc inh, env inh)) 
-                                                            _ -> error "fieldaccess"
-    fMethodInv                                          = error "method call"
+    fFieldAccess fieldAccess inh                        = (FieldAccess fieldAccess, (acc inh, env inh))
+    fMethodInv invocation inh                           = (Lit Null, (acc inh, env inh))
     fArrayAccess (ArrayIndex a i) inh                   = case catch inh of
                                                             Nothing      -> (arrayAccess a i, (acc inh, env inh))
                                                             Just (cs, f) -> (arrayAccess a i, (arrayAccessWlp a i inh, env inh))
@@ -168,7 +168,7 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fPreNot e inh                                       = (PreNot $ getExp e inh, (acc inh, env inh))
     fCast t e inh                                       = (getExp e inh, (acc inh, env inh))
     fBinOp e1 op e2 inh                                 = (BinOp (getExp e1 inh) op (getExp e2 inh), (getTrans e1 (inh {acc = getTrans e2 inh}), env inh)) 
-    fInstanceOf                                         = error "TODO: instanceOf"
+    fInstanceOf                                         = error "instanceOf"
     fCond g e1 e2 inh                                   = (Cond (getExp g inh) (getExp e1 inh) (getExp e2 inh), (getTrans g (inh {acc = id}) . (\q -> (getExp g inh &* getTrans e1 (inh {acc = id}) q) |* (neg (getExp g inh) &* getTrans e2 (inh {acc = id}) q)) . acc inh, env inh))
     fAssign lhs op e inh                                = let rhs = desugarAssign lhs op (getExp e inh) 
                                                           in  (rhs, (substVar (env inh) (decls inh) lhs rhs . getTrans e inh, env inh))
@@ -184,7 +184,7 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
                                 
     dimLengths a = case a of
                     ArrayCreate t exps dim          -> exps
-                    _                               -> map (\n -> MethodInv (MethodCall (Name [Ident "length"]) [a, (Lit (Int n))])) [0..]
+                    _                               -> map (\n -> MethodInv (MethodCall (Name [Ident "*length"]) [a, (Lit (Int n))])) [0..]
 
 -- | Gets the expression attribute
 getExp :: (Inh -> (Exp, Syn)) -> Inh -> Exp
