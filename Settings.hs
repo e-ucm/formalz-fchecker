@@ -1,5 +1,5 @@
 module Settings where
 
-testFile = "test"
-postCond = "true"
+testFile = "switch"
+postCond = "x == 2"
 invariant = "true"

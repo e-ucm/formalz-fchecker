@@ -8,7 +8,7 @@ class MyExc3 extends MyExc2 {}
 public class C1 {
     public static void main(String[] args) throws Exception {
         try {
-            x = 1;
+            int x = 1;
             
             try 
             {

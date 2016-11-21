@@ -107,13 +107,19 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     
     -- Converts a switch into nested if-then-else statements. The switch is assumed to be non-trivial.
     desugarSwitch :: Exp -> [SwitchBlock] -> (Exp, Stmt, Stmt)
-    desugarSwitch e [SwitchBlock l bs]       = case l of
-                                                    SwitchCase e' -> (BinOp e Equal e', StmtBlock (Block bs), Empty)
-                                                    Default -> (true, StmtBlock (Block bs), Empty)
-    desugarSwitch e (SwitchBlock l bs:sbs)   = case l of
-                                                    SwitchCase e' -> (BinOp e Equal e', StmtBlock (Block bs), sbscode)
-                                                    Default -> (true, StmtBlock (Block (bs ++ [BlockStmt sbscode])), sbscode)
-        where sbscode = let (e, s1, s2) = desugarSwitch e sbs in IfThenElse e s1 s2
+    desugarSwitch e [SwitchBlock l bs]          = case l of
+                                                    SwitchCase e'   -> (BinOp e Equal e', StmtBlock (Block bs), Empty)
+                                                    Default         -> (true, StmtBlock (Block bs), Empty)
+    desugarSwitch e sbs@(SwitchBlock l bs:sbs') = case l of
+                                                    SwitchCase e'   -> (BinOp e Equal e', StmtBlock (switchBlockToBlock sbs), otherCases)
+                                                    Default         -> (true, StmtBlock (switchBlockToBlock sbs), otherCases)
+        where otherCases = let (e', s1, s2) = desugarSwitch e sbs' in IfThenElse e' s1 s2
+        
+    -- Gets the statements from a switch statement
+    switchBlockToBlock :: [SwitchBlock] -> Block
+    switchBlockToBlock []                       = Block []
+    switchBlockToBlock (SwitchBlock l bs:sbs)   = case switchBlockToBlock sbs of
+                                                    Block b -> Block (bs ++ b)
         
 throwException :: Exp -> Exp
 throwException e = false
