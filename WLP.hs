@@ -86,7 +86,7 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     --inv = true -- for simplicity, "True" is used as an invariant for now
     inv = case parser Language.Java.Parser.exp invariant of
             Right e -> e
-            _       -> error "syntax error in post-condition"
+            _       -> error "syntax error in invariant"
     
     
     -- Converts initialization code of a for loop to a statement

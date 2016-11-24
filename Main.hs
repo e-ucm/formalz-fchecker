@@ -15,15 +15,7 @@ main :: IO ()
 main = do
     source <- readFile ("Tests\\" ++ testFile ++ ".java")
     
-    
     let result = parser compilationUnit source
-    
-        
-    putStrLn "-----Code-----"
-    case result of
-        Left error -> print error
-        Right compUnit -> print compUnit --(getStmt compUnit)
-    
     
     case result of
         Left error -> print error
