@@ -18,7 +18,7 @@ isFalse :: Exp -> Z3 Bool
 isFalse e = 
     do
         ast <- foldExp expAssertAlgebra e
-        assert ast -- seq (unsafePerformIO . (>>= putStrLn) . evalZ3 . astToString $ ast) (assert ast)
+        assert ast
         result <- check
         solverReset
         case result of

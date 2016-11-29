@@ -4,6 +4,8 @@ import Language.Java.Syntax
 import Language.Java.Parser
 import Language.Java.Pretty
 import Data.List
+import System.FilePath(joinPath)
+
 
 import WLP
 import Verifier
@@ -13,7 +15,7 @@ import Settings
 
 main :: IO ()
 main = do
-    source <- readFile ("Tests\\" ++ testFile ++ ".java")
+    source <- readFile (joinPath ["Tests", testFile ++ ".java"])
     
     let result = parser compilationUnit source
     
