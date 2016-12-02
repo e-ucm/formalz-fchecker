@@ -7,7 +7,7 @@ public class C1
         int i = 0;
         
         
-        while(i < 5)
+        while(i < 6)
         {
             i++;
             

@@ -1,5 +1,8 @@
 module Settings where
 
-testFile = "arrays"
-postCond = "a == b"
-invariant = "i <= 5"
+testFile, postCond :: String
+testFile = "loops"
+postCond = "x == 5"
+
+nrOfUnroll :: Int
+nrOfUnroll = 6

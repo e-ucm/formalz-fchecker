@@ -37,7 +37,7 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     fIfThenElse e s1 s2 inh         = let e' = getExp (foldExp wlpExpAlgebra e) inh 
                                       in ((\q -> (e' &* fst (s1 inh) q) |* (neg e' &* fst (s2 inh) q)) . acc inh, env inh)
     fWhile e s inh                  = let e' = getExp (foldExp wlpExpAlgebra e) inh 
-                                      in ((\q -> if unsafeIsTrue (((inv &* neg e') `imp` q) &* ((inv &* e') `imp` fst (s inh) inv) &* ((inv &* e') `imp` fst (s inh {br = const q}) true)) then inv else (neg e' &* q)) . acc inh, env inh)
+                                      in ((\q -> unrollLoop nrOfUnroll e' (fst (s (inh {br = const q}))) q) . acc inh, env inh)
     fBasicFor init me incr s inh    = let loop = fst (fWhile (fromMaybeGuard me) (\inh' -> s (inh {acc = fst (wlp' inh' (incrToStmt incr))})) inh) in wlp' (inh {acc = loop}) (initToStmt init)
     fEnhancedFor                    = error "EnhancedFor"
     fEmpty inh                      = (acc inh, env inh) -- Empty does nothing, but still passes control to the next statement
@@ -82,11 +82,11 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
                                                                 -- We don't initialize ref types to null, because we want to keep pointer information
                                                                 RefType _ -> acc inh 
     wlpDeclAssignment t inh (VarDecl (VarId ident) (Just (InitExp e)))  = substVar (env inh) (decls inh) (NameLhs (Name [ident])) e . acc inh
-                        
-    --inv = true -- for simplicity, "True" is used as an invariant for now
-    inv = case parser Language.Java.Parser.exp invariant of
-            Right e -> e
-            _       -> error "syntax error in invariant"
+              
+    -- Unrolls a while-loop a finite amount of times
+    unrollLoop :: Int -> Exp -> (Exp -> Exp) -> Exp -> Exp
+    unrollLoop 0 g _ q      = neg g `imp` q
+    unrollLoop n g body q   = (neg g `imp` q) &* (g `imp` body (unrollLoop (n - 1) g body q))
     
     
     -- Converts initialization code of a for loop to a statement
