@@ -5,7 +5,8 @@ import Language.Java.Syntax
 import Language.Java.Pretty
 import Data.Maybe
 
-type TypeEnv = [(Name, Type)]
+type TypeEnv    = [(Name, Type)]
+type CallCount  = [(Ident, Int)]
 
 -- | Retrieves the type from the environment
 lookupType :: [TypeDecl] -> TypeEnv -> Name -> Type
@@ -33,9 +34,62 @@ getFieldType decls (RefType (ClassRefType t)) (Name (f:fs)) = getFieldType decls
                                                                 _ -> getDecl t xs
         getDecl _ _ = error "nested class"
         
+-- Increments the call count for a given method
+incrCallCount :: CallCount -> Ident -> CallCount
+incrCallCount [] id             = [(id, 1)]
+incrCallCount ((id', c):xs) id  = if id == id' then (id', c + 1) : xs else (id', c) : incrCallCount xs id
+
+
+-- Looks up the call count for a given method
+getCallCount :: CallCount -> Ident -> Int
+getCallCount [] id             = 0
+getCallCount ((id', c):xs) id  = if id == id' then c else getCallCount xs id
+        
 getId :: VarDeclId -> Ident
 getId (VarId id) = id
 getId (VarDeclArray id) = getId id
+
+fromName :: Name -> [Ident]
+fromName (Name name) = name
+
+-- Gets the ident of the method from a name
+getMethodId :: Name -> Ident
+getMethodId = last . fromName
+
+-- Gets the statement(-block) defining a method
+getMethod :: [TypeDecl] -> Ident -> Stmt
+getMethod classTypeDecls methodId = fst (getMethod' classTypeDecls methodId)
+
+-- Gets the return type of a method
+getMethodType :: [TypeDecl] -> Ident -> Maybe Type
+getMethodType classTypeDecls methodId = snd (getMethod' classTypeDecls methodId)
+
+-- Finds a method definition. This function assumes all methods are named differently
+getMethod' :: [TypeDecl] -> Ident -> (Stmt, Maybe Type)
+getMethod' classTypeDecls methodId = case (concatMap searchClass classTypeDecls) of
+                                        r:_     -> r
+                                        []      -> error ("non-existing method: " ++ show methodId)
+  where
+    searchClass (ClassTypeDecl (ClassDecl _ _ _ _ _ (ClassBody decls))) = searchDecls decls
+    searchDecls (MemberDecl (MethodDecl _ _ t id _ _ (MethodBody (Just b))):_) | methodId == id = [(StmtBlock b, t)]
+    searchDecls (_:decls) = searchDecls decls
+    searchDecls [] = []
+
+-- Gets the statement(-block) defining the main method and initializes the heap
+getMainMethod :: [TypeDecl] -> Stmt
+getMainMethod classTypeDecls = getMethod classTypeDecls (Ident "main")
+
+-- Gets the class declarations
+getDecls :: CompilationUnit -> [TypeDecl]
+getDecls (CompilationUnit _ _ classTypeDecls) = classTypeDecls
+
+-- Gets the static member declarations and puts them in the type environment
+getStaticVars :: CompilationUnit -> TypeEnv
+getStaticVars compUnit = concatMap fromTypeDecls (getDecls compUnit) where
+    fromTypeDecls (ClassTypeDecl (ClassDecl _ _ _ _ _ (ClassBody decls))) = concatMap fromMemberDecl decls
+    fromMemberDecl (MemberDecl (FieldDecl mods t varDecls)) = if Static `elem` mods then map (fromVarDecl t) varDecls else []
+    fromMemberDecl _                                        = []
+    fromVarDecl t (VarDecl varId _) = (Name [getId varId], t)
         
 true :: Exp
 true = Lit (Boolean True)
@@ -70,6 +124,12 @@ arrayAccess a i = case a of
                     ArrayCreateInit t dim arrayInit -> getInitValue t
                     _                               -> ArrayAccess (ArrayIndex a i)
 
+-- Accesses fields of fields
+fieldAccess :: Exp -> Name -> FieldAccess
+fieldAccess e (Name [id])       = PrimaryFieldAccess e id
+fieldAccess e (Name (id:ids))   = fieldAccess (FieldAccess (PrimaryFieldAccess e id)) (Name ids)
+fieldAccess _ _ = error "FieldAccess without field name"
+                    
 -- | Gets the initial value for a given type
 getInitValue :: Type -> Exp
 getInitValue (PrimType t) = case t of

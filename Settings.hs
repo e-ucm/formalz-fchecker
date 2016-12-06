@@ -1,7 +1,7 @@
 module Settings where
 
 testFile, postCond :: String
-testFile = "loops"
+testFile = "methods"
 postCond = "x == 5"
 
 nrOfUnroll :: Int

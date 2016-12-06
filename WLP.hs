@@ -15,11 +15,14 @@ import Settings
     
 
 -- | A type for the inherited attribute
-data Inh = Inh {acc     :: Exp -> Exp,  -- The accumulated transformer of the current block up until the current statement
-                br      :: Exp -> Exp,  -- The accumulated transformer up until the last loop (this is used when handling break statements etc.)
-                catch   :: Maybe ([Catch], Bool), -- The catches when executing a block in a try statement, and a Bool indicating wether there is a finally-block
-                env     :: TypeEnv,     -- The type environment for typing expressions
-                decls   :: [TypeDecl] -- Class declarations
+data Inh = Inh {acc     :: Exp -> Exp,              -- The accumulated transformer of the current block up until the current statement
+                br      :: Exp -> Exp,              -- The accumulated transformer up until the last loop (this is used when handling break statements etc.)
+                catch   :: Maybe ([Catch], Bool),   -- The catches when executing a block in a try statement, and a Bool indicating wether there is a finally-block
+                env     :: TypeEnv,                 -- The type environment for typing expressions
+                decls   :: [TypeDecl],              -- Class declarations
+                calls   :: CallCount,               -- The number of recursive calls per method
+                ret     :: Maybe Ident,             -- The name of the return variable when handling a method call
+                object  :: Maybe Exp                -- The object the method is called from when handling a method call
                 }
             
            
@@ -49,7 +52,7 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     fContinue _ inh                 = (id, env inh)     -- at a continue statement it's as if the body of the loop is fully executed
     fReturn me inh                  = case me of
                                         Nothing -> (id, env inh) -- Return ignores acc, as it terminates the method
-                                        Just e  -> fExpStmt (Assign (NameLhs (Name [Ident "return"])) EqualA e) inh -- We treat "return e" as an assignment to the variable return
+                                        Just e  -> fExpStmt (Assign (NameLhs (Name [fromJust (ret inh)])) EqualA e) (inh {acc = id}) -- We treat "return e" as an assignment to a variable specifically created to store the return value in
                                                             
     fSynchronized _                 = fStmtBlock
     fThrow e inh                    = case catch inh of
@@ -81,7 +84,7 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
                                                                 PrimType _ -> substVar (env inh) (decls inh) (NameLhs (Name [ident])) (getInitValue t) . acc inh
                                                                 -- We don't initialize ref types to null, because we want to keep pointer information
                                                                 RefType _ -> acc inh 
-    wlpDeclAssignment t inh (VarDecl (VarId ident) (Just (InitExp e)))  = substVar (env inh) (decls inh) (NameLhs (Name [ident])) e . acc inh
+    wlpDeclAssignment t inh (VarDecl (VarId ident) (Just (InitExp e)))  = getTrans (foldExp wlpExpAlgebra (Assign (NameLhs (Name [ident])) EqualA e)) inh 
               
     -- Unrolls a while-loop a finite amount of times
     unrollLoop :: Int -> Exp -> (Exp -> Exp) -> Exp -> Exp
@@ -148,12 +151,15 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fArrayCreate t dimLengths dim inh                   = (ArrayCreate t (map (flip getExp inh) dimLengths) dim, (acc inh, env inh))
     fArrayCreateInit t dim init inh                     = (ArrayCreateInit t dim init, (acc inh, env inh))
     fFieldAccess fieldAccess inh                        = (FieldAccess fieldAccess, (acc inh, env inh))
-    fMethodInv invocation inh                           = (Lit Null, (acc inh, env inh))
+    fMethodInv invocation inh                           = (ExpName (Name [getReturnVar inh invocation]), 
+                                                          (if getCallCount (calls inh) (invocationToId invocation) >= nrOfUnroll
+                                                          then const true
+                                                          else fst (wlp' (inh {env = maybe (env inh) (\t -> (Name [getReturnVar inh invocation], t) : env inh) (getType inh invocation), calls = incrCallCount (calls inh) (invocationToId invocation), ret = Just (getReturnVar inh invocation), object = Just (getObject invocation)}) (inlineMethod inh invocation)) . acc inh, env inh))
     fArrayAccess (ArrayIndex a i) inh                   = case catch inh of
                                                             Nothing      -> (arrayAccess a i, (acc inh, env inh))
                                                             Just (cs, f) -> (arrayAccess a i, (arrayAccessWlp a i inh, env inh))
     
-    fExpName name inh                                   = (ExpName name, (acc inh, env inh))
+    fExpName name inh                                   = (varInObject (object inh) name, (acc inh, env inh))
     -- x++ increments x but evaluates to the original value
     fPostIncrement e inh                                = case getExp e inh of
                                                             var@(ExpName name) -> (var, (substVar (env inh) (decls inh) (NameLhs name) (BinOp var Add (Lit (Int 1))) . acc inh, env inh))
@@ -176,8 +182,9 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fBinOp e1 op e2 inh                                 = (BinOp (getExp e1 inh) op (getExp e2 inh), (getTrans e1 (inh {acc = getTrans e2 inh}), env inh)) 
     fInstanceOf                                         = error "instanceOf"
     fCond g e1 e2 inh                                   = (Cond (getExp g inh) (getExp e1 inh) (getExp e2 inh), (getTrans g (inh {acc = id}) . (\q -> (getExp g inh &* getTrans e1 (inh {acc = id}) q) |* (neg (getExp g inh) &* getTrans e2 (inh {acc = id}) q)) . acc inh, env inh))
-    fAssign lhs op e inh                                = let rhs = desugarAssign lhs op (getExp e inh) 
-                                                          in  (rhs, (substVar (env inh) (decls inh) lhs rhs . getTrans e inh, env inh))
+    fAssign lhs op e inh                                = let lhs' = lhsInObject (object inh) lhs
+                                                              rhs' = desugarAssign lhs' op (getExp e inh) 
+                                                          in  (rhs', (substVar (env inh) (decls inh) lhs' rhs' . getTrans e inh, env inh))
     fLambda                                             = error "lambda"
     fMethodRef                                          = error "method reference"
                             
@@ -191,6 +198,44 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     dimLengths a = case a of
                     ArrayCreate t exps dim          -> exps
                     _                               -> map (\n -> MethodInv (MethodCall (Name [Ident "*length"]) [a, (Lit (Int n))])) [0..]
+                    
+    -- Inlines a methodcall. This creates a variable to store the return value in
+    inlineMethod :: Inh -> MethodInvocation -> Stmt
+    inlineMethod inh (MethodCall name args) = getMethod (decls inh) (getMethodId name)
+    inlineMethod inh (PrimaryMethodCall _ _ id args) = getMethod (decls inh) id
+    inlineMethod inh _ = undefined
+    
+    -- Gets the variable that represents the return value of the method
+    getReturnVar :: Inh -> MethodInvocation -> Ident
+    getReturnVar inh invocation = Ident (show (invocationToId invocation) ++ show (getCallCount (calls inh) (invocationToId invocation)))
+    
+    -- Gets the object a method is called from
+    getObject :: MethodInvocation -> Exp
+    getObject (MethodCall name _) = ExpName (Name (take (length (fromName name) - 1) (fromName name)))
+    getObject (PrimaryMethodCall e _ _ _) = e
+    getObject _ = undefined
+    
+    -- Gets the return type of a method
+    getType :: Inh -> MethodInvocation -> Maybe Type
+    getType inh invocation = getMethodType (decls inh) (invocationToId invocation)
+    
+    -- Gets the method Id from an invocation
+    invocationToId :: MethodInvocation -> Ident
+    invocationToId (MethodCall name _) = getMethodId name
+    invocationToId (PrimaryMethodCall _ _ id _) = id
+    invocationToId _ = undefined
+    
+    -- Changes the lhs to refer to a field of a given object
+    lhsInObject :: Maybe Exp -> Lhs -> Lhs
+    lhsInObject Nothing lhs     = lhs
+    lhsInObject (Just obj) lhs  = case lhs of
+                                    NameLhs name -> FieldLhs (fieldAccess obj name)
+                                    _ -> error "TODO: lhsInObject"
+                                    
+    -- Changes the var to refer to a field of a given object
+    varInObject :: Maybe Exp -> Name -> Exp
+    varInObject Nothing name    = ExpName name
+    varInObject (Just obj) name = FieldAccess (fieldAccess obj name)
 
 -- | Gets the expression attribute
 getExp :: (Inh -> (Exp, Syn)) -> Inh -> Exp
@@ -206,11 +251,11 @@ getEnv f inh = let (_, (_, env)) = f inh in env
     
 -- | Calculates the weakest liberal pre-condition of a statement and a given post-condition
 wlp :: [TypeDecl] -> Stmt -> Exp -> Exp
-wlp decls = fst . (wlp' (Inh id id Nothing [] decls))
+wlp decls = fst . (wlp' (Inh id id Nothing [] decls [] Nothing Nothing))
 
 -- | wlp with a given type environment
 wlpWithEnv :: [TypeDecl] -> TypeEnv -> Stmt -> Exp -> Exp
-wlpWithEnv decls env = fst . (wlp' (Inh id id Nothing env decls))
+wlpWithEnv decls env = fst . (wlp' (Inh id id Nothing env decls [] Nothing Nothing))
 
 -- wlp' lets you specify the inherited attributes
 wlp' :: Inh -> Stmt -> Syn
