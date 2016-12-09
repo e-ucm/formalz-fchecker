@@ -144,22 +144,22 @@ wlpExpAlgebra :: ExpAlgebra (Inh -> (Exp, Syn))
 wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualInstanceCreation, fArrayCreate, fArrayCreateInit, fFieldAccess, fMethodInv, fArrayAccess, fExpName, fPostIncrement, fPostDecrement, fPreIncrement, fPreDecrement, fPrePlus, fPreMinus, fPreBitCompl, fPreNot, fCast, fBinOp, fInstanceOf, fCond, fAssign, fLambda, fMethodRef) where
     fLit lit inh                                        = (Lit lit, (acc inh, env inh))
     fClassLit mType inh                                 = (ClassLit mType, (acc inh, env inh))
-    fThis inh                                           = (This, (acc inh, env inh))
+    fThis inh                                           = (fromJust (object inh), (acc inh, env inh))
     fThisClass name inh                                 = (ThisClass name, (acc inh, env inh))
     fInstanceCreation typeArgs t args mBody inh         = (InstanceCreation typeArgs t args mBody, (acc inh, env inh))
     fQualInstanceCreation e typeArgs t args mBody inh   = (QualInstanceCreation (getExp e inh) typeArgs t args mBody, (getTrans e inh, env inh))
     fArrayCreate t dimLengths dim inh                   = (ArrayCreate t (map (flip getExp inh) dimLengths) dim, (acc inh, env inh))
     fArrayCreateInit t dim init inh                     = (ArrayCreateInit t dim init, (acc inh, env inh))
-    fFieldAccess fieldAccess inh                        = (FieldAccess fieldAccess, (acc inh, env inh))
+    fFieldAccess fieldAccess inh                        = (ExpName (foldFieldAccess inh fieldAccess), (acc inh, env inh))
     fMethodInv invocation inh                           = (ExpName (Name [getReturnVar inh invocation]), 
                                                           (if getCallCount (calls inh) (invocationToId invocation) >= nrOfUnroll
                                                           then const true
-                                                          else fst (wlp' (inh {env = maybe (env inh) (\t -> (Name [getReturnVar inh invocation], t) : env inh) (getType inh invocation), calls = incrCallCount (calls inh) (invocationToId invocation), ret = Just (getReturnVar inh invocation), object = Just (getObject invocation)}) (inlineMethod inh invocation)) . acc inh, env inh))
+                                                          else fst (wlp' (inh {acc = id, calls = incrCallCount (calls inh) (invocationToId invocation), ret = Just (getReturnVar inh invocation), object = getObject invocation}) (inlineMethod inh invocation)) . acc inh, env inh))
     fArrayAccess (ArrayIndex a i) inh                   = case catch inh of
                                                             Nothing      -> (arrayAccess a i, (acc inh, env inh))
                                                             Just (cs, f) -> (arrayAccess a i, (arrayAccessWlp a i inh, env inh))
     
-    fExpName name inh                                   = (varInObject (object inh) name, (acc inh, env inh))
+    fExpName name inh                                   = (ExpName name, (acc inh, env inh))
     -- x++ increments x but evaluates to the original value
     fPostIncrement e inh                                = case getExp e inh of
                                                             var@(ExpName name) -> (var, (substVar (env inh) (decls inh) (NameLhs name) (BinOp var Add (Lit (Int 1))) . acc inh, env inh))
@@ -179,12 +179,12 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fPreBitCompl e inh                                  = (PreBitCompl $ getExp e inh, (acc inh, env inh))
     fPreNot e inh                                       = (PreNot $ getExp e inh, (acc inh, env inh))
     fCast t e inh                                       = (getExp e inh, (acc inh, env inh))
-    fBinOp e1 op e2 inh                                 = (BinOp (getExp e1 inh) op (getExp e2 inh), (getTrans e1 (inh {acc = getTrans e2 inh}), env inh)) 
+    fBinOp e1 op e2 inh                                 = (BinOp (getExp e1 inh) op (getExp e2 inh), (getTrans e2 (inh {acc = getTrans e1 inh}), env inh)) 
     fInstanceOf                                         = error "instanceOf"
     fCond g e1 e2 inh                                   = (Cond (getExp g inh) (getExp e1 inh) (getExp e2 inh), (getTrans g (inh {acc = id}) . (\q -> (getExp g inh &* getTrans e1 (inh {acc = id}) q) |* (neg (getExp g inh) &* getTrans e2 (inh {acc = id}) q)) . acc inh, env inh))
-    fAssign lhs op e inh                                = let lhs' = lhsInObject (object inh) lhs
+    fAssign lhs op e inh                                = let lhs' = foldLhs inh lhs
                                                               rhs' = desugarAssign lhs' op (getExp e inh) 
-                                                          in  (rhs', (substVar (env inh) (decls inh) lhs' rhs' . getTrans e inh, env inh))
+                                                          in  (rhs', (getTrans e inh {acc = id} . substVar (env inh) (decls inh) lhs' rhs' . acc inh, env inh))
     fLambda                                             = error "lambda"
     fMethodRef                                          = error "method reference"
                             
@@ -207,13 +207,14 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     
     -- Gets the variable that represents the return value of the method
     getReturnVar :: Inh -> MethodInvocation -> Ident
-    getReturnVar inh invocation = Ident (show (invocationToId invocation) ++ show (getCallCount (calls inh) (invocationToId invocation)))
+    getReturnVar inh invocation = Ident (makeReturnVarName (invocationToId invocation) ++ show (getCallCount (calls inh) (invocationToId invocation)))
     
     -- Gets the object a method is called from
-    getObject :: MethodInvocation -> Exp
-    getObject (MethodCall name _) = ExpName (Name (take (length (fromName name) - 1) (fromName name)))
-    getObject (PrimaryMethodCall e _ _ _) = e
-    getObject _ = undefined
+    getObject :: MethodInvocation -> Maybe Exp
+    getObject (MethodCall name _)   | length (fromName name) > 1    = Just (ExpName (Name (take (length (fromName name) - 1) (fromName name))))
+                                    | otherwise                     = Nothing
+    getObject (PrimaryMethodCall e _ _ _)                           = Just e
+    getObject _                                                     = undefined
     
     -- Gets the return type of a method
     getType :: Inh -> MethodInvocation -> Maybe Type
@@ -225,17 +226,23 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     invocationToId (PrimaryMethodCall _ _ id _) = id
     invocationToId _ = undefined
     
-    -- Changes the lhs to refer to a field of a given object
-    lhsInObject :: Maybe Exp -> Lhs -> Lhs
-    lhsInObject Nothing lhs     = lhs
-    lhsInObject (Just obj) lhs  = case lhs of
-                                    NameLhs name -> FieldLhs (fieldAccess obj name)
-                                    _ -> error "TODO: lhsInObject"
-                                    
-    -- Changes the var to refer to a field of a given object
-    varInObject :: Maybe Exp -> Name -> Exp
-    varInObject Nothing name    = ExpName name
-    varInObject (Just obj) name = FieldAccess (fieldAccess obj name)
+    -- Folds the expression part of an lhs
+    foldLhs :: Inh -> Lhs -> Lhs
+    foldLhs inh lhs  = case lhs of
+                            FieldLhs (PrimaryFieldAccess e id)  -> case getExp (foldExp wlpExpAlgebra e) inh of
+                                                                    ExpName name    -> NameLhs (Name (fromName name ++ [id]))
+                                                                    _               -> error "foldFieldAccess"
+                            ArrayLhs (ArrayIndex e i)           -> ArrayLhs (ArrayIndex (getExp (foldExp wlpExpAlgebra e) inh) (map (\e -> getExp (foldExp wlpExpAlgebra e) inh) i))
+                            lhs'                                -> lhs'
+    
+    -- Folds the expression part of a fieldaccess and simplifies it to a name
+    foldFieldAccess :: Inh -> FieldAccess -> Name
+    foldFieldAccess inh fieldAccess  = case fieldAccess of
+                                            PrimaryFieldAccess e id     -> case getExp (foldExp wlpExpAlgebra e) inh of
+                                                                                ExpName name    -> Name (fromName name ++ [id])
+                                                                                _               -> error "foldFieldAccess"
+                                            SuperFieldAccess id         -> foldFieldAccess inh (PrimaryFieldAccess (fromJust (object inh)) id)
+                                            ClassFieldAccess name id    -> Name (fromName name ++ [id])
 
 -- | Gets the expression attribute
 getExp :: (Inh -> (Exp, Syn)) -> Inh -> Exp

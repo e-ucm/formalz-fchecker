@@ -10,6 +10,7 @@ type CallCount  = [(Ident, Int)]
 
 -- | Retrieves the type from the environment
 lookupType :: [TypeDecl] -> TypeEnv -> Name -> Type
+lookupType decls env (Name [(Ident s@('$':_))]) = getReturnVarType decls s -- Names starting with a '$' symbol are generated and represent the return variable of a function
 lookupType decls env (Name idents) = case lookup (Name [head idents]) env of
                                         Just t  -> getFieldType decls t (Name (tail idents))
                                         Nothing -> error ("can't find type of " ++ prettyPrint (Name idents) ++ "\r\n TypeEnv: " ++ show env)
@@ -33,6 +34,14 @@ getFieldType decls (RefType (ClassRefType t)) (Name (f:fs)) = getFieldType decls
                                                                 ClassTypeDecl decl@(ClassDecl _ ident' _ _ _ _) -> if ident == ident' then decl else getDecl t xs
                                                                 _ -> getDecl t xs
         getDecl _ _ = error "nested class"
+        
+-- | Creates a string that that represents the return var name of a method call. This name is extended by a number to indicate the depth of the recursive calls
+makeReturnVarName :: Ident -> String
+makeReturnVarName (Ident s) = "$" ++ s ++ "$"
+        
+-- | Get's the type of a generated variable
+getReturnVarType :: [TypeDecl] -> String -> Type
+getReturnVarType decls s = fromJust $ getMethodType decls (Ident (takeWhile (/= '$') (tail s)))
         
 -- Increments the call count for a given method
 incrCallCount :: CallCount -> Ident -> CallCount

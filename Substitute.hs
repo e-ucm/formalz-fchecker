@@ -47,8 +47,8 @@ substVarExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQu
                                                 _ -> ExpName (Name name)
                                 -- done:
                                 Just [] -> ExpName (Name name)
-                                -- check a combination and recurse:
-                                Just ((nameInit, lhsNameInit) : combs') -> flip (foldExp substVarExpAlgebra) (inh {combs = Just combs'}) $
+                                -- check a combination and recurse when necessary:
+                                Just ((nameInit, lhsNameInit) : combs') -> 
                                     case lhs inh of
                                             NameLhs (Name lhsName) -> case lookupType (decls inh) (env inh) (Name lhsNameInit) of
                                                                         PrimType _  | lhsName == name   -> rhs inh
@@ -56,24 +56,24 @@ substVarExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQu
                                                                                                                                                             ExpName (Name rhsName)      | take (length lhsName) name == lhsName                 -> ExpName (Name (rhsName ++ drop (length lhsName) name))
                                                                                                                                                                                         -- accessing o1.x might affect o2.x if o1 and o2 point to the same object:
                                                                                                                                                                                         | name == nameInit ++ drop (length lhsNameInit) lhsName && length name > length nameInit -> Cond (ExpName (Name nameInit) ==* ExpName (Name lhsNameInit)) (rhs inh) (ExpName (Name name))
-                                                                                                                                                                                        | otherwise                                             -> ExpName (Name name) 
+                                                                                                                                                                                        | otherwise                                             -> foldExp substVarExpAlgebra (ExpName (Name name)) (inh {combs = Just combs'})
                                                                                                                                                             
                                                                                                                                                             -- we substitute instance creation only if we access a field, to not lose pointer information
                                                                                                                                                             -- example: {x = new obj} doesn't affect {x = y} but it does affect {x.a = y.a}
                                                                                                                                                             InstanceCreation _ _ _ _    | length lhsName < length name && take (length lhsName) name == lhsName                     -> getFields (decls inh) (rhs inh) (drop (length lhsName) name)
                                                                                                                                                                                         | length lhsName < length name && take (length lhsName) name == nameInit ++ drop (length nameInit) lhsName    -> Cond (ExpName (Name nameInit) ==* ExpName (Name lhsNameInit)) (getFields (decls inh) (rhs inh) (drop (length lhsName) name)) (ExpName (Name name))
-                                                                                                                                                                                        | otherwise                                                                                 -> ExpName (Name name)
+                                                                                                                                                                                        | otherwise                                                                                 -> foldExp substVarExpAlgebra (ExpName (Name name)) (inh {combs = Just combs'})
                                                                                                                                                                                         
                                                                                                                                                             -- the same idea for arrays
-                                                                                                                                                            ArrayCreate _ _ _           | not $ arrayLookup inh   -> ExpName (Name name) 
-                                                                                                                                                            ArrayCreateInit _ _ _       | not $ arrayLookup inh   -> ExpName (Name name) 
+                                                                                                                                                            ArrayCreate _ _ _           | not $ arrayLookup inh   -> foldExp substVarExpAlgebra (ExpName (Name name)) (inh {combs = Just combs'})
+                                                                                                                                                            ArrayCreateInit _ _ _       | not $ arrayLookup inh   -> foldExp substVarExpAlgebra (ExpName (Name name)) (inh {combs = Just combs'})
                                                                                                                                                                                         
                                                                                                                                                             _                           | take (length lhsName) name == lhsName                 -> getFields (decls inh) (rhs inh) (drop (length lhsName) name)
                                                                                                                                                                                         | name == nameInit ++ drop (length lhsNameInit) lhsName  -> Cond (ExpName (Name nameInit) ==* ExpName (Name lhsNameInit)) (rhs inh) (ExpName (Name name))
                                                                                                                                                                                         -- the assignment doesn't affect this expression:
-                                                                                                                                                                                        | otherwise -> ExpName (Name name)
-                                                                        _ -> ExpName (Name name)
-                                            _ -> ExpName (Name name)
+                                                                                                                                                                                        | otherwise -> foldExp substVarExpAlgebra (ExpName (Name name)) (inh {combs = Just combs'})
+                                                                        _ -> foldExp substVarExpAlgebra (ExpName (Name name)) (inh {combs = Just combs'})
+                                            _ -> foldExp substVarExpAlgebra (ExpName (Name name)) (inh {combs = Just combs'})
     fPostIncrement e inh = PostIncrement (e inh)
     fPostDecrement e inh = PostDecrement  (e inh)
     fPreIncrement e inh = PreIncrement (e inh)
