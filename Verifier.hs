@@ -171,13 +171,13 @@ expAssertAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQual
                                       mkOr [ast1, ast2]
     fInstanceOf = undefined
     fCond g e1 e2       = do
-                            astg <- g
+                            astg <- (g >>= mkNot)
                             assert astg
                             result <- check
                             solverReset 
                             case result of
-                                Sat     -> e1
-                                Unsat   -> e2
+                                Sat     -> e2
+                                Unsat   -> e1
                                 _ -> error "can't evaluate if-condition"
     fAssign = undefined
     fLambda = undefined

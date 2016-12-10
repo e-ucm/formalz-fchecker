@@ -2,7 +2,7 @@ module Settings where
 
 testFile, postCond :: String
 testFile = "methods"
-postCond = "x == 5"
+postCond = "(x == 4)"
 
 nrOfUnroll :: Int
-nrOfUnroll = 6
+nrOfUnroll = 8

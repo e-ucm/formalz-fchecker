@@ -154,7 +154,7 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fMethodInv invocation inh                           = (ExpName (Name [getReturnVar inh invocation]), 
                                                           (if getCallCount (calls inh) (invocationToId invocation) >= nrOfUnroll
                                                           then const true
-                                                          else fst (wlp' (inh {acc = id, calls = incrCallCount (calls inh) (invocationToId invocation), ret = Just (getReturnVar inh invocation), object = getObject invocation}) (inlineMethod inh invocation)) . acc inh, env inh))
+                                                          else fst (wlp' (inh {acc = id, calls = incrCallCount (calls inh) (invocationToId invocation), ret = Just (getReturnVar inh invocation), object = getObject inh invocation}) (inlineMethod inh invocation)) . acc inh, env inh))
     fArrayAccess (ArrayIndex a i) inh                   = case catch inh of
                                                             Nothing      -> (arrayAccess a i, (acc inh, env inh))
                                                             Just (cs, f) -> (arrayAccess a i, (arrayAccessWlp a i inh, env inh))
@@ -210,11 +210,13 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     getReturnVar inh invocation = Ident (makeReturnVarName (invocationToId invocation) ++ show (getCallCount (calls inh) (invocationToId invocation)))
     
     -- Gets the object a method is called from
-    getObject :: MethodInvocation -> Maybe Exp
-    getObject (MethodCall name _)   | length (fromName name) > 1    = Just (ExpName (Name (take (length (fromName name) - 1) (fromName name))))
-                                    | otherwise                     = Nothing
-    getObject (PrimaryMethodCall e _ _ _)                           = Just e
-    getObject _                                                     = undefined
+    getObject :: Inh -> MethodInvocation -> Maybe Exp
+    getObject inh (MethodCall name _)   | length (fromName name) > 1    = Just (ExpName (Name (take (length (fromName name) - 1) (fromName name))))
+                                    | otherwise                         = Nothing
+    getObject inh (PrimaryMethodCall e _ _ _)                           = case e of
+                                                                            This -> object inh
+                                                                            _    -> Just e
+    getObject inh _                                                     = undefined
     
     -- Gets the return type of a method
     getType :: Inh -> MethodInvocation -> Maybe Type
@@ -240,7 +242,7 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     foldFieldAccess inh fieldAccess  = case fieldAccess of
                                             PrimaryFieldAccess e id     -> case getExp (foldExp wlpExpAlgebra e) inh of
                                                                                 ExpName name    -> Name (fromName name ++ [id])
-                                                                                _               -> error "foldFieldAccess"
+                                                                                x               -> error ("foldFieldAccess: " ++ show x ++ show id)
                                             SuperFieldAccess id         -> foldFieldAccess inh (PrimaryFieldAccess (fromJust (object inh)) id)
                                             ClassFieldAccess name id    -> Name (fromName name ++ [id])
 

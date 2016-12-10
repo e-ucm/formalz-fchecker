@@ -3,10 +3,11 @@ public static class Main
     static int x, y;
     public static void main(String[] args) 
     {
-        C1 c1 = new C1();
+        C c1 = new C();
+        C c2 = new C();
         c1.method1();
-        c1.method1();
-        x = c1.c;
+        c2.method1();
+        x = c1.c + c2.c;
     }
     
     
@@ -17,17 +18,19 @@ public static class Main
     }
 }
 
-public class C1
+public class C
 {
     int c;
     
-    public C1()
+    public C()
     {
     }
     
     public void method1()
     {
         this.c += 1;
+        if(this.c < 2)
+            this.method1();
     }
     
     public int method2()
