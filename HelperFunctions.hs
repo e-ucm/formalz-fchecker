@@ -10,7 +10,7 @@ type CallCount  = [(Ident, Int)]
 
 -- | Retrieves the type from the environment
 lookupType :: [TypeDecl] -> TypeEnv -> Name -> Type
-lookupType decls env (Name [(Ident s@('$':_))]) = getReturnVarType decls s -- Names starting with a '$' symbol are generated and represent the return variable of a function
+lookupType decls env (Name ((Ident s@('$':_)) : idents)) = getFieldType decls (getReturnVarType decls s) (Name idents) -- Names starting with a '$' symbol are generated and represent the return variable of a function
 lookupType decls env (Name idents) = case lookup (Name [head idents]) env of
                                         Just t  -> getFieldType decls t (Name (tail idents))
                                         Nothing -> error ("can't find type of " ++ prettyPrint (Name idents) ++ "\r\n TypeEnv: " ++ show env)
@@ -33,7 +33,7 @@ getFieldType decls (RefType (ClassRefType t)) (Name (f:fs)) = getFieldType decls
         getDecl t@(ClassType [(ident, typeArgs)]) (x:xs)    = case x of
                                                                 ClassTypeDecl decl@(ClassDecl _ ident' _ _ _ _) -> if ident == ident' then decl else getDecl t xs
                                                                 _ -> getDecl t xs
-        getDecl _ _ = error "nested class"
+        getDecl t _ = error ("fieldType: " ++ show t)
         
 -- | Creates a string that that represents the return var name of a method call. This name is extended by a number to indicate the depth of the recursive calls
 makeReturnVarName :: Ident -> String
@@ -67,22 +67,29 @@ getMethodId = last . fromName
 
 -- Gets the statement(-block) defining a method
 getMethod :: [TypeDecl] -> Ident -> Stmt
-getMethod classTypeDecls methodId = fst (getMethod' classTypeDecls methodId)
+getMethod classTypeDecls methodId = let (b, _, _) = getMethod' classTypeDecls methodId in b
 
 -- Gets the return type of a method
 getMethodType :: [TypeDecl] -> Ident -> Maybe Type
-getMethodType classTypeDecls methodId = snd (getMethod' classTypeDecls methodId)
+getMethodType classTypeDecls methodId = let (_, t, _) = getMethod' classTypeDecls methodId in t
+
+-- Gets the parameter declarations of a method
+getMethodParams :: [TypeDecl] -> Ident -> [FormalParam]
+getMethodParams classTypeDecls methodId = let (_, _, params) = getMethod' classTypeDecls methodId in params
 
 -- Finds a method definition. This function assumes all methods are named differently
-getMethod' :: [TypeDecl] -> Ident -> (Stmt, Maybe Type)
+getMethod' :: [TypeDecl] -> Ident -> (Stmt, Maybe Type, [FormalParam])
 getMethod' classTypeDecls methodId = case (concatMap searchClass classTypeDecls) of
                                         r:_     -> r
                                         []      -> error ("non-existing method: " ++ show methodId)
   where
     searchClass (ClassTypeDecl (ClassDecl _ _ _ _ _ (ClassBody decls))) = searchDecls decls
-    searchDecls (MemberDecl (MethodDecl _ _ t id _ _ (MethodBody (Just b))):_) | methodId == id = [(StmtBlock b, t)]
+    searchDecls (MemberDecl (MethodDecl _ _ t id params _ (MethodBody (Just b))):_) | methodId == id = [(StmtBlock b, t, params)]
+    searchDecls (MemberDecl (ConstructorDecl _ _ id params _ (ConstructorBody _ b)):_) | methodId == toConstrId id = [(StmtBlock (Block b), Just (RefType (ClassRefType (ClassType [(id, [])]))), params)]
     searchDecls (_:decls) = searchDecls decls
     searchDecls [] = []
+    -- Adds a '#' to indicate the id refers to a constructor method
+    toConstrId (Ident s) = Ident ('#' : s)
 
 -- Gets the statement(-block) defining the main method and initializes the heap
 getMainMethod :: [TypeDecl] -> Stmt

@@ -22,7 +22,8 @@ data Inh = Inh {acc     :: Exp -> Exp,              -- The accumulated transform
                 decls   :: [TypeDecl],              -- Class declarations
                 calls   :: CallCount,               -- The number of recursive calls per method
                 ret     :: Maybe Ident,             -- The name of the return variable when handling a method call
-                object  :: Maybe Exp                -- The object the method is called from when handling a method call
+                object  :: Maybe Exp,               -- The object the method is called from when handling a method call
+                varNr   :: Int                      -- Used for creating unique variable names
                 }
             
            
@@ -35,7 +36,7 @@ type Syn = (Exp -> Exp, -- The wlp transformer
 --   Statements that pass control to the next statement have to explicitly combine their wlp function with the accumulated function, as some statements (e.g. break) ignore the accumulated function.
 wlpStmtAlgebra :: StmtAlgebra (Inh -> Syn)
 wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhancedFor, fEmpty, fExpStmt, fAssert, fSwitch, fDo, fBreak, fContinue, fReturn, fSynchronized, fThrow, fTry, fLabeled) where
-    fStmtBlock (Block bs) inh       = foldr (\b (r, env') -> wlpBlock (inh {acc = r, env = env'}) b) (acc inh, envBlock bs (env inh)) bs -- The result of the last block-statement will be the accumulated transformer for the second-last etc. The type environment is build from the left, so it has to be done seperately.
+    fStmtBlock (Block bs) inh       = fst $ foldr (\b ((r, env'), varNr') -> (wlpBlock (inh {acc = r, env = env', varNr = varNr'}) b, varNr' + 1)) ((acc inh, envBlock bs (env inh)), varNr inh) bs -- The result of the last block-statement will be the accumulated transformer for the second-last etc. The type environment is build from the left, so it has to be done seperately.
     fIfThen e s1                    = fIfThenElse e s1 (const (id, [])) -- if-then is just an if-then-else with an empty else-block
     fIfThenElse e s1 s2 inh         = let e' = getExp (foldExp wlpExpAlgebra e) inh 
                                       in ((\q -> (e' &* fst (s1 inh) q) |* (neg e' &* fst (s2 inh) q)) . acc inh, env inh)
@@ -146,7 +147,11 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fClassLit mType inh                                 = (ClassLit mType, (acc inh, env inh))
     fThis inh                                           = (fromJust (object inh), (acc inh, env inh))
     fThisClass name inh                                 = (ThisClass name, (acc inh, env inh))
-    fInstanceCreation typeArgs t args mBody inh         = (InstanceCreation typeArgs t args mBody, (acc inh, env inh))
+    fInstanceCreation typeArgs t args mBody inh         = case args of
+                                                            [ExpName (Name [Ident "#"])]    -> (InstanceCreation typeArgs t args mBody, (acc inh, env inh)) -- '#' indicates we already called the constructor method using the correct arguments
+                                                            _                               -> -- Create a var, assign a new instance to var, then call the constructor method on var
+                                                                    let (var, invocation) = (Name [getReturnVar inh invocation], MethodCall (Name [getReturnVar inh invocation, Ident ("#" ++ getClassName t)]) args) 
+                                                                    in  (ExpName var, (substVar (env inh) (decls inh) (NameLhs var) (InstanceCreation typeArgs t [ExpName (Name [Ident "#"])] mBody) . getTrans (fMethodInv invocation) inh {acc = id, object = Just (ExpName var)} . acc inh, env inh))
     fQualInstanceCreation e typeArgs t args mBody inh   = (QualInstanceCreation (getExp e inh) typeArgs t args mBody, (getTrans e inh, env inh))
     fArrayCreate t dimLengths dim inh                   = (ArrayCreate t (map (flip getExp inh) dimLengths) dim, (acc inh, env inh))
     fArrayCreateInit t dim init inh                     = (ArrayCreateInit t dim init, (acc inh, env inh))
@@ -201,13 +206,24 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
                     
     -- Inlines a methodcall. This creates a variable to store the return value in
     inlineMethod :: Inh -> MethodInvocation -> Stmt
-    inlineMethod inh (MethodCall name args) = getMethod (decls inh) (getMethodId name)
-    inlineMethod inh (PrimaryMethodCall _ _ id args) = getMethod (decls inh) id
-    inlineMethod inh _ = undefined
+    inlineMethod inh invocation = StmtBlock (Block (getParams inh invocation ++ [BlockStmt (getBody inh invocation)])) where
+        -- Gets the body of the method
+        getBody :: Inh -> MethodInvocation -> Stmt
+        getBody inh (MethodCall name _) = getMethod (decls inh) (getMethodId name)
+        getBody inh (PrimaryMethodCall _ _ id _) = getMethod (decls inh) id
+        getBody inh _ = undefined
+        -- Assigns the supplied parameter values to the parameter variables
+        getParams :: Inh -> MethodInvocation -> [BlockStmt]
+        getParams inh (MethodCall name args) = zipWith assignParam (getMethodParams (decls inh) (getMethodId name)) args
+        getParams inh (PrimaryMethodCall _ _ id args) = zipWith assignParam (getMethodParams (decls inh) id) args
+        getParams inh _ = undefined
+        -- Creates an assignment statement to a parameter variable
+        assignParam :: FormalParam -> Exp -> BlockStmt
+        assignParam (FormalParam mods t _ varId) e = LocalVars mods t [VarDecl varId (Just (InitExp e))]
     
     -- Gets the variable that represents the return value of the method
     getReturnVar :: Inh -> MethodInvocation -> Ident
-    getReturnVar inh invocation = Ident (makeReturnVarName (invocationToId invocation) ++ show (getCallCount (calls inh) (invocationToId invocation)))
+    getReturnVar inh invocation = Ident (makeReturnVarName (invocationToId invocation) ++ show (varNr inh) ++ "," ++ show (getCallCount (calls inh) (invocationToId invocation)))
     
     -- Gets the object a method is called from
     getObject :: Inh -> MethodInvocation -> Maybe Exp
@@ -217,6 +233,10 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
                                                                             This -> object inh
                                                                             _    -> Just e
     getObject inh _                                                     = undefined
+    
+    -- Gets the name of the class as a string from the type
+    getClassName :: ClassType -> String
+    getClassName (ClassType xs) = let Ident s = fst (last xs) in s
     
     -- Gets the return type of a method
     getType :: Inh -> MethodInvocation -> Maybe Type
@@ -260,11 +280,11 @@ getEnv f inh = let (_, (_, env)) = f inh in env
     
 -- | Calculates the weakest liberal pre-condition of a statement and a given post-condition
 wlp :: [TypeDecl] -> Stmt -> Exp -> Exp
-wlp decls = fst . (wlp' (Inh id id Nothing [] decls [] Nothing Nothing))
+wlp decls = fst . (wlp' (Inh id id Nothing [] decls [] Nothing Nothing 0))
 
 -- | wlp with a given type environment
 wlpWithEnv :: [TypeDecl] -> TypeEnv -> Stmt -> Exp -> Exp
-wlpWithEnv decls env = fst . (wlp' (Inh id id Nothing env decls [] Nothing Nothing))
+wlpWithEnv decls env = fst . (wlp' (Inh id id Nothing env decls [] Nothing Nothing 0))
 
 -- wlp' lets you specify the inherited attributes
 wlp' :: Inh -> Stmt -> Syn
