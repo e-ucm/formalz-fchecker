@@ -3,11 +3,13 @@ public static class Main
     static int x, y;
     public static void main(String[] args) 
     {
-        C c1 = new C(0);
-        C c2 = new C(1);
-        c1.method1(1);
-        c2.method1(1);
+        C c1, c2;
+       /* c1 = new C(0);
+        c2 = new C(1);
+        c1.method1(1);*/
+        c2.method1(1); 
         x = c1.c + c2.c;
+        C.staticMethod();
     }
     
     
@@ -25,6 +27,11 @@ public class C
     public C(int init)
     {
         this.c = init;
+    }
+    
+    public static void staticMethod()
+    {
+        x = 4;
     }
     
     public void method1(int n)
