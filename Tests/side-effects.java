@@ -6,12 +6,12 @@ public static class Main
         x = 0;
         y = 0;
         int i = 0;
-        
-        while(i < f())
+        if((i++) + (i++) < 1)
         {
-            x += y;
-            i++;
+            x++;
         }
+        x++; 
+        x++;
     }
     
     

@@ -2,7 +2,7 @@ module Settings where
 
 testFile, postCond :: String
 testFile = "side-effects"
-postCond = "(x == 6)"
+postCond = "(x == 2)"
 
 nrOfUnroll :: Int
-nrOfUnroll = 4
+nrOfUnroll = 2

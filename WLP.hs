@@ -39,14 +39,16 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     fStmtBlock (Block bs) inh       = fst $ foldr (\b ((r, env'), varNr') -> (wlpBlock (inh {acc = r, env = env', varNr = varNr'}) b, varNr' + 1)) ((acc inh, envBlock bs (env inh)), varNr inh) bs -- The result of the last block-statement will be the accumulated transformer for the second-last etc. The type environment is build from the left, so it has to be done seperately.
     fIfThen e s1                    = fIfThenElse e s1 (const (id, [])) -- if-then is just an if-then-else with an empty else-block
     fIfThenElse e s1 s2 inh         = let e' = getExp (foldExp wlpExpAlgebra e) inh 
-                                      in (getTrans (foldExp wlpExpAlgebra e) inh  . (\q -> (e' &* fst (s1 inh) q) |* (neg e' &* fst (s2 inh) q)) . acc inh, env inh)
+                                          eTrans = getTrans (foldExp wlpExpAlgebra e) inh {acc = id} -- The guard might also have side effects
+                                      in ((\q -> (e' &* eTrans (fst (s1 inh {acc = id}) q)) |* (neg e' &* eTrans (fst (s2 inh {acc = id}) q))) . acc inh, env inh)
     fWhile e s inh                  = let e' = getExp (foldExp wlpExpAlgebra e) inh 
-                                      in ((\q -> unrollLoop nrOfUnroll e' (getTrans (foldExp wlpExpAlgebra e) inh) (fst (s (inh {br = const q}))) q) . acc inh, env inh)
+                                      in ((\q -> unrollLoop nrOfUnroll e' (getTrans (foldExp wlpExpAlgebra e) inh {acc = id}) (fst (s (inh {acc = id, br = const q}))) q) . acc inh, env inh)
     fBasicFor init me incr s inh    = let loop = fst (fWhile (fromMaybeGuard me) (\inh' -> s (inh {acc = fst (wlp' inh' (incrToStmt incr))})) inh) in wlp' (inh {acc = loop}) (initToStmt init)
     fEnhancedFor                    = error "EnhancedFor"
     fEmpty inh                      = (acc inh, env inh) -- Empty does nothing, but still passes control to the next statement
     fExpStmt e inh                  = snd $ foldExp wlpExpAlgebra e inh
-    fAssert e _ inh                 = ((e &*) . getTrans (foldExp wlpExpAlgebra e) inh, env inh)
+    fAssert e _ inh                 = let e' = getExp (foldExp wlpExpAlgebra e) inh 
+                                      in ((e' &*) . getTrans (foldExp wlpExpAlgebra e) inh, env inh)
     fSwitch e bs inh                = let (e', s1, s2) = desugarSwitch e bs in fIfThenElse e' (flip wlp' s1) (flip wlp' s2) (inh {acc = id, br = acc inh})
     fDo s e inh                     = (fst (s (inh {acc = fst (fWhile e s inh)})), env inh) -- Do is just a while with the statement block executed one additional time. Break and continue still have to be handled in this additional execution.
     fBreak _ inh                    = (br inh, env inh) -- wlp of the breakpoint. Control is passed to the statement after the loop
@@ -89,8 +91,8 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
               
     -- Unrolls a while-loop a finite amount of times
     unrollLoop :: Int -> Exp -> (Exp -> Exp) -> (Exp -> Exp) -> Exp -> Exp
-    unrollLoop 0 g gTrans _ q           = gTrans (neg g `imp` q)
-    unrollLoop n g gTrans bodyTrans q   = gTrans (neg g `imp` q) &* gTrans (g `imp` bodyTrans (unrollLoop (n - 1) g gTrans bodyTrans q))
+    unrollLoop 0 g gTrans _ q           = (neg g `imp` gTrans q)
+    unrollLoop n g gTrans bodyTrans q   = (neg g `imp` gTrans q) &* (g `imp` gTrans (bodyTrans (unrollLoop (n - 1) g gTrans bodyTrans q)))
     
     
     -- Converts initialization code of a for loop to a statement
@@ -184,7 +186,7 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fPreBitCompl e inh                                  = (PreBitCompl $ getExp e inh, (getTrans e inh, env inh))
     fPreNot e inh                                       = (PreNot $ getExp e inh, (getTrans e inh, env inh))
     fCast t e inh                                       = (getExp e inh, (getTrans e inh, env inh))
-    fBinOp e1 op e2 inh                                 = (BinOp (getExp e1 inh) op (getExp e2 inh), (getTrans e1 (inh {acc = getTrans e2 inh}), env inh)) 
+    fBinOp e1 op e2 inh                                 = (BinOp (getExp e1 inh) op (getTrans e1 (inh {acc = id}) (getExp e2 inh)), (getTrans e1 (inh {acc = getTrans e2 inh}), env inh)) -- Side effects of the first expression are applied before the second is evaluated, so we have to apply the transformer
     fInstanceOf                                         = error "instanceOf"
     fCond g e1 e2 inh                                   = (Cond (getExp g inh) (getExp e1 inh) (getExp e2 inh), (getTrans g (inh {acc = id}) . (\q -> (getExp g inh &* getTrans e1 (inh {acc = id}) q) |* (neg (getExp g inh) &* getTrans e2 (inh {acc = id}) q)) . acc inh, env inh))
     fAssign lhs op e inh                                = let lhs' = foldLhs inh lhs
