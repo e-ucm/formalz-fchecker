@@ -1,3 +1,5 @@
+import blabla;
+
 public static class Main
 {
     static int x, y;
@@ -10,6 +12,8 @@ public static class Main
         {
             x++;
         }
+        x = blabla.g();
+        
         x++; 
         x++;
     }

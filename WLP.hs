@@ -158,10 +158,12 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fArrayCreate t dimLengths dim inh                   = (ArrayCreate t (map (flip getExp inh) dimLengths) dim, (acc inh, env inh))
     fArrayCreateInit t dim init inh                     = (ArrayCreateInit t dim init, (acc inh, env inh))
     fFieldAccess fieldAccess inh                        = (ExpName (foldFieldAccess inh fieldAccess), (acc inh, env inh))
-    fMethodInv invocation inh                           = (ExpName (Name [getReturnVar inh invocation]), 
-                                                          (if getCallCount (calls inh) (invocationToId invocation) >= nrOfUnroll
-                                                          then const true
-                                                          else fst (wlp' (inh {acc = id, calls = incrCallCount (calls inh) (invocationToId invocation), ret = Just (getReturnVar inh invocation), object = getObject inh invocation}) (inlineMethod inh invocation)) . acc inh, env inh))
+    fMethodInv invocation inh                           = case invocation of
+                                                            MethodCall (Name [Ident "*assume"]) [e] -> (Lit Null, (if e == false then const true else imp e, env inh))
+                                                            _   -> (ExpName (Name [getReturnVar inh invocation]), 
+                                                                   (if getCallCount (calls inh) (invocationToId invocation) >= nrOfUnroll
+                                                                   then const true
+                                                                   else fst (wlp' (inh {acc = id, calls = incrCallCount (calls inh) (invocationToId invocation), ret = Just (getReturnVar inh invocation), object = getObject inh invocation}) (inlineMethod inh invocation)) . acc inh, env inh))
     fArrayAccess (ArrayIndex a i) inh                   = case catch inh of
                                                             Nothing      -> (arrayAccess a i, (getTrans (foldExp wlpExpAlgebra a) inh, env inh))
                                                             Just (cs, f) -> (arrayAccess a i, (getTrans (foldExp wlpExpAlgebra a) inh {acc = id} . arrayAccessWlp a i inh, env inh))
@@ -211,13 +213,21 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     inlineMethod inh invocation = StmtBlock (Block (getParams inh invocation ++ [BlockStmt (getBody inh invocation)])) where
         -- Gets the body of the method
         getBody :: Inh -> MethodInvocation -> Stmt
-        getBody inh (MethodCall name _) = getMethod (decls inh) (getMethodId name)
-        getBody inh (PrimaryMethodCall _ _ id _) = getMethod (decls inh) id
+        getBody inh (MethodCall name _)             = case getMethod (decls inh) (getMethodId name) of
+                                                        Nothing -> ExpStmt $ MethodInv (MethodCall (Name [Ident "*assume"]) [false])
+                                                        Just s  -> s
+        getBody inh (PrimaryMethodCall _ _ id _)    = case getMethod (decls inh) id of
+                                                        Nothing -> ExpStmt $ MethodInv (MethodCall (Name [Ident "*assume"]) [false])
+                                                        Just s  -> s
         getBody inh _ = undefined
         -- Assigns the supplied parameter values to the parameter variables
         getParams :: Inh -> MethodInvocation -> [BlockStmt]
-        getParams inh (MethodCall name args) = zipWith assignParam (getMethodParams (decls inh) (getMethodId name)) args
-        getParams inh (PrimaryMethodCall _ _ id args) = zipWith assignParam (getMethodParams (decls inh) id) args
+        getParams inh (MethodCall name args)            = case getMethodParams (decls inh) (getMethodId name) of 
+                                                            Nothing     -> []
+                                                            Just params -> zipWith assignParam params args
+        getParams inh (PrimaryMethodCall _ _ id args)   = case getMethodParams (decls inh) id of 
+                                                            Nothing     -> []
+                                                            Just params -> zipWith assignParam params args
         getParams inh _ = undefined
         -- Creates an assignment statement to a parameter variable
         assignParam :: FormalParam -> Exp -> BlockStmt

@@ -66,22 +66,22 @@ getMethodId :: Name -> Ident
 getMethodId = last . fromName
 
 -- Gets the statement(-block) defining a method
-getMethod :: [TypeDecl] -> Ident -> Stmt
-getMethod classTypeDecls methodId = let (b, _, _) = getMethod' classTypeDecls methodId in b
+getMethod :: [TypeDecl] -> Ident -> Maybe Stmt
+getMethod classTypeDecls methodId = fmap (\(b, _, _) -> b) (getMethod' classTypeDecls methodId)
 
 -- Gets the return type of a method
 getMethodType :: [TypeDecl] -> Ident -> Maybe Type
-getMethodType classTypeDecls methodId = let (_, t, _) = getMethod' classTypeDecls methodId in t
+getMethodType classTypeDecls methodId = getMethod' classTypeDecls methodId >>= (\(_, t, _) -> t)
 
 -- Gets the parameter declarations of a method
-getMethodParams :: [TypeDecl] -> Ident -> [FormalParam]
-getMethodParams classTypeDecls methodId = let (_, _, params) = getMethod' classTypeDecls methodId in params
+getMethodParams :: [TypeDecl] -> Ident -> Maybe [FormalParam]
+getMethodParams classTypeDecls methodId = fmap (\(_, _, params) -> params) (getMethod' classTypeDecls methodId)
 
 -- Finds a method definition. This function assumes all methods are named differently
-getMethod' :: [TypeDecl] -> Ident -> (Stmt, Maybe Type, [FormalParam])
+getMethod' :: [TypeDecl] -> Ident -> Maybe (Stmt, Maybe Type, [FormalParam])
 getMethod' classTypeDecls methodId = case (concatMap searchClass classTypeDecls) of
-                                        r:_     -> r
-                                        []      -> error ("non-existing method: " ++ show methodId)
+                                        r:_     -> Just r
+                                        []      -> Nothing -- Library function call
   where
     searchClass (ClassTypeDecl (ClassDecl _ _ _ _ _ (ClassBody decls))) = searchDecls decls
     searchDecls (MemberDecl (MethodDecl _ _ t id params _ (MethodBody (Just b))):_) | methodId == id = [(StmtBlock b, t, params)]
@@ -91,9 +91,9 @@ getMethod' classTypeDecls methodId = case (concatMap searchClass classTypeDecls)
     -- Adds a '#' to indicate the id refers to a constructor method
     toConstrId (Ident s) = Ident ('#' : s)
 
--- Gets the statement(-block) defining the main method and initializes the heap
+-- Gets the statement(-block) defining the main method
 getMainMethod :: [TypeDecl] -> Stmt
-getMainMethod classTypeDecls = getMethod classTypeDecls (Ident "main")
+getMainMethod classTypeDecls = fromJust $ getMethod classTypeDecls (Ident "main")
 
 -- Gets the class declarations
 getDecls :: CompilationUnit -> [TypeDecl]
