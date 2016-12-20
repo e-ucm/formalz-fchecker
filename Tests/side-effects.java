@@ -8,11 +8,10 @@ public static class Main
         x = 0;
         y = 0;
         int i = 0;
-        if((i++) + (i++) < 1)
+        if(h() < 1)
         {
-            x++;
+            x = f();
         }
-        x = blabla.g();
         
         x++; 
         x++;

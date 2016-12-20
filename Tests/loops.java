@@ -4,15 +4,14 @@ public class C1
 {
     public static void main(String[] args) 
     {
-        int i = 0;
         
-        
-        while(i < 6)
+        for(int i = 0; i < 6; i++)
         {
-            i++;
-            
-            if ( i == 5)
-                break;
+            for(int j = 0; j < 6; j++)
+            {
+                if(true)
+                    assert j == 1;
+            }
         }
         
         

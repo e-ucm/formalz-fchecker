@@ -41,7 +41,9 @@ makeReturnVarName (Ident s) = "$" ++ s ++ "$"
         
 -- | Get's the type of a generated variable
 getReturnVarType :: [TypeDecl] -> String -> Type
-getReturnVarType decls s = fromJust $ getMethodType decls (Ident (takeWhile (/= '$') (tail s)))
+getReturnVarType decls s = case getMethodType decls (Ident (takeWhile (/= '$') (tail s))) of
+                            Nothing -> PrimType undefined -- Kind of a hack. In case of library functions, it doesn't matter what type we return.
+                            Just t  -> t
         
 -- Increments the call count for a given method
 incrCallCount :: CallCount -> Ident -> CallCount
@@ -93,7 +95,7 @@ getMethod' classTypeDecls methodId = case (concatMap searchClass classTypeDecls)
 
 -- Gets the statement(-block) defining the main method
 getMainMethod :: [TypeDecl] -> Stmt
-getMainMethod classTypeDecls = fromJust $ getMethod classTypeDecls (Ident "main")
+getMainMethod classTypeDecls = fromJust' "getMainMethod" $ getMethod classTypeDecls (Ident "main")
 
 -- Gets the class declarations
 getDecls :: CompilationUnit -> [TypeDecl]
@@ -106,6 +108,12 @@ getStaticVars compUnit = concatMap fromTypeDecls (getDecls compUnit) where
     fromMemberDecl (MemberDecl (FieldDecl mods t varDecls)) = if Static `elem` mods then map (fromVarDecl t) varDecls else []
     fromMemberDecl _                                        = []
     fromVarDecl t (VarDecl varId _) = (Name [getId varId], t)
+    
+-- Used for debugging
+fromJust' :: String -> Maybe a -> a
+fromJust' s ma = case ma of
+                    Nothing -> error s
+                    Just x  -> x
         
 true :: Exp
 true = Lit (Boolean True)

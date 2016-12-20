@@ -6,6 +6,7 @@ import Z3.Monad
 import System.IO.Unsafe
 
 import Folds
+import HelperFunctions
 
 
 -- | Checks wether the negation is unsatisfiable
@@ -61,7 +62,7 @@ expAssertAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQual
     fThisClass = undefined
     fInstanceCreation = undefined
     fQualInstanceCreation = undefined
-    fArrayCreate = undefined
+    fArrayCreate _ _ _ = mkTrue
     fArrayCreateInit = undefined
     fFieldAccess fieldAccess    = case fieldAccess of
                                     PrimaryFieldAccess e id         -> case e of
@@ -75,7 +76,10 @@ expAssertAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQual
                                                                                                     ArrayCreateInit t dim arrayInit -> mkInteger 0
                                                                                                     _                               -> error "length of non-array"
                                     _ -> error (prettyPrint invocation)
-    fArrayAccess _ = undefined
+    fArrayAccess arrayIndex     = case arrayIndex of
+                                    ArrayIndex (ArrayCreate t _ _) _ -> foldExp expAssertAlgebra (getInitValue t)
+                                    ArrayIndex (ArrayCreateInit t _ _) _ -> foldExp expAssertAlgebra (getInitValue t)
+                                    ArrayIndex e _ -> foldExp expAssertAlgebra e
     fExpName name   = do
                         symbol <- mkStringSymbol (prettyPrint name)
                         mkIntVar symbol
@@ -95,51 +99,63 @@ expAssertAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQual
                             Mult -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      mkMul [ast1, ast2]
+                                      t <- mkTrue
+                                      if ast1 == t then mkTrue else mkMul [ast1, ast2]
                             Div -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      mkDiv ast1 ast2
+                                      t <- mkTrue
+                                      if ast1 == t then mkTrue else mkDiv ast1 ast2
                             Rem -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      mkRem ast1 ast2
+                                      t <- mkTrue
+                                      if ast1 == t then mkTrue else mkRem ast1 ast2
                             Add -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      mkAdd [ast1, ast2]
+                                      t <- mkTrue
+                                      if ast1 == t then mkTrue else mkAdd [ast1, ast2]
                             Sub -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      mkSub [ast1, ast2]
+                                      t <- mkTrue
+                                      if ast1 == t then mkTrue else mkSub [ast1, ast2]
                             LShift -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      mkBvshl ast1 ast2
+                                      t <- mkTrue
+                                      if ast1 == t then mkTrue else mkBvshl ast1 ast2
                             RShift -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      mkBvashr ast1 ast2
+                                      t <- mkTrue
+                                      if ast1 == t then mkTrue else mkBvashr ast1 ast2
                             RRShift -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      mkBvlshr ast1 ast2
+                                      t <- mkTrue
+                                      if ast1 == t then mkTrue else mkBvlshr ast1 ast2
                             LThan -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      mkLt ast1 ast2
+                                      t <- mkTrue
+                                      if ast1 == t then mkTrue else mkLt ast1 ast2
                             GThan -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      mkGt ast1 ast2
+                                      t <- mkTrue
+                                      if ast1 == t then mkTrue else mkGt ast1 ast2
                             LThanE -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      mkLe ast1 ast2
+                                      t <- mkTrue
+                                      if ast1 == t then mkTrue else mkLe ast1 ast2
                             GThanE -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      mkGe ast1 ast2
+                                      t <- mkTrue
+                                      if ast1 == t then mkTrue else mkGe ast1 ast2
                             Equal -> do
                                       ast1 <- e1
                                       ast2 <- e2
