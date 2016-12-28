@@ -62,7 +62,7 @@ expAssertAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQual
     fThisClass = undefined
     fInstanceCreation = undefined
     fQualInstanceCreation = undefined
-    fArrayCreate _ _ _ = mkTrue
+    fArrayCreate = undefined
     fArrayCreateInit = undefined
     fFieldAccess fieldAccess    = case fieldAccess of
                                     PrimaryFieldAccess e id         -> case e of

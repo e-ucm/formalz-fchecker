@@ -5,4 +5,4 @@ testFile = "methods"
 postCond = "(x == 4)"
 
 nrOfUnroll :: Int
-nrOfUnroll = 1
+nrOfUnroll = 2
