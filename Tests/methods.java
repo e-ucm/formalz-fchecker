@@ -4,12 +4,12 @@ public static class Main
     public static void main(String[] args) 
     {
         C c1, c2;
-       /* c1 = new C(0);
+        c1 = new C(0);
         c2 = new C(1);
-        c1.method1(1);*/
+        c1.method1(1);
         c2.method1(1); 
         x = c1.c + c2.c;
-        C.staticMethod();
+       // C.staticMethod();
     }
     
     
@@ -36,9 +36,10 @@ public class C
     
     public void method1(int n)
     {
+        
         this.c += n;
         if(this.c < 2)
-            this.method1();
+            this.method1(); 
     }
     
     public int method2()

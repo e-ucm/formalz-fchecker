@@ -22,46 +22,44 @@ data Inh = Inh {acc     :: Exp -> Exp,              -- The accumulated transform
                 decls   :: [TypeDecl],              -- Class declarations
                 calls   :: CallCount,               -- The number of recursive calls per method
                 ret     :: Maybe Ident,             -- The name of the return variable when handling a method call
-                object  :: Maybe Exp,               -- The object the method is called from when handling a method call
-                varNr   :: Int                      -- Used for creating unique variable names
+                object  :: Maybe Exp                -- The object the method is called from when handling a method call
                 }
             
            
 -- | A type synonym for the synthesized attributea
-type Syn = (Exp -> Exp, -- The wlp transformer
-            TypeEnv)    -- The type environment
+type Syn = Exp -> Exp -- The wlp transformer
 
 -- | The algebra that defines the wlp transformer for statements
 --   The synthesized attribute is the resulting transformer. 
 --   Statements that pass control to the next statement have to explicitly combine their wlp function with the accumulated function, as some statements (e.g. break) ignore the accumulated function.
 wlpStmtAlgebra :: StmtAlgebra (Inh -> Syn)
 wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhancedFor, fEmpty, fExpStmt, fAssert, fSwitch, fDo, fBreak, fContinue, fReturn, fSynchronized, fThrow, fTry, fLabeled) where
-    fStmtBlock (Block bs) inh       = fst $ foldr (\b ((r, env'), varNr') -> (wlpBlock (inh {acc = r, env = env', varNr = varNr'}) b, varNr' + 1)) ((acc inh, envBlock bs (env inh)), varNr inh) bs -- The result of the last block-statement will be the accumulated transformer for the second-last etc. The type environment is build from the left, so it has to be done seperately.
-    fIfThen e s1                    = fIfThenElse e s1 (const (id, [])) -- if-then is just an if-then-else with an empty else-block
+    fStmtBlock (Block bs) inh       = foldr (\b r -> wlpBlock (inh {acc = r, env = envBlock bs (env inh)}) b) (acc inh) bs -- The result of the last block-statement will be the accumulated transformer for the second-last etc. The type environment is build from the left, so it has to be done seperately.
+    fIfThen e s1                    = fIfThenElse e s1 (const id) -- if-then is just an if-then-else with an empty else-block
     fIfThenElse e s1 s2 inh         = let e' = getExp (foldExp wlpExpAlgebra e) inh 
                                           eTrans = getTrans (foldExp wlpExpAlgebra e) inh {acc = id} -- The guard might also have side effects
-                                      in ((\q -> (e' &* eTrans (fst (s1 inh {acc = id}) q)) |* (neg e' &* eTrans (fst (s2 inh {acc = id}) q))) . acc inh, env inh)
+                                      in ((\q -> (e' &* eTrans ((s1 inh {acc = id}) q)) |* (neg e' &* eTrans ((s2 inh {acc = id}) q))) . acc inh)
     fWhile e s inh                  = let e' = getExp (foldExp wlpExpAlgebra e) inh 
-                                      in ((\q -> unrollLoop nrOfUnroll e' (getTrans (foldExp wlpExpAlgebra e) inh {acc = id}) (fst (s (inh {acc = id, br = const q}))) q) . acc inh, env inh)
-    fBasicFor init me incr s inh    = let loop = fst (fWhile (fromMaybeGuard me) (\inh' -> s (inh {acc = fst (wlp' inh {acc = id} (incrToStmt incr))})) inh) in wlp' (inh {acc = loop}) (initToStmt init)
+                                      in ((\q -> unrollLoop nrOfUnroll e' (getTrans (foldExp wlpExpAlgebra e) inh {acc = id}) ((s (inh {acc = id, br = const q}))) q) . acc inh)
+    fBasicFor init me incr s inh    = let loop = (fWhile (fromMaybeGuard me) (\inh' -> s (inh {acc = (wlp' inh {acc = id} (incrToStmt incr))})) inh) in wlp' (inh {acc = loop}) (initToStmt init)
     fEnhancedFor                    = error "EnhancedFor"
-    fEmpty inh                      = (acc inh, env inh) -- Empty does nothing, but still passes control to the next statement
+    fEmpty inh                      = (acc inh) -- Empty does nothing, but still passes control to the next statement
     fExpStmt e inh                  = snd $ foldExp wlpExpAlgebra e inh
     fAssert e _ inh                 = let e' = getExp (foldExp wlpExpAlgebra e) inh 
-                                      in ((e' &*) . getTrans (foldExp wlpExpAlgebra e) inh, env inh)
+                                      in ((e' &*) . getTrans (foldExp wlpExpAlgebra e) inh)
     fSwitch e bs inh                = let (e', s1, s2) = desugarSwitch e bs in fIfThenElse e' (flip wlp' s1) (flip wlp' s2) (inh {acc = id, br = acc inh})
-    fDo s e inh                     = (fst (s (inh {acc = fst (fWhile e s inh)})), env inh) -- Do is just a while with the statement block executed one additional time. Break and continue still have to be handled in this additional execution.
-    fBreak _ inh                    = (br inh, env inh) -- wlp of the breakpoint. Control is passed to the statement after the loop
-    fContinue _ inh                 = (id, env inh)     -- at a continue statement it's as if the body of the loop is fully executed
+    fDo s e inh                     = s (inh {acc = fWhile e s inh}) -- Do is just a while with the statement block executed one additional time. Break and continue still have to be handled in this additional execution.
+    fBreak _ inh                    = (br inh) -- wlp of the breakpoint. Control is passed to the statement after the loop
+    fContinue _ inh                 = (id)     -- at a continue statement it's as if the body of the loop is fully executed
     fReturn me inh                  = case me of
-                                        Nothing -> (id, env inh) -- Return ignores acc, as it terminates the method
+                                        Nothing -> (id) -- Return ignores acc, as it terminates the method
                                         Just e  -> fExpStmt (Assign (NameLhs (Name [fromJust' "fReturn" (ret inh)])) EqualA e) (inh {acc = id}) -- We treat "return e" as an assignment to a variable specifically created to store the return value in
                                                             
     fSynchronized _                 = fStmtBlock
     fThrow e inh                    = case catch inh of
-                                        Nothing      -> ((\q -> q &* throwException e), env inh) -- acc is ignored, as the rest of the block is not executed
-                                        Just (cs, f) -> (maybe (if f then id else (\q -> q &* throwException e), env inh) (flip fStmtBlock (inh {acc = id, catch = Nothing})) (getCatch (decls inh) (env inh) e cs))
-    fTry b cs f inh                 = let (r, env') = (fStmtBlock b (inh {acc = id, catch = Just (cs, isJust f)})) in (r . maybe (acc inh) (fst . flip fStmtBlock (inh {env = env'})) f, env inh) -- The finally-block is always executed
+                                        Nothing      -> ((\q -> q &* throwException e)) -- acc is ignored, as the rest of the block is not executed
+                                        Just (cs, f) -> (maybe (if f then id else (\q -> q &* throwException e)) (flip fStmtBlock (inh {acc = id, catch = Nothing})) (getCatch (decls inh) (env inh) e cs))
+    fTry (Block bs) cs f inh        = let r = (fStmtBlock (Block bs) (inh {acc = id, catch = Just (cs, isJust f)})) in (r . maybe (acc inh) (flip fStmtBlock (inh {env = envBlock bs (env inh)})) f) -- The finally-block is always executed
     fLabeled _ s                    = s
     
     -- Helper functions
@@ -70,8 +68,8 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     wlpBlock :: Inh -> BlockStmt -> Syn
     wlpBlock inh b  = case b of
                         BlockStmt s            -> wlp' inh s
-                        LocalClass _           -> (acc inh, env inh)
-                        LocalVars mods t vars  -> foldr (\v (r, env') -> (wlpDeclAssignment t (inh {acc = r, env = env'}) v, env')) (acc inh, env inh) vars
+                        LocalClass _           -> (acc inh)
+                        LocalVars mods t vars  -> foldr (\v r -> (wlpDeclAssignment t (inh {acc = r}) v)) (acc inh) vars
                                                         
     -- Adds declarations within a block to a type environment
     envBlock :: [BlockStmt] -> TypeEnv -> TypeEnv
@@ -145,55 +143,55 @@ catches decls env (FormalParam _ t _ _) e = t == RefType (ClassRefType (ClassTyp
 --   The first attribute is the expression itself (this is passed to handle substitutions in case of assignments)
 wlpExpAlgebra :: ExpAlgebra (Inh -> (Exp, Syn))
 wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualInstanceCreation, fArrayCreate, fArrayCreateInit, fFieldAccess, fMethodInv, fArrayAccess, fExpName, fPostIncrement, fPostDecrement, fPreIncrement, fPreDecrement, fPrePlus, fPreMinus, fPreBitCompl, fPreNot, fCast, fBinOp, fInstanceOf, fCond, fAssign, fLambda, fMethodRef) where
-    fLit lit inh                                        = (Lit lit, (acc inh, env inh))
-    fClassLit mType inh                                 = (ClassLit mType, (acc inh, env inh))
-    fThis inh                                           = (fromJust' "fThis" (object inh), (acc inh, env inh))
-    fThisClass name inh                                 = (ThisClass name, (acc inh, env inh))
+    fLit lit inh                                        = (Lit lit, (acc inh))
+    fClassLit mType inh                                 = (ClassLit mType, (acc inh))
+    fThis inh                                           = (fromJust' "fThis" (object inh), (acc inh))
+    fThisClass name inh                                 = (ThisClass name, (acc inh))
     fInstanceCreation typeArgs t args mBody inh         = case args of
-                                                            [ExpName (Name [Ident "#"])]    -> (InstanceCreation typeArgs t args mBody, (acc inh, env inh)) -- '#' indicates we already called the constructor method using the correct arguments
+                                                            [ExpName (Name [Ident "#"])]    -> (InstanceCreation typeArgs t args mBody, (acc inh)) -- '#' indicates we already called the constructor method using the correct arguments
                                                             _                               -> -- Create a var, assign a new instance to var, then call the constructor method on var
-                                                                    let (var, invocation) = (Name [getReturnVar inh invocation], MethodCall (Name [getReturnVar inh invocation, Ident ("#" ++ getClassName t)]) args) 
-                                                                    in  (ExpName var, (substVar (env inh) (decls inh) (NameLhs var) (InstanceCreation typeArgs t [ExpName (Name [Ident "#"])] mBody) . getTrans (fMethodInv invocation) inh {acc = id, object = Just (ExpName var)} . acc inh, env inh))
-    fQualInstanceCreation e typeArgs t args mBody inh   = (QualInstanceCreation (getExp e inh) typeArgs t args mBody, (getTrans e inh, env inh))
-    fArrayCreate t dimLengths dim inh                   = (ArrayCreate t (map (flip getExp inh) dimLengths) dim, (acc inh, env inh))
-    fArrayCreateInit t dim init inh                     = (ArrayCreateInit t dim init, (acc inh, env inh))
-    fFieldAccess fieldAccess inh                        = (ExpName (foldFieldAccess inh fieldAccess), (acc inh, env inh))
+                                                                    let (var, invocation) = (Name [getReturnVar invocation], MethodCall (Name [getReturnVar invocation, Ident ("#" ++ getClassName t)]) args) 
+                                                                    in  (ExpName var, (substVar (env inh) (decls inh) (NameLhs var) (InstanceCreation typeArgs t [ExpName (Name [Ident "#"])] mBody) . getTrans (fMethodInv invocation) inh {acc = id, object = Just (ExpName var)} . acc inh))
+    fQualInstanceCreation e typeArgs t args mBody inh   = (QualInstanceCreation (getExp e inh) typeArgs t args mBody, (getTrans e inh))
+    fArrayCreate t dimLengths dim inh                   = (ArrayCreate t (map (flip getExp inh) dimLengths) dim, (acc inh))
+    fArrayCreateInit t dim init inh                     = (ArrayCreateInit t dim init, (acc inh))
+    fFieldAccess fieldAccess inh                        = (ExpName (foldFieldAccess inh fieldAccess), (acc inh))
     fMethodInv invocation inh                           = case invocation of
-                                                            MethodCall (Name [Ident "*assume"]) [e] -> (false, (if e == false then const true else imp e, env inh))
+                                                            MethodCall (Name [Ident "*assume"]) [e] -> (false, (if e == false then const true else imp e))
                                                             _   -> if getCallCount (calls inh) (invocationToId invocation) >= nrOfUnroll
-                                                                   then (false, (const true, env inh))
-                                                                   else let callWlp = fst (wlp' (inh {acc = id, calls = incrCallCount (calls inh) (invocationToId invocation), ret = Just (getReturnVar inh invocation), object = getObject inh invocation}) (inlineMethod inh invocation))
-                                                                        in (callWlp (ExpName (Name [getReturnVar inh invocation])), (callWlp . acc inh, env inh))
+                                                                   then (false, (const true))
+                                                                   else let callWlp = wlp' (inh {acc = id, calls = incrCallCount (calls inh) (invocationToId invocation), ret = Just (getReturnVar invocation), object = getObject inh invocation}) (inlineMethod inh invocation)
+                                                                        in (callWlp (ExpName (Name [getReturnVar invocation])), (callWlp . acc inh))
     fArrayAccess (ArrayIndex a i) inh                   = case catch inh of
-                                                            Nothing      -> (arrayAccess a i, (getTrans (foldExp wlpExpAlgebra a) inh, env inh))
-                                                            Just (cs, f) -> (arrayAccess a i, (getTrans (foldExp wlpExpAlgebra a) inh {acc = id} . arrayAccessWlp a i inh, env inh))
+                                                            Nothing      -> (arrayAccess a i, (getTrans (foldExp wlpExpAlgebra a) inh))
+                                                            Just (cs, f) -> (arrayAccess a i, (getTrans (foldExp wlpExpAlgebra a) inh {acc = id} . arrayAccessWlp a i inh))
     
-    fExpName name inh                                   = (ExpName name, (acc inh, env inh))
+    fExpName name inh                                   = (ExpName name, (acc inh))
     -- x++ increments x but evaluates to the original value
     fPostIncrement e inh                                = case getExp e inh of
-                                                            var@(ExpName name) -> (var, (substVar (env inh) (decls inh) (NameLhs name) (BinOp var Add (Lit (Int 1))) . getTrans e inh, env inh))
-                                                            exp  -> (exp, (getTrans e inh, env inh))
+                                                            var@(ExpName name) -> (var, (substVar (env inh) (decls inh) (NameLhs name) (BinOp var Add (Lit (Int 1))) . getTrans e inh))
+                                                            exp  -> (exp, (getTrans e inh))
     fPostDecrement e inh                                = case getExp e inh of
-                                                            var@(ExpName name) -> (var, (substVar (env inh) (decls inh) (NameLhs name) (BinOp var Rem (Lit (Int 1))) . getTrans e inh, env inh))
-                                                            exp  -> (exp, (getTrans e inh, env inh))
+                                                            var@(ExpName name) -> (var, (substVar (env inh) (decls inh) (NameLhs name) (BinOp var Rem (Lit (Int 1))) . getTrans e inh))
+                                                            exp  -> (exp, (getTrans e inh))
     -- ++x increments x and evaluates to the new value of x
     fPreIncrement e inh                                 = case getExp e inh of
-                                                            var@(ExpName name) -> (BinOp var Add (Lit (Int 1)), (substVar (env inh) (decls inh) (NameLhs name) (BinOp var Add (Lit (Int 1))) . getTrans e inh, env inh))
-                                                            exp  -> (BinOp exp Add (Lit (Int 1)), (getTrans e inh, env inh))
+                                                            var@(ExpName name) -> (BinOp var Add (Lit (Int 1)), (substVar (env inh) (decls inh) (NameLhs name) (BinOp var Add (Lit (Int 1))) . getTrans e inh))
+                                                            exp  -> (BinOp exp Add (Lit (Int 1)), (getTrans e inh))
     fPreDecrement e inh                                 = case getExp e inh of
-                                                            var@(ExpName name) -> (BinOp var Rem (Lit (Int 1)), (substVar (env inh) (decls inh) (NameLhs name) (BinOp var Rem (Lit (Int 1))) . getTrans e inh, env inh))
-                                                            exp  -> (BinOp exp Rem (Lit (Int 1)), (getTrans e inh, env inh))
-    fPrePlus e inh                                      = (getExp e inh, (getTrans e inh, env inh))
-    fPreMinus e inh                                     = (PreMinus $ getExp e inh, (getTrans e inh, env inh))
-    fPreBitCompl e inh                                  = (PreBitCompl $ getExp e inh, (getTrans e inh, env inh))
-    fPreNot e inh                                       = (PreNot $ getExp e inh, (getTrans e inh, env inh))
-    fCast t e inh                                       = (getExp e inh, (getTrans e inh, env inh))
-    fBinOp e1 op e2 inh                                 = (BinOp (getExp e1 inh) op (getTrans e1 (inh {acc = id}) (getExp e2 inh)), (getTrans e1 (inh {acc = getTrans e2 inh}), env inh)) -- Side effects of the first expression are applied before the second is evaluated, so we have to apply the transformer
+                                                            var@(ExpName name) -> (BinOp var Rem (Lit (Int 1)), (substVar (env inh) (decls inh) (NameLhs name) (BinOp var Rem (Lit (Int 1))) . getTrans e inh))
+                                                            exp  -> (BinOp exp Rem (Lit (Int 1)), (getTrans e inh))
+    fPrePlus e inh                                      = (getExp e inh, (getTrans e inh))
+    fPreMinus e inh                                     = (PreMinus $ getExp e inh, (getTrans e inh))
+    fPreBitCompl e inh                                  = (PreBitCompl $ getExp e inh, (getTrans e inh))
+    fPreNot e inh                                       = (PreNot $ getExp e inh, (getTrans e inh))
+    fCast t e inh                                       = (getExp e inh, (getTrans e inh))
+    fBinOp e1 op e2 inh                                 = (BinOp (getExp e1 inh) op (getTrans e1 (inh {acc = id}) (getExp e2 inh)), (getTrans e1 (inh {acc = getTrans e2 inh}))) -- Side effects of the first expression are applied before the second is evaluated, so we have to apply the transformer
     fInstanceOf                                         = error "instanceOf"
-    fCond g e1 e2 inh                                   = (Cond (getExp g inh) (getExp e1 inh) (getExp e2 inh), (getTrans g (inh {acc = id}) . (\q -> (getExp g inh &* getTrans e1 (inh {acc = id}) q) |* (neg (getExp g inh) &* getTrans e2 (inh {acc = id}) q)) . acc inh, env inh))
+    fCond g e1 e2 inh                                   = (Cond (getExp g inh) (getExp e1 inh) (getExp e2 inh), (getTrans g (inh {acc = id}) . (\q -> (getExp g inh &* getTrans e1 (inh {acc = id}) q) |* (neg (getExp g inh) &* getTrans e2 (inh {acc = id}) q)) . acc inh))
     fAssign lhs op e inh                                = let lhs' = foldLhs inh lhs
                                                               rhs' = desugarAssign lhs' op (getExp e inh) 
-                                                          in  (rhs', (getTrans e inh {acc = id} . substVar (env inh) (decls inh) lhs' rhs' . acc inh, env inh))
+                                                          in  (rhs', (getTrans e inh {acc = id} . substVar (env inh) (decls inh) lhs' rhs' . acc inh))
     fLambda                                             = error "lambda"
     fMethodRef                                          = error "method reference"
                             
@@ -202,7 +200,7 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     arrayAccessWlp a i inh q =  case catch inh of
                                     Nothing      -> q
                                     Just (cs, f) -> let e = InstanceCreation [] (ClassType [(Ident "ArrayIndexOutOfBoundsException", [])]) [] Nothing
-                                                    in Cond (foldr (\(i, l) e -> e &* (BinOp i LThan l) &* (BinOp i GThanE (Lit (Int 0)))) true (zip i (dimLengths a))) q ((maybe (if f then q else q &* throwException e)) (\b -> fst (wlp' (inh {acc = id, catch = Nothing}) (StmtBlock b)) q) (getCatch (decls inh) (env inh) e cs))
+                                                    in Cond (foldr (\(i, l) e -> e &* (BinOp i LThan l) &* (BinOp i GThanE (Lit (Int 0)))) true (zip i (dimLengths a))) q ((maybe (if f then q else q &* throwException e)) (\b -> wlp' (inh {acc = id, catch = Nothing}) (StmtBlock b) q) (getCatch (decls inh) (env inh) e cs))
                                 
     dimLengths a = case a of
                     ArrayCreate t exps dim          -> exps
@@ -234,8 +232,12 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
         assignParam (FormalParam mods t _ varId) e = LocalVars mods t [VarDecl varId (Just (InitExp e))]
     
     -- Gets the variable that represents the return value of the method
-    getReturnVar :: Inh -> MethodInvocation -> Ident
-    getReturnVar inh invocation = Ident (makeReturnVarName (invocationToId invocation) ++ show (varNr inh) ++ "," ++ show (getCallCount (calls inh) (invocationToId invocation)))
+    getReturnVar :: MethodInvocation -> Ident
+    getReturnVar invocation = Ident (makeReturnVarName (invocationToId invocation) ++ show (getIncrPointer varPointer))
+    
+    -- Gets a new unique variable
+    getVar :: Ident
+    getVar = Ident ('#' : show (getIncrPointer varPointer))
     
     -- Gets the object a method is called from
     getObject :: Inh -> MethodInvocation -> Maybe Exp
@@ -284,11 +286,7 @@ getExp f inh = let (e, _) = f inh in e
 
 -- | Gets the transformer attribute
 getTrans :: (Inh -> (Exp, Syn)) -> Inh -> Exp -> Exp
-getTrans f inh = let (_, (trans, _)) = f inh in trans
-
--- | Gets the typeEnv attribute
-getEnv :: (Inh -> (Exp, Syn)) -> Inh -> TypeEnv
-getEnv f inh = let (_, (_, env)) = f inh in env
+getTrans f inh = let (_, trans) = f inh in trans
     
 -- | Calculates the weakest liberal pre-condition of a statement and a given post-condition
 wlp :: [TypeDecl] -> Stmt -> Exp -> Exp
@@ -296,7 +294,7 @@ wlp decls = wlpWithEnv decls []
 
 -- | wlp with a given type environment
 wlpWithEnv :: [TypeDecl] -> TypeEnv -> Stmt -> Exp -> Exp
-wlpWithEnv decls env = fst . (wlp' (Inh id id Nothing env decls [] Nothing Nothing 0))
+wlpWithEnv decls env = wlp' (Inh id id Nothing env decls [] Nothing Nothing)
 
 -- wlp' lets you specify the inherited attributes
 wlp' :: Inh -> Stmt -> Syn

@@ -99,63 +99,51 @@ expAssertAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQual
                             Mult -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      t <- mkTrue
-                                      if ast1 == t then mkTrue else mkMul [ast1, ast2]
+                                      mkMul [ast1, ast2]
                             Div -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      t <- mkTrue
-                                      if ast1 == t then mkTrue else mkDiv ast1 ast2
+                                      mkDiv ast1 ast2
                             Rem -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      t <- mkTrue
-                                      if ast1 == t then mkTrue else mkRem ast1 ast2
+                                      mkRem ast1 ast2
                             Add -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      t <- mkTrue
-                                      if ast1 == t then mkTrue else mkAdd [ast1, ast2]
+                                      mkAdd [ast1, ast2]
                             Sub -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      t <- mkTrue
-                                      if ast1 == t then mkTrue else mkSub [ast1, ast2]
+                                      mkSub [ast1, ast2]
                             LShift -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      t <- mkTrue
-                                      if ast1 == t then mkTrue else mkBvshl ast1 ast2
+                                      mkBvshl ast1 ast2
                             RShift -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      t <- mkTrue
-                                      if ast1 == t then mkTrue else mkBvashr ast1 ast2
+                                      mkBvashr ast1 ast2
                             RRShift -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      t <- mkTrue
-                                      if ast1 == t then mkTrue else mkBvlshr ast1 ast2
+                                      mkBvlshr ast1 ast2
                             LThan -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      t <- mkTrue
-                                      if ast1 == t then mkTrue else mkLt ast1 ast2
+                                      mkLt ast1 ast2
                             GThan -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      t <- mkTrue
-                                      if ast1 == t then mkTrue else mkGt ast1 ast2
+                                      mkGt ast1 ast2
                             LThanE -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      t <- mkTrue
-                                      if ast1 == t then mkTrue else mkLe ast1 ast2
+                                      mkLe ast1 ast2
                             GThanE -> do
                                       ast1 <- e1
                                       ast2 <- e2
-                                      t <- mkTrue
-                                      if ast1 == t then mkTrue else mkGe ast1 ast2
+                                      mkGe ast1 ast2
                             Equal -> do
                                       ast1 <- e1
                                       ast2 <- e2

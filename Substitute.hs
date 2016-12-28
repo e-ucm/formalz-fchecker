@@ -52,6 +52,8 @@ substVarExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQu
                                     case lhs inh of
                                             NameLhs (Name lhsName) -> case lookupType (decls inh) (env inh) (Name lhsNameInit) of
                                                                         PrimType _  | lhsName == name   -> rhs inh
+                                                                        RefType _   | isIntroducedVar (Name lhsName) && lhsName == name -> rhs inh
+                                                                        RefType _   | isIntroducedVar (Name lhsName) && lhsName /= name -> ExpName (Name name)
                                                                         RefType t   | lookupType (decls inh) (env inh) (Name nameInit) == RefType t -> case rhs inh of
                                                                                                                                                             ExpName (Name rhsName)      | take (length lhsName) name == lhsName                 -> ExpName (Name (rhsName ++ drop (length lhsName) name))
                                                                                                                                                                                         -- accessing o1.x might affect o2.x if o1 and o2 point to the same object:

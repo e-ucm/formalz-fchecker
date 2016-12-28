@@ -4,6 +4,10 @@ module HelperFunctions where
 import Language.Java.Syntax
 import Language.Java.Pretty
 import Data.Maybe
+import System.IO.Unsafe
+import Data.IORef
+
+
 
 type TypeEnv    = [(Name, Type)]
 type CallCount  = [(Ident, Int)]
@@ -108,6 +112,24 @@ getStaticVars compUnit = concatMap fromTypeDecls (getDecls compUnit) where
     fromMemberDecl (MemberDecl (FieldDecl mods t varDecls)) = if Static `elem` mods then map (fromVarDecl t) varDecls else []
     fromMemberDecl _                                        = []
     fromVarDecl t (VarDecl varId _) = (Name [getId varId], t)
+    
+-- Checks if the var is introduced. Introduced variable names start with '$' voor return variables of methods and '#' for other variables
+isIntroducedVar :: Name -> Bool
+isIntroducedVar (Name (Ident ('#':_): _)) = True
+isIntroducedVar (Name (Ident ('$':_): _)) = True
+isIntroducedVar _ = False
+    
+-- The number of variables introduced
+varPointer :: IORef Integer
+varPointer = unsafePerformIO $ newIORef 0
+
+--- | Gets the current var pointer and increases the pointer by 1
+getIncrPointer :: IORef Integer -> Integer
+getIncrPointer ref = unsafePerformIO $
+    do
+        p <- readIORef ref
+        writeIORef ref (p + 1)
+        return p
     
 -- Used for debugging
 fromJust' :: String -> Maybe a -> a
