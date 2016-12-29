@@ -1,8 +1,8 @@
 module Settings where
 
 testFile, postCond :: String
-testFile = "methods"
-postCond = "(x == 4)"
+testFile = "side-effects"
+postCond = "(x == 2)"
 
 nrOfUnroll :: Int
-nrOfUnroll = 2
+nrOfUnroll = 1

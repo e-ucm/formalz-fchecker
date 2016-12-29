@@ -37,9 +37,11 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     fStmtBlock (Block bs) inh       = foldr (\b r -> wlpBlock (inh {acc = r, env = envBlock bs (env inh)}) b) (acc inh) bs -- The result of the last block-statement will be the accumulated transformer for the second-last etc. The type environment is build from the left, so it has to be done seperately.
     fIfThen e s1                    = fIfThenElse e s1 (const id) -- if-then is just an if-then-else with an empty else-block
     fIfThenElse e s1 s2 inh         = let (e', trans) = foldExp wlpExpAlgebra e inh {acc = id}
-                                      in ((\q -> (e' &* trans ((s1 inh {acc = id}) q)) |* (neg e' &* trans ((s2 inh {acc = id}) q))) . acc inh)
+                                          var = getVar
+                                      in trans . substVar' inh var e' . (\q -> (ExpName (Name [var]) &* s1 inh {acc = id} q) |* (neg (ExpName (Name [var])) &* s2 inh {acc = id} q)) . acc inh
     fWhile e s inh                  = let (e', trans) = foldExp wlpExpAlgebra e inh {acc = id}
-                                      in ((\q -> unrollLoop nrOfUnroll e' trans ((s (inh {acc = id, br = const q}))) q) . acc inh)
+                                          var = getVar
+                                      in (\q -> unrollLoop inh nrOfUnroll e' trans (s (inh {acc = id, br = const q})) q) . acc inh
     fBasicFor init me incr s inh    = let loop = (fWhile (fromMaybeGuard me) (\inh' -> s (inh {acc = (wlp' inh {acc = id} (incrToStmt incr))})) inh) in wlp' (inh {acc = loop}) (initToStmt init)
     fEnhancedFor                    = error "EnhancedFor"
     fEmpty inh                      = (acc inh) -- Empty does nothing, but still passes control to the next statement
@@ -87,9 +89,11 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     wlpDeclAssignment t inh (VarDecl (VarId ident) (Just (InitExp e)))  = snd (foldExp wlpExpAlgebra (Assign (NameLhs (Name [ident])) EqualA e) inh)
               
     -- Unrolls a while-loop a finite amount of times
-    unrollLoop :: Int -> Exp -> (Exp -> Exp) -> (Exp -> Exp) -> Exp -> Exp
-    unrollLoop 0 g gTrans _ q           = (neg g `imp` gTrans q)
-    unrollLoop n g gTrans bodyTrans q   = (neg g `imp` gTrans q) &* (g `imp` gTrans (bodyTrans (unrollLoop (n - 1) g gTrans bodyTrans q)))
+    unrollLoop :: Inh -> Int -> Exp -> (Exp -> Exp) -> (Exp -> Exp) -> Exp -> Exp
+    unrollLoop inh 0 g gTrans _             = let var = getVar
+                                              in gTrans . substVar' inh var g . (neg (ExpName (Name [var])) `imp`)
+    unrollLoop inh n g gTrans bodyTrans     = let var = getVar
+                                              in gTrans . substVar' inh var g . (\q -> (ExpName (Name [var]) &* bodyTrans q) |* (neg (ExpName (Name [var])) &* unrollLoop inh (n-1) g gTrans bodyTrans q))
     
     
     -- Converts initialization code of a for loop to a statement
@@ -194,7 +198,8 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fCast t e inh                                       = let (e', trans) = e inh in (e', trans)
     fBinOp e1 op e2 inh                                 = let (e1', trans1) = e1 inh {acc = id}
                                                               (e2', trans2) = e2 inh {acc = id}
-                                                          in (BinOp e1' op e2', trans1 . trans2 . acc inh) -- Side effects of the first expression are applied before the second is evaluated, so we have to apply the transformer
+                                                              [var1, var2] = getVars 2
+                                                          in (BinOp (ExpName (Name [var1])) op (ExpName (Name [var2])), trans1 . substVar' inh var1 e1' . trans2 . substVar' inh var2 e2' . acc inh) -- Side effects of the first expression are applied before the second is evaluated
     fInstanceOf                                         = error "instanceOf"
     fCond g e1 e2 inh                                   = let (e1', trans1) = e1 inh {acc = id}
                                                               (e2', trans2) = e2 inh {acc = id}
@@ -243,14 +248,6 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
         assignParam :: FormalParam -> Exp -> BlockStmt
         assignParam (FormalParam mods t _ varId) e = LocalVars mods t [VarDecl varId (Just (InitExp e))]
     
-    -- Gets the variable that represents the return value of the method
-    getReturnVar :: MethodInvocation -> Ident
-    getReturnVar invocation = Ident (makeReturnVarName (invocationToId invocation) ++ show (getIncrPointer varPointer))
-    
-    -- Gets a new unique variable
-    getVar :: Ident
-    getVar = Ident ('#' : show (getIncrPointer varPointer))
-    
     -- Gets the object a method is called from
     getObject :: Inh -> MethodInvocation -> Maybe Exp
     getObject inh (MethodCall name _)   | length (fromName name) > 1    = Just (ExpName (Name (take (length (fromName name) - 1) (fromName name))))
@@ -267,12 +264,6 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     -- Gets the return type of a method
     getType :: Inh -> MethodInvocation -> Maybe Type
     getType inh invocation = getMethodType (decls inh) (invocationToId invocation)
-    
-    -- Gets the method Id from an invocation
-    invocationToId :: MethodInvocation -> Ident
-    invocationToId (MethodCall name _) = getMethodId name
-    invocationToId (PrimaryMethodCall _ _ id _) = id
-    invocationToId _ = undefined
     
     -- Folds the expression part of an lhs
     foldLhs :: Inh -> Lhs -> Lhs
@@ -292,8 +283,12 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
                                                                                 x               -> error ("foldFieldAccess: " ++ show x ++ show id)
                                             SuperFieldAccess id         -> foldFieldAccess inh (PrimaryFieldAccess (fromJust' "foldFieldAccess" (object inh)) id)
                                             ClassFieldAccess name id    -> Name (fromName name ++ [id])
-
     
+    
+-- Simplified version of substVar, handy to use with introduced variables
+substVar' :: Inh -> Ident -> Exp -> Syn
+substVar' inh var e = substVar (env inh) (decls inh) (NameLhs (Name [var])) e
+
 -- | Calculates the weakest liberal pre-condition of a statement and a given post-condition
 wlp :: [TypeDecl] -> Stmt -> Exp -> Exp
 wlp decls = wlpWithEnv decls []

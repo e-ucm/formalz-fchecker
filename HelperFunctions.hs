@@ -15,6 +15,7 @@ type CallCount  = [(Ident, Int)]
 -- | Retrieves the type from the environment
 lookupType :: [TypeDecl] -> TypeEnv -> Name -> Type
 lookupType decls env (Name ((Ident s@('$':_)) : idents)) = getFieldType decls (getReturnVarType decls s) (Name idents) -- Names starting with a '$' symbol are generated and represent the return variable of a function
+lookupType decls env (Name ((Ident s@('#':_)) : idents)) = PrimType undefined -- Names starting with a '#' symbol are generated and represent a variable introduced by handling operators
 lookupType decls env (Name idents) = case lookup (Name [head idents]) env of
                                         Just t  -> getFieldType decls t (Name (tail idents))
                                         Nothing -> error ("can't find type of " ++ prettyPrint (Name idents) ++ "\r\n TypeEnv: " ++ show env)
@@ -118,7 +119,26 @@ isIntroducedVar :: Name -> Bool
 isIntroducedVar (Name (Ident ('#':_): _)) = True
 isIntroducedVar (Name (Ident ('$':_): _)) = True
 isIntroducedVar _ = False
+
+-- Gets the variable that represents the return value of the method
+getReturnVar :: MethodInvocation -> Ident
+getReturnVar invocation = Ident (makeReturnVarName (invocationToId invocation) ++ show (getIncrPointer varPointer))
+
+-- Gets the method Id from an invocation
+invocationToId :: MethodInvocation -> Ident
+invocationToId (MethodCall name _) = getMethodId name
+invocationToId (PrimaryMethodCall _ _ id _) = id
+invocationToId _ = undefined
+
+-- Gets a new unique variable
+getVar :: Ident
+getVar = Ident ('#' : show (getIncrPointer varPointer))
     
+-- Gets multiple new unique variables
+getVars :: Int -> [Ident]
+getVars 0 = []
+getVars n = Ident ('#' : show (getIncrPointer varPointer)) : getVars (n-1)
+
 -- The number of variables introduced
 varPointer :: IORef Integer
 varPointer = unsafePerformIO $ newIORef 0

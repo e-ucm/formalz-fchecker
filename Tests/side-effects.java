@@ -6,9 +6,9 @@ public static class Main
     public static void main(String[] args) 
     {
         x = 0;
-        y = 0;
+        y = 3;
         int i = 0;
-        if(h() < 1)
+        while(f() < y)
         {
             x = f();
         }
