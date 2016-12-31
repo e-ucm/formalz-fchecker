@@ -168,9 +168,7 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
                                                                    else let varId = getReturnVar invocation
                                                                             callWlp = wlp' (inh {acc = id, calls = incrCallCount (calls inh) (invocationToId invocation), ret = Just varId, object = getObject inh invocation}) (inlineMethod inh invocation)
                                                                         in (callWlp (ExpName (Name [varId])), (callWlp . acc inh))
-    fArrayAccess (ArrayIndex a i) inh                   = case catch inh of
-                                                            Nothing      -> (arrayAccess a i, snd ((foldExp wlpExpAlgebra a) inh))
-                                                            Just (cs, f) -> (arrayAccess a i, snd ((foldExp wlpExpAlgebra a) inh {acc = id}) . arrayAccessWlp a i inh)
+    fArrayAccess (ArrayIndex a i) inh                   = (arrayAccess a i, snd ((foldExp wlpExpAlgebra a) inh {acc = id}) . arrayAccessWlp a i inh)
     
     fExpName name inh                                   = (ExpName name, (acc inh))
     -- x++ increments x but evaluates to the original value
@@ -208,14 +206,17 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fAssign lhs op e inh                                = let lhs' = foldLhs inh lhs
                                                               rhs' = desugarAssign lhs' op e'
                                                               (e', trans) = e inh {acc = id}
-                                                          in  (rhs', trans . substVar (env inh) (decls inh) lhs' rhs' . acc inh)
+                                                              lhsTrans = case lhs' of
+                                                                            ArrayLhs (ArrayIndex a i)   -> arrayAccessWlp a i inh {acc = id}
+                                                                            _                           -> id
+                                                          in  (rhs', lhsTrans . trans . substVar (env inh) (decls inh) lhs' rhs' . acc inh)
     fLambda                                             = error "lambda"
     fMethodRef                                          = error "method reference"
                             
     -- gets the transformer for array access (as array access may throw an error)
     arrayAccessWlp :: Exp -> [Exp] -> Inh -> Exp -> Exp
     arrayAccessWlp a i inh q =  case catch inh of
-                                    Nothing      -> q
+                                    Nothing      -> Cond (foldr (\(i, l) e -> e &* (BinOp i LThan l) &* (BinOp i GThanE (Lit (Int 0)))) true (zip i (dimLengths a))) q false
                                     Just (cs, f) -> let e = InstanceCreation [] (ClassType [(Ident "ArrayIndexOutOfBoundsException", [])]) [] Nothing
                                                     in Cond (foldr (\(i, l) e -> e &* (BinOp i LThan l) &* (BinOp i GThanE (Lit (Int 0)))) true (zip i (dimLengths a))) q ((maybe (if f then q else q &* throwException e)) (\b -> wlp' (inh {acc = id, catch = Nothing}) (StmtBlock b) q) (getCatch (decls inh) (env inh) e cs))
                                 

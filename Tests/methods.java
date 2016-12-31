@@ -4,7 +4,7 @@ public static class Main
     public static void main(String[] args) 
     {
         C c1, c2;
-        c1 = new C(0);
+        c1 = new C(1);
         c2 = new C(0);
         c1.method1(1);
         c2.method1(1); 
