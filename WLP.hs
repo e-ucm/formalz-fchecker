@@ -162,12 +162,12 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fArrayCreateInit t dim init inh                     = (ArrayCreateInit t dim init, acc inh)
     fFieldAccess fieldAccess inh                        = (ExpName (foldFieldAccess inh fieldAccess), (acc inh))
     fMethodInv invocation inh                           = case invocation of
-                                                            MethodCall (Name [Ident "*assume"]) [e] -> (false, (if e == false then const true else imp e))
-                                                            _   -> if getCallCount (calls inh) (invocationToId invocation) >= nrOfUnroll
-                                                                   then (false, const true)
-                                                                   else let varId = getReturnVar invocation
+                                                            MethodCall (Name [Ident "*assume"]) [e] -> (false, (if e == false then const true else imp e)) -- *assume is the regular assume function
+                                                            _   -> if getCallCount (calls inh) (invocationToId invocation) >= nrOfUnroll  -- Check the recursion depth
+                                                                   then (undefined, const true) -- Recursion limit reached: we just assume the post codition will hold
+                                                                   else let varId = getReturnVar invocation     
                                                                             callWlp = wlp' (inh {acc = id, calls = incrCallCount (calls inh) (invocationToId invocation), ret = Just varId, object = getObject inh invocation}) (inlineMethod inh invocation)
-                                                                        in (callWlp (ExpName (Name [varId])), (callWlp . acc inh))
+                                                                        in (ExpName (Name [varId]), (callWlp . acc inh))
     fArrayAccess (ArrayIndex a i) inh                   = (arrayAccess a i, snd ((foldExp wlpExpAlgebra a) inh {acc = id}) . arrayAccessWlp a i inh)
     
     fExpName name inh                                   = (ExpName name, (acc inh))
