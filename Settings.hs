@@ -1,7 +1,7 @@
 module Settings where
 
 testFile, postCond :: String
-testFile = "2d-arrays1"
+testFile = "arrays1"
 postCond = "(true)"
 
 nrOfUnroll :: Int

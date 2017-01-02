@@ -46,14 +46,14 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     fEnhancedFor                    = error "EnhancedFor"
     fEmpty inh                      = (acc inh) -- Empty does nothing, but still passes control to the next statement
     fExpStmt e inh                  = snd $ foldExp wlpExpAlgebra e inh
-    fAssert e _ inh                 = let (e', trans) = foldExp wlpExpAlgebra e inh 
-                                      in ((e' &*) . trans)
+    fAssert e _ inh                 = let (e', trans) = foldExp wlpExpAlgebra e inh {acc = id}
+                                      in (trans . (e' &*) . acc inh)
     fSwitch e bs inh                = let (e', s1, s2) = desugarSwitch e bs in fIfThenElse e' (flip wlp' s1) (flip wlp' s2) (inh {acc = id, br = acc inh})
     fDo s e inh                     = s (inh {acc = fWhile e s inh}) -- Do is just a while with the statement block executed one additional time. Break and continue still have to be handled in this additional execution.
-    fBreak _ inh                    = (br inh) -- wlp of the breakpoint. Control is passed to the statement after the loop
-    fContinue _ inh                 = (id)     -- at a continue statement it's as if the body of the loop is fully executed
+    fBreak _ inh                    = br inh -- wlp of the breakpoint. Control is passed to the statement after the loop
+    fContinue _ inh                 = id     -- at a continue statement it's as if the body of the loop is fully executed
     fReturn me inh                  = case me of
-                                        Nothing -> (id) -- Return ignores acc, as it terminates the method
+                                        Nothing -> id -- Return ignores acc, as it terminates the method
                                         Just e  -> fExpStmt (Assign (NameLhs (Name [fromJust' "fReturn" (ret inh)])) EqualA e) (inh {acc = id}) -- We treat "return e" as an assignment to a variable specifically created to store the return value in
                                                             
     fSynchronized _                 = fStmtBlock
@@ -170,7 +170,7 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
                                                                         in (ExpName (Name [varId]), (callWlp . acc inh))
     fArrayAccess (ArrayIndex a i) inh                   = (arrayAccess a i, snd ((foldExp wlpExpAlgebra a) inh {acc = id}) . arrayAccessWlp a i inh)
     
-    fExpName name inh                                   = (ExpName name, (acc inh))
+    fExpName name inh                                   = (editName inh name, acc inh)
     -- x++ increments x but evaluates to the original value
     fPostIncrement e inh                                = let (e', trans) = e inh in 
                                                           case e' of
@@ -203,12 +203,9 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
                                                               (e2', trans2) = e2 inh {acc = id}
                                                               (g', transg)  = g inh {acc = id}
                                                           in (Cond g' e1' e2', (transg . (\q -> (g' &* trans1 q) |* (neg g' &* trans2 q)) . acc inh))
-    fAssign lhs op e inh                                = let lhs' = foldLhs inh lhs
+    fAssign lhs op e inh                                = let (lhs', lhsTrans) = foldLhs inh {acc = id} lhs
                                                               rhs' = desugarAssign lhs' op e'
                                                               (e', trans) = e inh {acc = id}
-                                                              lhsTrans = case lhs' of
-                                                                            ArrayLhs (ArrayIndex a i)   -> arrayAccessWlp a i inh {acc = id}
-                                                                            _                           -> id
                                                           in  (rhs', lhsTrans . trans . substVar (env inh) (decls inh) lhs' rhs' . acc inh)
     fLambda                                             = error "lambda"
     fMethodRef                                          = error "method reference"
@@ -223,6 +220,13 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     dimLengths a = case a of
                     ArrayCreate t exps dim          -> exps
                     _                               -> map (\n -> MethodInv (MethodCall (Name [Ident "*length"]) [a, (Lit (Int n))])) [0..]
+                    
+    -- Edits a name expression to handle build-in constructs
+    editName :: Inh -> Name -> Exp
+    editName inh (Name name) | last name == Ident "length" = case lookupType (decls inh) (env inh) (Name (take (length name - 1) name)) of -- For arrays we know that "length" refers to the length of the array
+                                                                RefType (ArrayType _) -> MethodInv (MethodCall (Name [Ident "*length"]) [ExpName (Name (take (length name - 1) name)), (Lit (Int 0))])
+                                                                _ -> ExpName (Name name)
+                             | otherwise = ExpName (Name name)
                     
     -- Inlines a methodcall. This creates a variable to store the return value in
     inlineMethod :: Inh -> MethodInvocation -> Stmt
@@ -267,14 +271,15 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     getType inh invocation = getMethodType (decls inh) (invocationToId invocation)
     
     -- Folds the expression part of an lhs
-    foldLhs :: Inh -> Lhs -> Lhs
+    foldLhs :: Inh -> Lhs -> (Lhs, Syn)
     foldLhs inh lhs  = case lhs of
-                            FieldLhs (PrimaryFieldAccess e id)  -> case fst (foldExp wlpExpAlgebra e inh) of
-                                                                    ExpName name    -> NameLhs (Name (fromName name ++ [id]))
-                                                                    _               -> error "foldFieldAccess"
-                            ArrayLhs (ArrayIndex e i)           ->  let e' = fst (foldExp wlpExpAlgebra e inh)
-                                                                    in ArrayLhs (ArrayIndex e' (map (\e'' -> fst (foldExp wlpExpAlgebra e'' inh)) i))
-                            lhs'                                -> lhs'
+                            FieldLhs (PrimaryFieldAccess e id)  -> case foldExp wlpExpAlgebra e inh of
+                                                                    (ExpName name, trans)   -> (NameLhs (Name (fromName name ++ [id])), trans)
+                                                                    _                       -> error "foldFieldAccess"
+                            ArrayLhs (ArrayIndex a i)           ->  let (a', aTrans) = foldExp wlpExpAlgebra a inh
+                                                                        i' = map (\x -> foldExp wlpExpAlgebra x inh) i
+                                                                    in (ArrayLhs (ArrayIndex a' (map fst i')), foldl (\trans (_, iTrans) -> trans . iTrans) aTrans i' . arrayAccessWlp a' (map fst i') inh)
+                            lhs'                                -> (lhs', id)
     
     -- Folds the expression part of a fieldaccess and simplifies it to a name
     foldFieldAccess :: Inh -> FieldAccess -> Name
