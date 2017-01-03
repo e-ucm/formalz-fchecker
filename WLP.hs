@@ -87,6 +87,7 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
                                                                 -- We don't initialize ref types to null, because we want to keep pointer information
                                                                 RefType _ -> acc inh 
     wlpDeclAssignment t inh (VarDecl (VarId ident) (Just (InitExp e)))  = snd (foldExp wlpExpAlgebra (Assign (NameLhs (Name [ident])) EqualA e) inh)
+    wlpDeclAssignment _ _ _ = error "ArrayCreateInit is not supported"
               
     -- Unrolls a while-loop a finite amount of times
     unrollLoop :: Inh -> Int -> Exp -> (Exp -> Exp) -> (Exp -> Exp) -> Exp -> Exp
@@ -159,7 +160,7 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
                                                                     in  (ExpName var, (substVar (env inh) (decls inh) (NameLhs var) (InstanceCreation typeArgs t [ExpName (Name [Ident "#"])] mBody) . snd ((fMethodInv invocation) inh {acc = id}) . acc inh))
     fQualInstanceCreation e typeArgs t args mBody inh   = error "fQualInstanceCreation"
     fArrayCreate t dimLengths dim inh                   = (ArrayCreate t (map (\e -> fst (e inh)) dimLengths) dim, acc inh)
-    fArrayCreateInit t dim init inh                     = (ArrayCreateInit t dim init, acc inh)
+    fArrayCreateInit t dim init inh                     = error "ArrayCreateInit" -- (ArrayCreateInit t dim init, acc inh)
     fFieldAccess fieldAccess inh                        = (ExpName (foldFieldAccess inh fieldAccess), (acc inh))
     fMethodInv invocation inh                           = case invocation of
                                                             MethodCall (Name [Ident "*assume"]) [e] -> (false, (if e == false then const true else imp e)) -- *assume is the regular assume function
