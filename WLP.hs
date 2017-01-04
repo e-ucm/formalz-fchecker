@@ -42,7 +42,7 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     fWhile e s inh                  = let (e', trans) = foldExp wlpExpAlgebra e inh {acc = id}
                                           var = getVar
                                       in (\q -> unrollLoop inh nrOfUnroll e' trans (s (inh {acc = id, br = const q})) q) . acc inh
-    fBasicFor init me incr s inh    = let loop = (fWhile (fromMaybeGuard me) (\inh' -> s (inh {acc = (wlp' inh {acc = id} (incrToStmt incr))})) inh) in wlp' (inh {acc = loop}) (initToStmt init)
+    fBasicFor init me incr s inh    = let loop = (fWhile (fromMaybeGuard me) (\inh' -> s (inh' {acc = (wlp' inh' {acc = id} (incrToStmt incr))})) inh) in wlp' (inh {acc = loop}) (initToStmt init)
     fEnhancedFor                    = error "EnhancedFor"
     fEmpty inh                      = (acc inh) -- Empty does nothing, but still passes control to the next statement
     fExpStmt e inh                  = snd $ foldExp wlpExpAlgebra e inh
@@ -94,7 +94,7 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     unrollLoop inh 0 g gTrans _             = let var = getVar
                                               in gTrans . substVar' inh var g . (neg (ExpName (Name [var])) `imp`)
     unrollLoop inh n g gTrans bodyTrans     = let var = getVar
-                                              in gTrans . substVar' inh var g . (\q -> (ExpName (Name [var]) &* bodyTrans q) |* (neg (ExpName (Name [var])) &* unrollLoop inh (n-1) g gTrans bodyTrans q))
+                                              in gTrans . substVar' inh var g . (\q -> (neg (ExpName (Name [var])) `imp` q) &* ((ExpName (Name [var])) `imp` bodyTrans (unrollLoop inh (n-1) g gTrans bodyTrans q)))
     
     
     -- Converts initialization code of a for loop to a statement
