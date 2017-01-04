@@ -175,7 +175,7 @@ neg :: Exp -> Exp
 neg = PreNot
 
 imp :: Exp -> Exp -> Exp
-e1 `imp` e2 =  (e1 &* e2) |* neg e1
+e1 `imp` e2 =  neg e1 |* e2
 
 (==*) :: Exp -> Exp -> Exp
 e1 ==* e2 = BinOp e1 Equal e2
