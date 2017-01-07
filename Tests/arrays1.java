@@ -9,7 +9,7 @@ public class ArrayExamples
     
 		findAndPrintPairs(list, 5);
 		bubblesort(list);
-        /*
+        
 		showList(list);
 
 		list = new int[11];
@@ -23,14 +23,14 @@ public class ArrayExamples
 		list = new int[1];
 		bubblesort(list);
 		showList(list);
-        */
+        
 	}
 
 
 	// pre: list != null, list.length > 0
 	// post: return index of minimum element of array
 	public static int findMin(int[] list2)
-	{	assert list2 != null && list2.length > 0 : "failed precondition";
+	{	assert (list2 != null) && (list2.length > 0) : "failed precondition";
 
 		int indexOfMin = 0;
 		for(int k = 1; k < list2.length; k++)
@@ -49,7 +49,7 @@ public class ArrayExamples
 	 * argument
 	 */
 	public static void badResize(int[] list3, int newSize)
-	{	assert list3 != null && newSize >= 0 : "failed precondition";
+	{	assert (list3 != null) && (newSize >= 0) : "failed precondition";
 
 		int[] temp = new int[newSize];
 		int limit = Math.min(list3.length, newSize);
@@ -70,7 +70,7 @@ public class ArrayExamples
 	 *	will be copied into the new array
 	 */
 	public static int[] goodResize(int[] list4, int newSize)
-	{	assert list4 != null && newSize >= 0 : "failed precondition";
+	{	assert (list4 != null) && (newSize >= 0) : "failed precondition";
 
 		int[] result = new int[newSize];
 		int limit = Math.min(list4.length, newSize);
@@ -110,7 +110,7 @@ public class ArrayExamples
 	{
 		assert list6 != null : "failed precondition";
 
-		int temp;
+		int temp2;
 		boolean changed = true;
 		for(int n = 0; (n < list6.length) && changed; n++)
 		{	changed = false;
@@ -119,9 +119,9 @@ public class ArrayExamples
 					"is out of bounds.";
 				if(list6[o] > list6[o+1])
 				{	changed = true;
-					temp = list6[o + 1];
+					temp2 = list6[o + 1];
 					list6[o + 1] = list6[o];
-					list6[o] = temp;
+					list6[o] = temp2;
 				}
 			}
 		}

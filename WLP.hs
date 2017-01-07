@@ -34,7 +34,7 @@ type Syn = Exp -> Exp -- The wlp transformer
 --   Statements that pass control to the next statement have to explicitly combine their wlp function with the accumulated function, as some statements (e.g. break) ignore the accumulated function.
 wlpStmtAlgebra :: StmtAlgebra (Inh -> Syn)
 wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhancedFor, fEmpty, fExpStmt, fAssert, fSwitch, fDo, fBreak, fContinue, fReturn, fSynchronized, fThrow, fTry, fLabeled) where
-    fStmtBlock (Block bs) inh       = foldr (\b r -> wlpBlock (inh {acc = r, env = envBlock bs (env inh)}) b) (acc inh) bs -- The result of the last block-statement will be the accumulated transformer for the second-last etc. The type environment is build from the left, so it has to be done seperately.
+    fStmtBlock (Block bs) inh       = foldr (\b r -> wlpBlock inh {acc = r} b) (acc inh) bs -- The result of the last block-statement will be the accumulated transformer for the second-last etc. The type environment is build from the left, so it has to be done seperately.
     fIfThen e s1                    = fIfThenElse e s1 (const id) -- if-then is just an if-then-else with an empty else-block
     fIfThenElse e s1 s2 inh         = let (e', trans) = foldExp wlpExpAlgebra e inh {acc = id}
                                           var = getVar
@@ -60,7 +60,7 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     fThrow e inh                    = case catch inh of
                                         Nothing      -> ((\q -> q &* throwException e)) -- acc is ignored, as the rest of the block is not executed
                                         Just (cs, f) -> (maybe (if f then id else (\q -> q &* throwException e)) (flip fStmtBlock (inh {acc = id, catch = Nothing})) (getCatch (decls inh) (env inh) e cs))
-    fTry (Block bs) cs f inh        = let r = (fStmtBlock (Block bs) (inh {acc = id, catch = Just (cs, isJust f)})) in (r . maybe (acc inh) (flip fStmtBlock (inh {env = envBlock bs (env inh)})) f) -- The finally-block is always executed
+    fTry (Block bs) cs f inh        = let r = (fStmtBlock (Block bs) (inh {acc = id, catch = Just (cs, isJust f)})) in (r . maybe (acc inh) (flip fStmtBlock inh) f) -- The finally-block is always executed
     fLabeled _ s                    = s
     
     -- Helper functions
@@ -71,14 +71,6 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
                         BlockStmt s            -> wlp' inh s
                         LocalClass _           -> (acc inh)
                         LocalVars mods t vars  -> foldr (\v r -> (wlpDeclAssignment t (inh {acc = r}) v)) (acc inh) vars
-                                                        
-    -- Adds declarations within a block to a type environment
-    envBlock :: [BlockStmt] -> TypeEnv -> TypeEnv
-    envBlock bs env = foldl f env bs 
-        where f env (LocalVars mods t vars)                                         = foldr (\v env' -> (varName v, t):env') env vars
-              f env (BlockStmt (BasicFor (Just (ForLocalVars mods t vars)) _ _ s))  = foldr (\v env' -> (varName v, t):env') env vars
-              f env _                                                               = env
-              varName (VarDecl (VarId id) _) = Name [id]
                 
     -- wlp of a var declaration that also assigns a value. Declaring without assignment assigns the default value
     wlpDeclAssignment :: Type -> Inh -> VarDecl -> Exp -> Exp
@@ -149,7 +141,7 @@ wlpExpAlgebra :: ExpAlgebra (Inh -> (Exp, Syn))
 wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualInstanceCreation, fArrayCreate, fArrayCreateInit, fFieldAccess, fMethodInv, fArrayAccess, fExpName, fPostIncrement, fPostDecrement, fPreIncrement, fPreDecrement, fPrePlus, fPreMinus, fPreBitCompl, fPreNot, fCast, fBinOp, fInstanceOf, fCond, fAssign, fLambda, fMethodRef) where
     fLit lit inh                                        = (Lit lit, (acc inh))
     fClassLit mType inh                                 = (ClassLit mType, (acc inh))
-    fThis inh                                           = (fromJust' "fThis" (object inh), (acc inh))
+    fThis inh                                           = (fromJust' "fThis" (object inh), acc inh)
     fThisClass name inh                                 = (ThisClass name, (acc inh))
     fInstanceCreation typeArgs t args mBody inh         = case args of
                                                             [ExpName (Name [Ident "#"])]    -> (InstanceCreation typeArgs t args mBody, acc inh) -- '#' indicates we already called the constructor method using the correct arguments
@@ -161,7 +153,7 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fQualInstanceCreation e typeArgs t args mBody inh   = error "fQualInstanceCreation"
     fArrayCreate t dimLengths dim inh                   = (ArrayCreate t (map (\e -> fst (e inh)) dimLengths) dim, acc inh)
     fArrayCreateInit t dim init inh                     = error "ArrayCreateInit" -- (ArrayCreateInit t dim init, acc inh)
-    fFieldAccess fieldAccess inh                        = (ExpName (foldFieldAccess inh fieldAccess), (acc inh))
+    fFieldAccess fieldAccess inh                        = (foldFieldAccess inh fieldAccess, (acc inh))
     fMethodInv invocation inh                           = case invocation of
                                                             MethodCall (Name [Ident "*assume"]) [e] -> (false, (if e == false then const true else imp e)) -- *assume is the regular assume function
                                                             _   -> if getCallCount (calls inh) (invocationToId invocation) >= nrOfUnroll  -- Check the recursion depth
@@ -276,20 +268,23 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     foldLhs inh lhs  = case lhs of
                             FieldLhs (PrimaryFieldAccess e id)  -> case foldExp wlpExpAlgebra e inh of
                                                                     (ExpName name, trans)   -> (NameLhs (Name (fromName name ++ [id])), trans)
-                                                                    _                       -> error "foldFieldAccess"
+                                                                    _                       -> error "foldLhs"
                             ArrayLhs (ArrayIndex a i)           ->  let (a', aTrans) = foldExp wlpExpAlgebra a inh
                                                                         i' = map (\x -> foldExp wlpExpAlgebra x inh) i
                                                                     in (ArrayLhs (ArrayIndex a' (map fst i')), foldl (\trans (_, iTrans) -> trans . iTrans) aTrans i' . arrayAccessWlp a' (map fst i') inh)
                             lhs'                                -> (lhs', id)
     
-    -- Folds the expression part of a fieldaccess and simplifies it to a name
-    foldFieldAccess :: Inh -> FieldAccess -> Name
+    -- Folds the expression part of a fieldaccess and simplifies it
+    foldFieldAccess :: Inh -> FieldAccess -> Exp
     foldFieldAccess inh fieldAccess  = case fieldAccess of
                                             PrimaryFieldAccess e id     -> case fst (foldExp wlpExpAlgebra e inh) of
-                                                                                ExpName name    -> Name (fromName name ++ [id])
-                                                                                x               -> error ("foldFieldAccess: " ++ show x ++ show id)
+                                                                                ExpName name    -> ExpName (Name (fromName name ++ [id]))
+                                                                                ArrayAccess (ArrayIndex a i) -> let (a', aTrans) = foldExp wlpExpAlgebra a inh
+                                                                                                                    i' = map (\x -> foldExp wlpExpAlgebra x inh) i
+                                                                                                                in MethodInv (MethodCall (Name [Ident "*length"]) [a, (Lit (Int (toEnum (length i'))))])
+                                                                                x               -> error ("foldFieldAccess: " ++ show x ++ " . " ++ show id)
                                             SuperFieldAccess id         -> foldFieldAccess inh (PrimaryFieldAccess (fromJust' "foldFieldAccess" (object inh)) id)
-                                            ClassFieldAccess name id    -> Name (fromName name ++ [id])
+                                            ClassFieldAccess name id    -> ExpName (Name (fromName name ++ [id]))
     
     
 -- Simplified version of substVar, handy to use with introduced variables
@@ -302,7 +297,7 @@ wlp decls = wlpWithEnv decls []
 
 -- | wlp with a given type environment
 wlpWithEnv :: [TypeDecl] -> TypeEnv -> Stmt -> Exp -> Exp
-wlpWithEnv decls env = wlp' (Inh id id Nothing env decls [] Nothing Nothing)
+wlpWithEnv decls env = wlp' (Inh id id Nothing env decls [] Nothing (Just (ExpName (Name [Ident "#obj"]))))
 
 -- wlp' lets you specify the inherited attributes
 wlp' :: Inh -> Stmt -> Syn

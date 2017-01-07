@@ -6,8 +6,8 @@ public static class Main
         C c1, c2;
         c1 = new C(1);
         c2 = new C(0);
-        c1.method1(1);
-        c2.method1(1); 
+        c1.method1(1, true);
+        c2.method1(1, true); 
         x = c1.c + c2.c;
        // C.staticMethod();
     }
@@ -34,12 +34,12 @@ public class C
         x = 4;
     }
     
-    public void method1(int n)
+    public void method1(int n, boolean b)
     {
-        
+        assert b;
         this.c += n;
         if(this.c < 2)
-            this.method1(); 
+            this.method1();
     }
     
     public int method2()

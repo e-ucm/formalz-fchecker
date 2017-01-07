@@ -102,17 +102,17 @@ getMethod' classTypeDecls methodId = case (concatMap searchClass classTypeDecls)
 getMainMethod :: [TypeDecl] -> Stmt
 getMainMethod classTypeDecls = fromJust' "getMainMethod" $ getMethod classTypeDecls (Ident "main")
 
+-- Gets a list of all method Idents (except constructor methods)
+getMethodIds :: [TypeDecl] -> [Ident]
+getMethodIds classTypeDecls = concatMap searchClass classTypeDecls where
+    searchClass (ClassTypeDecl (ClassDecl _ _ _ _ _ (ClassBody decls))) = searchDecls decls
+    searchDecls (MemberDecl (MethodDecl _ _ _ id _ _ _):decls) = id : searchDecls decls
+    searchDecls (_:decls) = searchDecls decls
+    searchDecls [] = []
+
 -- Gets the class declarations
 getDecls :: CompilationUnit -> [TypeDecl]
 getDecls (CompilationUnit _ _ classTypeDecls) = classTypeDecls
-
--- Gets the static member declarations and puts them in the type environment
-getStaticVars :: CompilationUnit -> TypeEnv
-getStaticVars compUnit = concatMap fromTypeDecls (getDecls compUnit) where
-    fromTypeDecls (ClassTypeDecl (ClassDecl _ _ _ _ _ (ClassBody decls))) = concatMap fromMemberDecl decls
-    fromMemberDecl (MemberDecl (FieldDecl mods t varDecls)) = if Static `elem` mods then map (fromVarDecl t) varDecls else []
-    fromMemberDecl _                                        = []
-    fromVarDecl t (VarDecl varId _) = (Name [getId varId], t)
     
 -- Checks if the var is introduced. Introduced variable names start with '$' voor return variables of methods and '#' for other variables
 isIntroducedVar :: Name -> Bool
@@ -129,6 +129,11 @@ invocationToId :: MethodInvocation -> Ident
 invocationToId (MethodCall name _) = getMethodId name
 invocationToId (PrimaryMethodCall _ _ id _) = id
 invocationToId _ = undefined
+
+-- Gets the type of the elements of an array. Recursion is needed in the case of multiple dimensional arrays
+arrayContentType :: Type -> Type
+arrayContentType (RefType (ArrayType t)) = arrayContentType t
+arrayContentType t = t
 
 -- Gets a new unique variable
 getVar :: Ident

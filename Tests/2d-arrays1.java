@@ -59,9 +59,9 @@ public class Life {
     }
     
     public static boolean occupiedNext(int numNeighbors, boolean occupied){
-        if( occupied && (numNeighbors == 2 || numNeighbors == 3))
+        if(occupied && ((numNeighbors == 2) || (numNeighbors == 3)))
             return true;
-        else if (!occupied && numNeighbors == 3)
+        else if ((!occupied) && (numNeighbors == 3))
             return true;
         else
             return false;
@@ -69,17 +69,17 @@ public class Life {
 
     private static int numNeighbors(boolean[][] world, int row, int col) {
         int num2 = world[row][col] ? -1 : 0;
-        for(int r1 = row - 1; r1 <= row + 1; r1++)
-            for(int c1 = col - 1; c1 <= col + 1; c1++)
-                if( inbounds(world, r1, c1) && world[r1][c1] )
+        for(int r1 = (row - 1); r1 <= (row + 1); r1++)
+            for(int c1 = (col - 1); c1 <= (col + 1); c1++)
+                if((inbounds(world, r1, c1)) && (world[r1][c1]) )
                     num2++;
 
         return num2;
     }
 
     private static boolean inbounds(boolean[][] world, int i, int c2) {
-        return i >= 0 && i < world.length && c2 >= 0 &&
-        c2 < world[0].length;
+        return (i >= 0) && (i < world.length) && (c2 >= 0) &&
+        (c2 < world[0].length);
     }
     
     
