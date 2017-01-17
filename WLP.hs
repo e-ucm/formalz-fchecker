@@ -206,7 +206,7 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     -- gets the transformer for array access (as array access may throw an error)
     arrayAccessWlp :: Exp -> [Exp] -> Inh -> Exp -> Exp
     arrayAccessWlp a i inh q =  case catch inh of
-                                    Nothing      -> Cond (foldr (\(i, l) e -> e &* (BinOp i LThan l) &* (BinOp i GThanE (Lit (Int 0)))) true (zip i (dimLengths a))) q false
+                                    Nothing      -> (foldr (\(i, l) e -> e &* (BinOp i LThan l) &* (BinOp i GThanE (Lit (Int 0)))) true (zip i (dimLengths a))) &* q
                                     Just (cs, f) -> let e = InstanceCreation [] (ClassType [(Ident "ArrayIndexOutOfBoundsException", [])]) [] Nothing
                                                     in Cond (foldr (\(i, l) e -> e &* (BinOp i LThan l) &* (BinOp i GThanE (Lit (Int 0)))) true (zip i (dimLengths a))) q ((maybe (if f then q else q &* throwException e)) (\b -> wlp' (inh {acc = id, catch = Nothing}) (StmtBlock b) q) (getCatch (decls inh) (env inh) e cs))
                                 

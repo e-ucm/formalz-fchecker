@@ -28,9 +28,9 @@ substVarExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQu
     fArrayCreateInit t dim arrayInit _ = ArrayCreateInit t dim arrayInit
     fFieldAccess fieldAccess inh                 = case lhs inh of
                                                         FieldLhs fieldAccess' -> case fieldAccess of
-                                                                                PrimaryFieldAccess e ident -> error "todo: fieldAccess substitution"
-                                                                                SuperFieldAccess ident -> error "todo: fieldAccess substitution"
-                                                                                ClassFieldAccess name ident -> error "todo: fieldAccess substitution"
+                                                                                PrimaryFieldAccess e ident -> error "fieldAccess substitution"
+                                                                                SuperFieldAccess ident -> error "fieldAccess substitution"
+                                                                                ClassFieldAccess name ident -> error "fieldAccess substitution"
                                                         _ -> FieldAccess fieldAccess
     fMethodInv invocation inh           = case invocation of 
                                             MethodCall name exps -> MethodInv (MethodCall name (map (flip (foldExp substVarExpAlgebra) (inh {arrayLookup = True})) exps))
@@ -87,7 +87,7 @@ substVarExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQu
     fCast t e inh = Cast t (e inh)
     fBinOp e1 op e2 inh = BinOp (e1 inh) op (e2 inh)
     fInstanceOf e refType inh = InstanceOf (e inh) refType
-    fCond g e1 e2 inh = Cond (g inh) (e1 inh) (e2 inh)
+    fCond g e1 e2 inh = Cond (g inh {arrayLookup = False}) (e1 inh) (e2 inh)
     fAssign lhs assOp e inh = Assign lhs assOp (e inh)
     fLambda lParams lExp _ = Lambda lParams lExp
     fMethodRef className methodName _ = MethodRef className methodName
