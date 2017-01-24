@@ -22,8 +22,11 @@ mutantsDir = joinPath ["..", testFile ++ " mutants"]
 
 main :: IO ()
 main = do
+    -- Parse the original sourceCode
+    (env, decls, methods) <- parseFile sourcePath
+    
     -- Get the wlp per method of the original source code
-    (env, wlpOriginal) <- wlpMethods sourcePath
+    wlpOriginal <- wlpMethods env decls methods
     
     -- Get the names of the folders containing the mutants (MAJOR creates a folder for every mutant)
     mutationFolders <- listDirectory mutantsDir
@@ -32,13 +35,17 @@ main = do
     let mutationPaths = map (\n -> joinPath [mutantsDir, n, testFile ++ ".java"]) mutationFolders
     
     -- Calculate the wlp per method of all the mutants
-    wlpMutants <- mapM (\path -> wlpMethods path >>= return . (path, ) . snd) mutationPaths
+    wlpMutants <- mapM (\path -> parseFile path >>= (\(env', decls', methods') -> wlpMethods env' decls' methods') >>= return . (path, )) mutationPaths
     
-    mapM_ (compareWlps env wlpOriginal) wlpMutants
+    -- A list containing a 1 or 0 per mutant, indicating the number of errors found
+    errorsFound <- mapM (compareWlps env decls wlpOriginal) wlpMutants
     
--- | Calculates the wlp for every method in the source file. Also returns the type environment             
-wlpMethods :: FilePath -> IO (TypeEnv, [(Ident, Exp)])
-wlpMethods s = do
+    putStrLn ("Total number of mutants: " ++ show (length errorsFound))
+    putStrLn ("Number of mutants in which we found an error: " ++ show (sum errorsFound))
+    
+-- Parses a files and extracts the necessary information from the compilation unit
+parseFile :: FilePath -> IO (TypeEnv, [TypeDecl], [Ident])
+parseFile s = do
     -- Get the source code
     source <- readFile s
     
@@ -50,26 +57,71 @@ wlpMethods s = do
                             let methods = getMethodIds decls
                             let env = getTypeEnv compUnit decls methods
                             
-                            -- Calculate the wlp per method
-                            r <- mapM (\ident -> wlpMethod compUnit env decls ident >>= return . (ident, )) methods
-                            
-                            return (env, r)
+                            return (env, decls, methods)
+    
+-- | Calculates the wlp for every method in the source file. Also returns the type environment             
+wlpMethods :: TypeEnv -> [TypeDecl] -> [Ident] -> IO [(Ident, Exp)]
+wlpMethods env decls methods = mapM (\ident -> wlpMethod env decls ident >>= return . (ident, )) methods' where
+    methods' = if ignoreMainMethod then filter (/= Ident "main") methods else methods
                             
 -- | Calculates the wlp for a given method
-wlpMethod :: CompilationUnit -> TypeEnv -> [TypeDecl] -> Ident -> IO Exp
-wlpMethod compUnit env decls ident = do
-    let pred = wlpWithEnv decls env (fromJust' "wlpMethod" $ getMethod decls ident) postCond'
+wlpMethod :: TypeEnv -> [TypeDecl] -> Ident -> IO Exp
+wlpMethod env decls ident = do
+    -- Find the return type of the method
+    let returnType = getMethodType decls ident
+    
+    -- Add returnValue to the type environment with the correct type
+    let env' = case returnType of
+                    Nothing -> env
+                    Just t  -> (Name [Ident "returnValue"], t) : (Name [Ident "returnValueVar"], t) : env
+                    
+    -- Calculate the wlp. Note that the post condition might depend on the type of the function
+    let pred = wlpWithEnv decls env' (fromJust' "wlpMethod" $ getMethod decls ident) (getPostCond returnType)
     return pred
     
--- | Compares the wlp per method of a program S and mutation S' by verifying that (wlp (S, m) q => wlp (S', m) q) holds for every method m
-compareWlps :: TypeEnv -> [(Ident, Exp)] -> (String, [(Ident, Exp)]) -> IO ()
-compareWlps env s (path, s') = mapM_ compareMethod s where
-    compareMethod (ident, e) = case lookup ident s' of
-                                Nothing -> putStrLn ("The method \'" ++ show ident ++ "\' is missing in one of the mutations.")
-                                Just e' -> if unsafeIsTrue env (e `imp` e') then return () else putStrLn ("error detected in mutation: " ++ path)
+-- | Compares the wlp per method of a program S and mutation S' by verifying that (wlp (S, m) q => wlp (S', m) q) holds for every method m. Returns 0 if it holds and 1 if it doesn't hold
+compareWlps :: TypeEnv -> [TypeDecl] -> [(Ident, Exp)] -> (String, [(Ident, Exp)]) -> IO Int
+compareWlps env decls s (path, s') = do
+    -- Get a list with for every method the number of errors found (1 or 0)
+    errorsFound <- mapM compareMethod s
+    -- Return 1 if we found at least 1 error
+    return (if sum errorsFound > 0 then 1 else 0)
+        where 
+        compareMethod (ident, e) = case lookup ident s' of
+                                    Nothing -> putStrLn ("The method \'" ++ show ident ++ "\' is missing in one of the mutations.") >> return 0 -- print a warning and return 0 errors found
+                                    Just e' -> if unsafeIsTrue (extendEnv env decls ident) (e `imp` e') then return 0 else putStrLn ("error detected in mutation: " ++ path ++ " method: " ++ prettyPrint ident) >> return 1 -- print a message and return 1 error found
+        -- Adds returnValue to the type environment with the correct type
+        extendEnv env decls ident = case getMethodType decls ident of
+                                        Nothing -> env
+                                        Just t  -> (Name [Ident "returnValue"], t) : (Name [Ident "returnValueVar"], t) : env
 
--- The post-condition (for testing)
-postCond' :: Exp
-postCond' = case parser Language.Java.Parser.exp postCond of
-            Right e -> e
-            _       -> error "syntax error in post-condition"
+-- Gets the right post-condition given the type of a method
+getPostCond :: Maybe Type -> Exp
+getPostCond t = case parser Language.Java.Parser.exp postCond' of
+                    Right e -> e
+                    _       -> error "syntax error in post-condition"
+    where postCond' = case t of
+                        Nothing             -> postCondVoid
+                        Just (RefType _)    -> postCondRefType
+                        Just (PrimType _)   -> postCondPrimType
+                    
+-- Calculate the wlp (for testing purposes)
+calcWlp :: IO ()
+calcWlp = do
+    source <- readFile (joinPath ["Tests", testFile ++ ".java"])
+    
+    let result = parser compilationUnit source
+    
+    case result of
+        Left error -> print error
+        Right compUnit -> do
+                            let decls = getDecls compUnit
+                            let methods = if ignoreMainMethod then filter (/= Ident "main") (getMethodIds decls) else getMethodIds decls
+                            let env = getTypeEnv compUnit decls methods
+                            let printMethodWlp = (\ident e -> putStrLn (prettyPrint ident ++ ":\r\n" ++ prettyPrint e ++ "\r\n" ++ (if unsafeIsTrue (extendEnv env decls ident) e then "WLP evaluates to true" else (if unsafeIsFalse (extendEnv env decls ident) e then "WLP evaluates to false" else "undecidable")) ++ "\r\n"))
+                            mapM_ (\ident -> wlpMethod env decls ident >>= printMethodWlp ident) methods
+        where
+        -- Adds returnValue to the type environment with the correct type
+        extendEnv env decls ident = case getMethodType decls ident of
+                                        Nothing -> env
+                                        Just t  -> (Name [Ident "returnValue"], t) : (Name [Ident "returnValueVar"], t) : env

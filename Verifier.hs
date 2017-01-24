@@ -7,6 +7,7 @@ import System.IO.Unsafe
 
 import Folds
 import HelperFunctions
+import Settings
 
 
 -- | Checks wether the negation is unsatisfiable
@@ -78,6 +79,7 @@ expAssertAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQual
                                                                                                                                         symbol <- mkStringSymbol ("*length(" ++ prettyPrint name ++ ", " ++ show n ++ ")")
                                                                                                                                         mkIntVar symbol
                                                                                                     Cond g a1 a2                    -> foldExp expAssertAlgebra (Cond g (MethodInv (MethodCall (Name [Ident "*length"]) [a1, (Lit (Int n))])) (MethodInv (MethodCall (Name [Ident "*length"]) [a2, (Lit (Int n))]))) env
+                                                                                                    Lit Null                        -> mkInteger (-1)
                                                                                                     _                               -> error ("length of non-array: " ++ prettyPrint a)
                                     _ -> error (prettyPrint invocation)
     fArrayAccess arrayIndex env = case arrayIndex of
@@ -98,7 +100,10 @@ expAssertAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQual
                                         Just (PrimType BooleanT)    -> mkBoolVar symbol
                                         Just (PrimType FloatT)      -> mkRealVar symbol
                                         Just (PrimType DoubleT)     -> mkRealVar symbol
-                                        _                           -> mkIntVar symbol
+                                        Just (PrimType IntT)        -> mkIntVar symbol
+                                        Just (RefType _)            -> mkIntVar symbol
+                                        -- For now, we assume library methods return ints. Fixing this would require type information of library methods.
+                                        t                           -> if ignoreLibMethods then mkStringSymbol "libMethodCall" >>= mkIntVar else error ("Verifier: Type of " ++ prettyPrint name ++ " unknown or not implemented: " ++ show t)
     fPostIncrement = undefined
     fPostDecrement = undefined
     fPreIncrement = undefined

@@ -41,7 +41,7 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
                                       in trans . substVar' inh var e' . (\q -> (ExpName (Name [var]) &* s1 inh {acc = id} q) |* (neg (ExpName (Name [var])) &* s2 inh {acc = id} q)) . acc inh
     fWhile e s inh                  = let (e', trans) = foldExp wlpExpAlgebra e inh {acc = id}
                                           var = getVar
-                                      in (\q -> unrollLoop inh nrOfUnroll e' trans (s (inh {acc = id, br = const q})) q) . acc inh
+                                      in (\q -> unrollLoopOpt inh nrOfUnroll e' trans (s (inh {acc = id, br = const q})) q) . acc inh
     fBasicFor init me incr s inh    = let loop = (fWhile (fromMaybeGuard me) (\inh' -> s (inh' {acc = (wlp' inh' {acc = id} (incrToStmt incr))})) inh) in wlp' (inh {acc = loop}) (initToStmt init)
     fEnhancedFor                    = error "EnhancedFor"
     fEmpty inh                      = (acc inh) -- Empty does nothing, but still passes control to the next statement
@@ -88,6 +88,10 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     unrollLoop inh n g gTrans bodyTrans     = let var = getVar
                                               in gTrans . substVar' inh var g . (\q -> (neg (ExpName (Name [var])) `imp` q) &* ((ExpName (Name [var])) `imp` bodyTrans (unrollLoop inh (n-1) g gTrans bodyTrans q)))
     
+    -- An optimized version of unroll loop to reduce the size of the wlp
+    unrollLoopOpt :: Inh -> Int -> Exp -> (Exp -> Exp) -> (Exp -> Exp) -> Exp -> Exp
+    unrollLoopOpt inh n g gTrans bodyTrans q | gTrans (bodyTrans q) == q                        = q                                         -- q is not affected by the loop
+                                             | otherwise                                        = unrollLoop inh n g gTrans bodyTrans q     -- default to the standard version of unroll loop
     
     -- Converts initialization code of a for loop to a statement
     initToStmt :: Maybe ForInit -> Stmt
@@ -227,10 +231,10 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
         -- Gets the body of the method
         getBody :: Inh -> MethodInvocation -> Stmt
         getBody inh (MethodCall name _)             = case getMethod (decls inh) (getMethodId name) of
-                                                        Nothing -> ExpStmt $ MethodInv (MethodCall (Name [Ident "*assume"]) [false])
+                                                        Nothing -> if ignoreLibMethods then Empty else ExpStmt $ MethodInv (MethodCall (Name [Ident "*assume"]) [false])
                                                         Just s  -> s
         getBody inh (PrimaryMethodCall _ _ id _)    = case getMethod (decls inh) id of
-                                                        Nothing -> ExpStmt $ MethodInv (MethodCall (Name [Ident "*assume"]) [false])
+                                                        Nothing -> if ignoreLibMethods then Empty else ExpStmt $ MethodInv (MethodCall (Name [Ident "*assume"]) [false])
                                                         Just s  -> s
         getBody inh _ = undefined
         -- Assigns the supplied parameter values to the parameter variables
@@ -297,7 +301,7 @@ wlp decls = wlpWithEnv decls []
 
 -- | wlp with a given type environment
 wlpWithEnv :: [TypeDecl] -> TypeEnv -> Stmt -> Exp -> Exp
-wlpWithEnv decls env = wlp' (Inh id id Nothing env decls [] Nothing (Just (ExpName (Name [Ident "#obj"]))))
+wlpWithEnv decls env = wlp' (Inh id id Nothing env decls [] (Just (Ident "returnValue")) (Just (ExpName (Name [Ident "#obj"]))))
 
 -- wlp' lets you specify the inherited attributes
 wlp' :: Inh -> Stmt -> Syn
