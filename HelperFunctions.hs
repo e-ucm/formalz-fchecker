@@ -40,6 +40,25 @@ getFieldType decls (RefType (ClassRefType t)) (Name (f:fs)) = getFieldType decls
                                                                 _ -> getDecl t xs
         getDecl t _ = error ("fieldType: " ++ show t)
         
+-- | Gets the type of the class in which the method is defined
+getMethodClassType :: [TypeDecl] -> Ident -> Type
+getMethodClassType decls id = head $ concatMap (flip getMethodTypeFromClassDecl id) decls
+    where
+        getMethodTypeFromClassDecl :: TypeDecl -> Ident -> [Type]
+        getMethodTypeFromClassDecl (ClassTypeDecl (ClassDecl _ className _ _ _ (ClassBody decls))) id = getMethodTypeFromMemberDecls (RefType (ClassRefType (ClassType [(className , [])]))) decls id
+        getMethodTypeFromClassDecl _ _ = []
+        
+        getMethodTypeFromMemberDecls :: Type -> [Decl] -> Ident -> [Type]
+        getMethodTypeFromMemberDecls t [] _ = []
+        getMethodTypeFromMemberDecls t (MemberDecl (MethodDecl _ _ _ id' _ _ _) : decls) id = if id' == id then [t] else getMethodTypeFromMemberDecls t decls id
+        getMethodTypeFromMemberDecls t (_ : decls) id = getMethodTypeFromMemberDecls t decls id
+        
+-- | Adds the special variables *obj, returnValue and returnValueVar to a type environment, given the id of the method we're looking at
+extendEnv :: TypeEnv -> [TypeDecl] -> Ident -> TypeEnv
+extendEnv env decls methodId = case getMethodType decls methodId of
+                                Nothing -> (Name [Ident "*obj"], getMethodClassType decls methodId) : env
+                                Just t  -> (Name [Ident "returnValue"], t) : (Name [Ident "returnValueVar"], t) : (Name [Ident "*obj"], getMethodClassType decls methodId) : env
+
 -- | Creates a string that that represents the return var name of a method call. This name is extended by a number to indicate the depth of the recursive calls
 makeReturnVarName :: Ident -> String
 makeReturnVarName (Ident s) = "$" ++ s ++ "$"

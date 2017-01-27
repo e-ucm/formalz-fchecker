@@ -301,7 +301,7 @@ wlp decls = wlpWithEnv decls []
 
 -- | wlp with a given type environment
 wlpWithEnv :: [TypeDecl] -> TypeEnv -> Stmt -> Exp -> Exp
-wlpWithEnv decls env = wlp' (Inh id id Nothing env decls [] (Just (Ident "returnValue")) (Just (ExpName (Name [Ident "#obj"]))))
+wlpWithEnv decls env = wlp' (Inh id id Nothing env decls [] (Just (Ident "returnValue")) (Just (ExpName (Name [Ident "*obj"]))))
 
 -- wlp' lets you specify the inherited attributes
 wlp' :: Inh -> Stmt -> Syn
