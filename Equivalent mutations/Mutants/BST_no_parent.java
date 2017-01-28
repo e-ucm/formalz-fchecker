@@ -32,33 +32,32 @@ class Tree
     }
     public void Insert(int id)
     {
-            Node newNode = new Node();
-            newNode.item = id;
-            if (this.root == null)
-                this.root = newNode;
-            else
+        Node newNode = new Node();
+        newNode.item = id;
+        if (this.root == null)
+            this.root = newNode;
+        else
+        {
+            Node current = this.root;
+            while (true)
             {
-                Node current = this.root;
-                while (true)
+                if (id < current.item)
                 {
-                    if (id < current.item)
+                    if (current.leftc == null)
                     {
-                        if (current.leftc == null)
-                        {
-                            current.leftc = newNode;
-                            return;
-                        }
-                        current = current.leftc;   
+                        current.leftc = newNode;
+                        return;
                     }
-                    else
+                    current = current.leftc;   
+                }
+                else
+                {
+                    if (current.rightc == null)
                     {
-                        if (current.rightc == null)
-                        {
-                            current.rightc = newNode;
-                            return;
-                        }
-                        current = current.rightc;
+                        current.rightc = newNode;
+                        return;
                     }
+                    current = current.rightc;
                 }
             }
         }

@@ -70,7 +70,7 @@ class Program
         }
         public boolean isEmpty()
         {
-            if (top == -1) return true;
+            if (this.top == -1) return true;
  
             return false;
         }
