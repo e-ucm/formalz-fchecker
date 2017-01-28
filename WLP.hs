@@ -35,13 +35,13 @@ type Syn = Exp -> Exp -- The wlp transformer
 wlpStmtAlgebra :: StmtAlgebra (Inh -> Syn)
 wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhancedFor, fEmpty, fExpStmt, fAssert, fSwitch, fDo, fBreak, fContinue, fReturn, fSynchronized, fThrow, fTry, fLabeled) where
     fStmtBlock (Block bs) inh       = foldr (\b r -> wlpBlock inh {acc = r} b) (acc inh) bs -- The result of the last block-statement will be the accumulated transformer for the second-last etc. The type environment is build from the left, so it has to be done seperately.
-    fIfThen e s1                    = fIfThenElse e s1 (const id) -- if-then is just an if-then-else with an empty else-block
+    fIfThen e s1                    = fIfThenElse e s1 acc -- if-then is just an if-then-else with an empty else-block
     fIfThenElse e s1 s2 inh         = let (e', trans) = foldExp wlpExpAlgebra e inh {acc = id}
                                           var = getVar
-                                      in trans . substVar' inh var e' . (\q -> (ExpName (Name [var]) &* s1 inh {acc = id} q) |* (neg (ExpName (Name [var])) &* s2 inh {acc = id} q)) . acc inh
+                                      in trans . substVar' inh var e' . (\q -> (ExpName (Name [var]) &* s1 inh q) |* (neg (ExpName (Name [var])) &* s2 inh q))
     fWhile e s inh                  = let (e', trans) = foldExp wlpExpAlgebra e inh {acc = id}
                                           var = getVar
-                                      in (\q -> unrollLoopOpt inh nrOfUnroll e' trans (s (inh {acc = id, br = const q})) q) . acc inh
+                                      in (\q -> unrollLoopOpt inh {br = const q} nrOfUnroll e' trans s q)
     fBasicFor init me incr s inh    = let loop = (fWhile (fromMaybeGuard me) (\inh' -> s (inh' {acc = (wlp' inh' {acc = id} (incrToStmt incr))})) inh) in wlp' (inh {acc = loop}) (initToStmt init)
     fEnhancedFor                    = error "EnhancedFor"
     fEmpty inh                      = (acc inh) -- Empty does nothing, but still passes control to the next statement
@@ -82,15 +82,15 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     wlpDeclAssignment _ _ _ = error "ArrayCreateInit is not supported"
               
     -- Unrolls a while-loop a finite amount of times
-    unrollLoop :: Inh -> Int -> Exp -> (Exp -> Exp) -> (Exp -> Exp) -> Exp -> Exp
+    unrollLoop :: Inh -> Int -> Exp -> (Exp -> Exp) -> (Inh -> Exp -> Exp) -> Exp -> Exp
     unrollLoop inh 0 g gTrans _             = let var = getVar
-                                              in gTrans . substVar' inh var g . (neg (ExpName (Name [var])) `imp`)
+                                              in gTrans . substVar' inh var g . (neg (ExpName (Name [var])) `imp`) . acc inh
     unrollLoop inh n g gTrans bodyTrans     = let var = getVar
-                                              in gTrans . substVar' inh var g . (\q -> (neg (ExpName (Name [var])) `imp` q) &* ((ExpName (Name [var])) `imp` bodyTrans (unrollLoop inh (n-1) g gTrans bodyTrans q)))
+                                              in gTrans . substVar' inh var g . (\q -> (neg (ExpName (Name [var])) `imp` acc inh q) &* ((ExpName (Name [var])) `imp` bodyTrans inh {acc = (unrollLoop inh (n-1) g gTrans bodyTrans)} q))
     
     -- An optimized version of unroll loop to reduce the size of the wlp
-    unrollLoopOpt :: Inh -> Int -> Exp -> (Exp -> Exp) -> (Exp -> Exp) -> Exp -> Exp
-    unrollLoopOpt inh n g gTrans bodyTrans q | gTrans (bodyTrans q) == q                        = q                                         -- q is not affected by the loop
+    unrollLoopOpt :: Inh -> Int -> Exp -> (Exp -> Exp) -> (Inh -> Exp -> Exp) -> Exp -> Exp
+    unrollLoopOpt inh n g gTrans bodyTrans q | gTrans (bodyTrans inh q) == acc inh q            = acc inh q                                 -- q is not affected by the loop
                                              | otherwise                                        = unrollLoop inh n g gTrans bodyTrans q     -- default to the standard version of unroll loop
     
     -- Converts initialization code of a for loop to a statement
