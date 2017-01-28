@@ -165,7 +165,9 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
                                                                    else let varId = getReturnVar invocation     
                                                                             callWlp = wlp' (inh {acc = id, calls = incrCallCount (calls inh) (invocationToId invocation), ret = Just varId, object = getObject inh invocation}) (inlineMethod inh invocation)
                                                                         in (ExpName (Name [varId]), (callWlp . acc inh))
-    fArrayAccess (ArrayIndex a i) inh                   = (arrayAccess a i, snd ((foldExp wlpExpAlgebra a) inh {acc = id}) . arrayAccessWlp a i inh)
+    fArrayAccess (ArrayIndex a i) inh                   = let (a', atrans) = foldExp wlpExpAlgebra a inh {acc = id}
+                                                              i' = map (flip (foldExp wlpExpAlgebra) inh {acc = id}) i
+                                                          in (arrayAccess a' (map fst i'), foldl (.) atrans (map snd i') . arrayAccessWlp a' (map fst i') inh)
     
     fExpName name inh                                   = (editName inh name, acc inh)
     -- x++ increments x but evaluates to the original value
@@ -175,7 +177,7 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
                                                             exp  -> (exp, trans)
     fPostDecrement e inh                                = let (e', trans) = e inh in
                                                           case e' of
-                                                            var@(ExpName name) -> (var, substVar (env inh) (decls inh) (NameLhs name) (BinOp var Rem (Lit (Int 1))) . trans)
+                                                            var@(ExpName name) -> (var, substVar (env inh) (decls inh) (NameLhs name) (BinOp var Sub (Lit (Int 1))) . trans)
                                                             exp  -> (exp, trans)
     -- ++x increments x and evaluates to the new value of x
     fPreIncrement e inh                                 = let (e', trans) = e inh in 
@@ -184,8 +186,8 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
                                                             exp  -> (BinOp exp Add (Lit (Int 1)), trans)
     fPreDecrement e inh                                 = let (e', trans) = e inh in 
                                                           case e' of
-                                                            var@(ExpName name) -> (BinOp var Rem (Lit (Int 1)), substVar (env inh) (decls inh) (NameLhs name) (BinOp var Rem (Lit (Int 1))) . trans)
-                                                            exp  -> (BinOp exp Rem (Lit (Int 1)), trans)
+                                                            var@(ExpName name) -> (BinOp var Sub (Lit (Int 1)), substVar (env inh) (decls inh) (NameLhs name) (BinOp var Sub (Lit (Int 1))) . trans)
+                                                            exp  -> (BinOp exp Sub (Lit (Int 1)), trans)
     fPrePlus e inh                                      = let (e', trans) = e inh in (e', trans)
     fPreMinus e inh                                     = let (e', trans) = e inh in (PreMinus e', trans)
     fPreBitCompl e inh                                  = let (e', trans) = e inh in (PreBitCompl e', trans)
