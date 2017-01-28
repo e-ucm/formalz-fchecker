@@ -110,6 +110,7 @@ getMethod' classTypeDecls methodId = case (concatMap searchClass classTypeDecls)
                                         []      -> Nothing -- Library function call
   where
     searchClass (ClassTypeDecl (ClassDecl _ _ _ _ _ (ClassBody decls))) = searchDecls decls
+    searchClass _ = []
     searchDecls (MemberDecl (MethodDecl _ _ t id params _ (MethodBody (Just b))):_) | methodId == id = [(StmtBlock b, t, params)]
     searchDecls (MemberDecl (ConstructorDecl _ _ id params _ (ConstructorBody _ b)):_) | methodId == toConstrId id = [(StmtBlock (Block b), Just (RefType (ClassRefType (ClassType [(id, [])]))), params)]
     searchDecls (_:decls) = searchDecls decls
@@ -125,6 +126,7 @@ getMainMethod classTypeDecls = fromJust' "getMainMethod" $ getMethod classTypeDe
 getMethodIds :: [TypeDecl] -> [Ident]
 getMethodIds classTypeDecls = concatMap searchClass classTypeDecls where
     searchClass (ClassTypeDecl (ClassDecl _ _ _ _ _ (ClassBody decls))) = searchDecls decls
+    searchClass _ = []
     searchDecls (MemberDecl (MethodDecl _ _ _ id _ _ _):decls) = id : searchDecls decls
     searchDecls (_:decls) = searchDecls decls
     searchDecls [] = []

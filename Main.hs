@@ -102,7 +102,7 @@ getPostCond t = case parser Language.Java.Parser.exp postCond' of
 -- Calculate the wlp (for testing purposes)
 calcWlp :: IO ()
 calcWlp = do
-    source <- readFile (joinPath ["Equivalent mutations", "BST.java"]) -- sourcePath
+    source <- readFile (joinPath ["Equivalent mutations", "stack.java"]) -- sourcePath
     
     let result = parser compilationUnit source
     

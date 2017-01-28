@@ -88,27 +88,27 @@ class Program
  
             	this.item[++this.top] = element;
                 System.out.println("Item pushed successfully!");
+            }
         }
-    }
-    public Object Pop()
-    {
-        if (isEmpty())
+        
+        public Object Pop()
         {
-            System.out.println("Stack is empty!");
-            return "No elements";
+            if (this.isEmpty())
+            {
+                System.out.println("Stack is empty!");
+                return "No elements";
             }
             else
             {
- 
                 return this.item[this.top--];
             }
         }
         public Object Peek()
         {
-            if (isEmpty())
+            if (this.isEmpty())
             {
                 System.out.println("Stack is empty!");
-            return "No elements";
+                return "No elements";
             }
             else
             {
@@ -123,6 +123,6 @@ class Program
             {
  
                 System.out.printf("Item {0}: {1}", (i + 1), this.item[i]);
-        }
-    }
+            }
+        }   
 }

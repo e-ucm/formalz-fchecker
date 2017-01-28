@@ -90,7 +90,7 @@ class Program
     }
     public Object Pop()
     {
-        if (isEmpty())
+        if (this.isEmpty())
         {
             System.out.println("Stack is empty!");
             return "No elements";
@@ -103,7 +103,7 @@ class Program
         }
         public Object Peek()
         {
-            if (isEmpty())
+            if (this.isEmpty())
             {
                 System.out.println("Stack is empty!");
             return "No elements";
