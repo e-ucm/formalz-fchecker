@@ -16,12 +16,16 @@ import Verifier
 import HelperFunctions
 import Settings
 
-sourcePath, mutantsDir :: FilePath
+sourcePath, mutantsDir, resultsPath :: FilePath
 sourcePath = joinPath ["Tests", testFile ++ ".java"]
 mutantsDir = joinPath ["..", testFile ++ " mutants"]
+resultsPath = joinPath ["Results", testFile ++ "_" ++ postCondVoid ++ "_" ++ postCondRefType ++ "_" ++ postCondPrimType ++ "_" ++ show ignoreLibMethods ++ "_" ++ show ignoreMainMethod ++ "_" ++ show nrOfUnroll]
 
 main :: IO ()
 main = do
+    -- Create the file for the results
+    initResultsFile
+    
     -- Parse the original sourceCode
     (env, decls, methods) <- parseFile sourcePath
     
@@ -40,9 +44,27 @@ main = do
     -- A list containing a 1 or 0 per mutant, indicating the number of errors found
     errorsFound <- mapM (compareWlps env decls wlpOriginal) wlpMutants
     
-    putStrLn ("Total number of mutants: " ++ show (length errorsFound))
-    putStrLn ("Number of mutants in which we found an error: " ++ show (sum errorsFound))
+    printAndAppend ("Total number of mutants: " ++ show (length errorsFound))
+    printAndAppend ("Number of mutants in which we found an error: " ++ show (sum errorsFound))
     
+-- Creates and initializes a file for the results
+initResultsFile :: IO ()
+initResultsFile = do
+    writeFile resultsPath ("testFile: " ++ testFile)
+    printAndAppend ("postCondVoid: " ++ postCondVoid)
+    printAndAppend ("postCondRefType: " ++ postCondRefType)
+    printAndAppend ("postCondPrimType: " ++ postCondPrimType)
+    printAndAppend ("ignoreLibMethods: " ++ show ignoreLibMethods)
+    printAndAppend ("ignoreMainMethod: " ++ show ignoreMainMethod)
+    printAndAppend ("nrOfUnroll: " ++ show nrOfUnroll)
+    printAndAppend ("erronous mutations detected:")
+    
+-- Prints a string and writes it to the results file
+printAndAppend :: String -> IO ()
+printAndAppend s = do
+    appendFile resultsPath ("\n" ++ s)
+    putStrLn s
+
 -- Parses a files and extracts the necessary information from the compilation unit
 parseFile :: FilePath -> IO (TypeEnv, [TypeDecl], [Ident])
 parseFile s = do
@@ -87,7 +109,7 @@ compareWlps env decls s (path, s') = do
         where 
         compareMethod (ident, e) = case lookup ident s' of
                                     Nothing -> putStrLn ("The method \'" ++ show ident ++ "\' is missing in one of the mutations.") >> return 0 -- print a warning and return 0 errors found
-                                    Just e' -> if unsafeIsTrue (extendEnv env decls ident) decls (e `imp` e') then return 0 else putStrLn ("error detected in mutation: " ++ path ++ " method: " ++ prettyPrint ident) >> return 1 -- print a message and return 1 error found
+                                    Just e' -> if unsafeIsTrue (extendEnv env decls ident) decls (e `imp` e') then return 0 else printAndAppend (getMutantNumber path ++ " " ++ prettyPrint ident) >> return 1 -- print a message and return 1 error found
 
 -- Gets the right post-condition given the type of a method
 getPostCond :: Maybe Type -> Exp
@@ -99,10 +121,14 @@ getPostCond t = case parser Language.Java.Parser.exp postCond' of
                         Just (RefType _)    -> postCondRefType
                         Just (PrimType _)   -> postCondPrimType
                     
+-- Gets the mutant number (as a string) of a generated mutation
+getMutantNumber :: FilePath -> String
+getMutantNumber path = takeWhile (/= '\\') (path \\ (mutantsDir ++ "\\"))
+
 -- Calculate the wlp (for testing purposes)
 calcWlp :: IO ()
 calcWlp = do
-    source <- readFile (joinPath ["Equivalent mutations", "mutants", "Stack_useless_property.java"]) -- sourcePath
+    source <- readFile sourcePath
     
     let result = parser compilationUnit source
     
