@@ -96,14 +96,17 @@ expAssertAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQual
                                             ArrayIndex e _ -> foldExp expAssertAlgebra e env decls
     fExpName name env decls      = do
                                     symbol <- mkStringSymbol (prettyPrint name)
-                                    case lookupType decls env name of
-                                        PrimType BooleanT    -> mkBoolVar symbol
-                                        PrimType FloatT      -> mkRealVar symbol
-                                        PrimType DoubleT     -> mkRealVar symbol
-                                        PrimType IntT        -> mkIntVar symbol
-                                        RefType _            -> mkIntVar symbol
+                                    case prettyPrint name of
                                         -- For now, we assume library methods return ints. Fixing this would require type information of library methods.
-                                        t                           -> if ignoreLibMethods then mkStringSymbol "libMethodCall" >>= mkIntVar else error ("Verifier: Type of " ++ prettyPrint name ++ " unknown or not implemented: " ++ show t)
+                                        '$':_   -> if ignoreLibMethods then mkStringSymbol "libMethodCall" >>= mkIntVar else error "introduced variable in WLP expression"
+                                        -- If we're not dealing with library methods, we should be able to get the type from the type environment
+                                        _       -> case lookupType decls env name of
+                                                        PrimType BooleanT    -> mkBoolVar symbol
+                                                        PrimType FloatT      -> mkRealVar symbol
+                                                        PrimType DoubleT     -> mkRealVar symbol
+                                                        PrimType IntT        -> mkIntVar symbol
+                                                        RefType _            -> mkIntVar symbol
+                                                        t                           -> error ("Verifier: Type of " ++ prettyPrint name ++ " unknown or not implemented: " ++ show t)
     fPostIncrement = undefined
     fPostDecrement = undefined
     fPreIncrement = undefined
