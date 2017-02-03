@@ -21,6 +21,7 @@ sourcePath = joinPath ["Tests", testFile ++ ".java"]
 mutantsDir = joinPath ["..", testFile ++ " mutants"]
 resultsPath = joinPath ["Results", testFile ++ "_" ++ postCondVoid ++ "_" ++ postCondRefType ++ "_" ++ postCondPrimType ++ "_" ++ show ignoreLibMethods ++ "_" ++ show ignoreMainMethod ++ "_" ++ show nrOfUnroll]
 
+-- The main functions performs the mutation test on the test file, given that the mutations of the source are already created in the right location
 main :: IO ()
 main = do
     -- Create the file for the results
@@ -39,30 +40,30 @@ main = do
     let mutationPaths = map (\n -> joinPath [mutantsDir, n, testFile ++ ".java"]) mutationFolders
     
     -- Calculate the wlp per method of all the mutants
-    wlpMutants <- mapM (\path -> parseFile path >>= (\(env', decls', methods') -> wlpMethods env' decls' methods') >>= return . (path, )) mutationPaths
+    wlpMutants <- mapM (\path -> parseFile path >>= (\(env', decls', methods') -> wlpMethods env' decls' methods') >>= return . (getMutantNumber path, )) mutationPaths
     
     -- A list containing a 1 or 0 per mutant, indicating the number of errors found
-    errorsFound <- mapM (compareWlps env decls wlpOriginal) wlpMutants
+    errorsFound <- mapM (compareWlps resultsPath env decls wlpOriginal) wlpMutants
     
-    printAndAppend ("Total number of mutants: " ++ show (length errorsFound))
-    printAndAppend ("Number of mutants in which we found an error: " ++ show (sum errorsFound))
+    printAndAppend resultsPath ("Total number of mutants: " ++ show (length errorsFound))
+    printAndAppend resultsPath ("Number of mutants in which we found an error: " ++ show (sum errorsFound))
     
 -- Creates and initializes a file for the results
 initResultsFile :: IO ()
 initResultsFile = do
     writeFile resultsPath ("testFile: " ++ testFile)
-    printAndAppend ("postCondVoid: " ++ postCondVoid)
-    printAndAppend ("postCondRefType: " ++ postCondRefType)
-    printAndAppend ("postCondPrimType: " ++ postCondPrimType)
-    printAndAppend ("ignoreLibMethods: " ++ show ignoreLibMethods)
-    printAndAppend ("ignoreMainMethod: " ++ show ignoreMainMethod)
-    printAndAppend ("nrOfUnroll: " ++ show nrOfUnroll)
-    printAndAppend ("erronous mutations detected:")
+    printAndAppend resultsPath ("postCondVoid: " ++ postCondVoid)
+    printAndAppend resultsPath ("postCondRefType: " ++ postCondRefType)
+    printAndAppend resultsPath ("postCondPrimType: " ++ postCondPrimType)
+    printAndAppend resultsPath ("ignoreLibMethods: " ++ show ignoreLibMethods)
+    printAndAppend resultsPath ("ignoreMainMethod: " ++ show ignoreMainMethod)
+    printAndAppend resultsPath ("nrOfUnroll: " ++ show nrOfUnroll)
+    printAndAppend resultsPath ("erronous mutations detected:")
     
 -- Prints a string and writes it to the results file
-printAndAppend :: String -> IO ()
-printAndAppend s = do
-    appendFile resultsPath ("\n" ++ s)
+printAndAppend :: FilePath -> String -> IO ()
+printAndAppend results s = do
+    appendFile results ("\n" ++ s)
     putStrLn s
 
 -- Parses a files and extracts the necessary information from the compilation unit
@@ -81,7 +82,7 @@ parseFile s = do
                             
                             return (env, decls, methods)
     
--- | Calculates the wlp for every method in the source file. Also returns the type environment             
+-- | Calculates the wlp for every method in the list seperately
 wlpMethods :: TypeEnv -> [TypeDecl] -> [Ident] -> IO [(Ident, Exp)]
 wlpMethods env decls methods = mapM (\ident -> wlpMethod env decls ident >>= return . (ident, )) methods' where
     methods' = if ignoreMainMethod then filter (/= Ident "main") methods else methods
@@ -100,8 +101,8 @@ wlpMethod env decls ident = do
     return pred
     
 -- | Compares the wlp per method of a program S and mutation S' by verifying that (wlp (S, m) q => wlp (S', m) q) holds for every method m. Returns 0 if it holds and 1 if it doesn't hold
-compareWlps :: TypeEnv -> [TypeDecl] -> [(Ident, Exp)] -> (String, [(Ident, Exp)]) -> IO Int
-compareWlps env decls s (path, s') = do
+compareWlps :: FilePath -> TypeEnv -> [TypeDecl] -> [(Ident, Exp)] -> (String, [(Ident, Exp)]) -> IO Int
+compareWlps results env decls s (path, s') = do
     -- Get a list with for every method the number of errors found (1 or 0)
     errorsFound <- mapM compareMethod s
     -- Return 1 if we found at least 1 error
@@ -109,7 +110,7 @@ compareWlps env decls s (path, s') = do
         where 
         compareMethod (ident, e) = case lookup ident s' of
                                     Nothing -> putStrLn ("The method \'" ++ show ident ++ "\' is missing in one of the mutations.") >> return 0 -- print a warning and return 0 errors found
-                                    Just e' -> if unsafeIsTrue (extendEnv env decls ident) decls (e `imp` e') then return 0 else printAndAppend (getMutantNumber path ++ " " ++ prettyPrint ident) >> return 1 -- print a message and return 1 error found
+                                    Just e' -> if unsafeIsTrue (extendEnv env decls ident) decls (e `imp` e') then return 0 else printAndAppend results (path ++ " " ++ prettyPrint ident) >> return 1 -- print a message and return 1 error found
 
 -- Gets the right post-condition given the type of a method
 getPostCond :: Maybe Type -> Exp
@@ -125,7 +126,56 @@ getPostCond t = case parser Language.Java.Parser.exp postCond' of
 getMutantNumber :: FilePath -> String
 getMutantNumber path = takeWhile (/= '\\') (path \\ (mutantsDir ++ "\\"))
 
--- Calculate the wlp (for testing purposes)
+
+
+
+----------------------------
+--  Other test functions  --
+----------------------------
+
+-- Performs the false-positives-test on the set of test programs with equivalent mutations
+testFalsePositives :: IO ()
+testFalsePositives = do
+    let results = joinPath ["Results", "False Positives", postCondVoid ++ "_" ++ postCondRefType ++ "_" ++ postCondPrimType ++ "_" ++ show ignoreLibMethods ++ "_" ++ show ignoreMainMethod ++ "_" ++ show nrOfUnroll]
+    
+    -- Create the file for the results
+    writeFile results ("False positives test")
+    printAndAppend results ("postCondVoid: " ++ postCondVoid)
+    printAndAppend results ("postCondRefType: " ++ postCondRefType)
+    printAndAppend results ("postCondPrimType: " ++ postCondPrimType)
+    printAndAppend results ("ignoreLibMethods: " ++ show ignoreLibMethods)
+    printAndAppend results ("ignoreMainMethod: " ++ show ignoreMainMethod)
+    printAndAppend results ("nrOfUnroll: " ++ show nrOfUnroll)
+    printAndAppend results ("False positives found in:")
+    
+    n1 <- testFalsePositives' results "BST.java" ["BST_no_parent.java"]
+    n2 <- testFalsePositives' results "Fibonacci.java" ["Fibonacci_no_extra_prints.java"]
+    n3 <- testFalsePositives' results "Stack.java" ["Stack_bool_is_result.java", "Stack_constructor_duplication.java", "Stack_useless_property.java"]
+    
+    printAndAppend results ("Total number of false positives: " ++ show (n1 + n2 + n3))
+    where
+    testFalsePositives' :: FilePath -> FilePath -> [FilePath] -> IO Int
+    testFalsePositives' results source mutations = testFalsePositives'' results (joinPath ["Equivalent mutations", source]) (map (\mutant -> joinPath ["Equivalent mutations", "Mutants", mutant]) mutations)
+    
+    -- Tests a specific source file against all its equivalent mutations, updates the test result file and returns the number of false positives
+    testFalsePositives'' :: FilePath -> FilePath -> [FilePath] -> IO Int
+    testFalsePositives'' results source mutations = do
+        -- Parse the original sourceCode
+        (env, decls, methods) <- parseFile source
+        
+        -- Get the wlp per method of the original source code
+        wlpOriginal <- wlpMethods env decls methods
+        
+        -- Calculate the wlp per method of all the mutants
+        wlpMutants <- mapM (\path -> parseFile path >>= (\(env', decls', methods') -> wlpMethods env' decls' methods') >>= return . (path, )) mutations
+        
+        -- A list containing a 1 or 0 per mutant, indicating the number of errors found
+        -- CompareWlp also writes detailed information to the results file
+        errorsFound <- mapM (compareWlps results env decls wlpOriginal) wlpMutants
+        
+        return (sum errorsFound)
+
+-- Calculate the wlp of the test file (for testing purposes)
 calcWlp :: IO ()
 calcWlp = do
     source <- readFile sourcePath

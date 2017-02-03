@@ -3,7 +3,7 @@
 
 //https://www.cs.utexas.edu/~scottm/cs307/javacode/codeSamples/ArrayExamples.java
 
-public class ArrayExamples
+public class arrays1
 {	public static void main(String[] args)
 	{	int[] list = new int[7];
     
