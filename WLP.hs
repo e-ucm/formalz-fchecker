@@ -57,9 +57,13 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
                                         Just e  -> fExpStmt (Assign (NameLhs (Name [fromJust' "fReturn" (ret inh)])) EqualA e) (inh {acc = id}) -- We treat "return e" as an assignment to a variable specifically created to store the return value in
                                                             
     fSynchronized _                 = fStmtBlock
-    fThrow e inh                    = case catch inh of
+    fThrow e inh                    = (case catch inh of
                                         Nothing      -> ((\q -> q &* throwException e)) -- acc is ignored, as the rest of the block is not executed
-                                        Just (cs, f) -> (maybe (if f then id else (\q -> q &* throwException e)) (flip fStmtBlock (inh {acc = id, catch = Nothing})) (getCatch (decls inh) (env inh) e cs))
+                                        Just (cs, f) -> (maybe (if f then id else (\q -> q &* throwException e)) (flip fStmtBlock (inh {acc = id, catch = Nothing})) (getCatch (decls inh) (env inh) e cs)))
+                                      .
+                                      (case ret inh of
+                                        Nothing -> id
+                                        _       -> fReturn (Just e) inh)
     fTry (Block bs) cs f inh        = let r = (fStmtBlock (Block bs) (inh {acc = id, catch = Just (cs, isJust f)})) in (r . maybe (acc inh) (flip fStmtBlock inh) f) -- The finally-block is always executed
     fLabeled _ s                    = s
     
