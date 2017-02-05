@@ -22,6 +22,13 @@ import org.apache.commons.math3.analysis.UnivariateFunction;
 import org.apache.commons.math3.exception.ConvergenceException;
 import org.apache.commons.math3.exception.MathInternalError;
 
+import org.apache.commons.math3.exception.NoBracketingException;
+import org.apache.commons.math3.exception.NotStrictlyPositiveException;
+import org.apache.commons.math3.exception.NullArgumentException;
+import org.apache.commons.math3.exception.NumberIsTooLargeException;
+import org.apache.commons.math3.exception.util.LocalizedFormats;
+import org.apache.commons.math3.util.FastMath;
+
 /**
  * Base class for all bracketing <em>Secant</em>-based methods for root-finding
  * (approximating a zero of a univariate real function).
@@ -256,13 +263,13 @@ public abstract class BaseSecantSolver
         return (fLo >= 0 && fHi <= 0) || (fLo <= 0 && fHi >= 0);
     }
 
-    public static boolean isSequence(final double start,
+    public static boolean isSequence1(final double start,
                                      final double mid,
                                      final double end) {
         return (start < mid) && (mid < end);
     }
 
-    public static void verifyInterval(final double lower2,
+    public static void verifyInterval1(final double lower2,
                                       final double upper2)
         throws NumberIsTooLargeException {
         if (lower2 >= upper2) {
@@ -271,12 +278,12 @@ public abstract class BaseSecantSolver
         }
     }
 
-    public static void verifySequence(final double lower3,
+    public static void verifySequence1(final double lower3,
                                       final double initial,
                                       final double upper3)
         throws NumberIsTooLargeException {
-        verifyInterval(lower3, initial);
-        verifyInterval(initial, upper3);
+        verifyInterval1(lower3, initial);
+        verifyInterval1(initial, upper3);
     }
 
     public static void verifyBracketing(UnivariateFunction function2,
@@ -287,7 +294,7 @@ public abstract class BaseSecantSolver
         if (function2 == null) {
             throw new NullArgumentException(LocalizedFormats.FUNCTION);
         }
-        verifyInterval(lower4, upper4);
+        verifyInterval1(lower4, upper4);
         if (!isBracketing(function2, lower4, upper4)) {
             throw new NoBracketingException(lower4, upper4,
                                             function2.value(lower4),
