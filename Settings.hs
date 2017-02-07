@@ -1,7 +1,9 @@
 module Settings where
 
+import System.FilePath(joinPath)
+
 testFile, postCondVoid, postCondRefType, postCondPrimType :: String
-testFile = "BaseSecantSolver"
+testFile = "basesecantsolver"
 
 -- The post condition may depend on the type of the method we are looking at
 postCondVoid = "true"
@@ -17,3 +19,8 @@ ignoreMainMethod = False
 
 nrOfUnroll :: Int
 nrOfUnroll = 1
+
+-- The classpath for test files
+classPath :: FilePath -> FilePath
+classPath "basesecantsolver" = joinPath ["org", "apache", "commons", "math3", "analysis", "solvers"]
+classPath _ = ""

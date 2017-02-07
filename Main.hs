@@ -37,7 +37,7 @@ main = do
     mutationFolders <- listDirectory mutantsDir
     
     -- Map each folder name to the path containing the mutant (mutant name is the same as the original file name)
-    let mutationPaths = map (\n -> joinPath [mutantsDir, n, testFile ++ ".java"]) mutationFolders
+    let mutationPaths = map (\n -> joinPath [mutantsDir, n, classPath testFile, testFile ++ ".java"]) mutationFolders
     
     -- Calculate the wlp per method of all the mutants
     wlpMutants <- mapM (\path -> parseFile path >>= (\(env', decls', methods') -> wlpMethods env' decls' methods') >>= return . (getMutantNumber path, )) mutationPaths

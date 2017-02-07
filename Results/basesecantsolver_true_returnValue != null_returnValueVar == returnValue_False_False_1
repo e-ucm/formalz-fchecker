@@ -1,0 +1,34 @@
+testFile: basesecantsolver
+postCondVoid: true
+postCondRefType: returnValue != null
+postCondPrimType: returnValueVar == returnValue
+ignoreLibMethods: False
+ignoreMainMethod: False
+nrOfUnroll: 1
+erronous mutations detected:
+206 verifyBracketing
+200 verifyInterval1
+200 verifySequence1
+200 verifyBracketing
+197 isSequence1
+196 isSequence1
+195 isSequence1
+194 isSequence1
+193 isSequence1
+192 isSequence1
+191 isSequence1
+190 isSequence1
+189 isSequence1
+188 isSequence1
+152 midpoint
+151 midpoint
+150 midpoint
+149 midpoint
+148 midpoint
+147 midpoint
+146 midpoint
+145 midpoint
+144 midpoint
+143 midpoint
+Total number of mutants: 207
+Number of mutants in which we found an error: 22
