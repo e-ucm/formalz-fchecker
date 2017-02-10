@@ -105,6 +105,7 @@ expAssertAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQual
                                                         PrimType FloatT      -> mkRealVar symbol
                                                         PrimType DoubleT     -> mkRealVar symbol
                                                         PrimType IntT        -> mkIntVar symbol
+                                                        PrimType ByteT       -> mkIntVar symbol
                                                         RefType _            -> mkIntVar symbol
                                                         t                           -> error ("Verifier: Type of " ++ prettyPrint name ++ " unknown or not implemented: " ++ show t)
     fPostIncrement = undefined
@@ -141,17 +142,20 @@ expAssertAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQual
                                               ast2 <- e2 env decls
                                               mkSub [ast1, ast2]
                                     LShift -> do
-                                              ast1 <- e1 env decls
-                                              ast2 <- e2 env decls
-                                              mkBvshl ast1 ast2
+                                              ast1 <- e1 env decls >>= mkInt2bv 8
+                                              ast2 <- e2 env decls >>= mkInt2bv 8
+                                              astr <- mkBvshl ast1 ast2
+                                              mkBv2int astr True
                                     RShift -> do
-                                              ast1 <- e1 env decls
-                                              ast2 <- e2 env decls
-                                              mkBvashr ast1 ast2
+                                              ast1 <- e1 env decls >>= mkInt2bv 8
+                                              ast2 <- e2 env decls >>= mkInt2bv 8
+                                              astr <- mkBvashr ast1 ast2
+                                              mkBv2int astr True
                                     RRShift -> do
-                                              ast1 <- e1 env decls
-                                              ast2 <- e2 env decls
-                                              mkBvlshr ast1 ast2
+                                              ast1 <- e1 env decls >>= mkInt2bv 8
+                                              ast2 <- e2 env decls >>= mkInt2bv 8
+                                              astr <- mkBvlshr ast1 ast2
+                                              mkBv2int astr True
                                     LThan -> do
                                               ast1 <- e1 env decls
                                               ast2 <- e2 env decls
@@ -178,17 +182,20 @@ expAssertAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQual
                                               eq <- mkEq ast1 ast2
                                               mkNot eq
                                     And-> do
-                                              ast1 <- e1 env decls
-                                              ast2 <- e2 env decls
-                                              mkAnd [ast1, ast2]
+                                              ast1 <- e1 env decls >>= mkInt2bv 8
+                                              ast2 <- e2 env decls >>= mkInt2bv 8
+                                              astr <- mkBvand ast1 ast2
+                                              mkBv2int astr True
                                     Or -> do
-                                              ast1 <- e1 env decls
-                                              ast2 <- e2 env decls
-                                              mkOr [ast1, ast2]
+                                              ast1 <- e1 env decls >>= mkInt2bv 8
+                                              ast2 <- e2 env decls >>= mkInt2bv 8
+                                              astr <- mkBvor ast1 ast2
+                                              mkBv2int astr True
                                     Xor -> do
-                                              ast1 <- e1 env decls
-                                              ast2 <- e2 env decls
-                                              mkXor ast1 ast2
+                                              ast1 <- e1 env decls >>= mkInt2bv 8
+                                              ast2 <- e2 env decls >>= mkInt2bv 8
+                                              astr <- mkBvxor ast1 ast2
+                                              mkBv2int astr True
                                     CAnd -> do
                                               ast1 <- e1 env decls
                                               ast2 <- e2 env decls

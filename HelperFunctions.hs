@@ -23,6 +23,7 @@ lookupType decls env (Name idents) = case lookup (Name [head idents]) env of
 -- | Gets the type of a field of an object of given type
 getFieldType :: [TypeDecl] -> Type -> Name -> Type
 getFieldType _ t (Name []) = t
+getFieldType _ _ (Name [Ident "length"]) = PrimType IntT
 getFieldType decls (RefType (ClassRefType t)) (Name (f:fs)) = getFieldType decls (getFieldTypeFromClassDecl (getDecl t decls) f) (Name fs)
     where
         getFieldTypeFromClassDecl :: ClassDecl -> Ident -> Type
@@ -192,10 +193,10 @@ false = Lit (Boolean False)
     
 -- Logical operators for expressions:
 (&*) :: Exp -> Exp -> Exp
-e1 &* e2 = BinOp e1 And e2
+e1 &* e2 = BinOp e1 CAnd e2
 
 (|*) :: Exp -> Exp -> Exp
-e1 |* e2 = BinOp e1 Or e2
+e1 |* e2 = BinOp e1 COr e2
 
 neg :: Exp -> Exp
 neg = PreNot

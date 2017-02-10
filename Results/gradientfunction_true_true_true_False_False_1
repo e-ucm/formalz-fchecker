@@ -1,0 +1,14 @@
+testFile: gradientfunction
+postCondVoid: true
+postCondRefType: true
+postCondPrimType: true
+ignoreLibMethods: False
+ignoreMainMethod: False
+nrOfUnroll: 1
+erronous mutations detected:
+6 value
+5 value
+4 value
+2 value
+Total number of mutants: 26
+Number of mutants in which we found an error: 4

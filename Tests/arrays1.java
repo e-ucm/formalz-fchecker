@@ -30,7 +30,7 @@ public class arrays1
 	// pre: list != null, list.length > 0
 	// post: return index of minimum element of array
 	public static int findMin(int[] list2)
-	{	assert (list2 != null) && (list2.length > 0) : "failed precondition";
+	{	assert (list2 != null) && (list2.length > 0) : "PRE";
 
 		int indexOfMin = 0;
 		for(int k = 1; k < list2.length; k++)

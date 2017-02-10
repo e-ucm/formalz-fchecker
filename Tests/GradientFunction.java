@@ -33,8 +33,8 @@ public class GradientFunction implements MultivariateVectorFunction {
     /** Simple constructor.
      * @param f underlying real-valued function
      */
-    public GradientFunction(final MultivariateDifferentiableFunction f) {
-        this.f = f;
+    public GradientFunction(final MultivariateDifferentiableFunction f1) {
+        this.f = f1;
     }
 
     /** {@inheritDoc} */
@@ -47,15 +47,15 @@ public class GradientFunction implements MultivariateVectorFunction {
         }
 
         // compute the derivatives
-        final DerivativeStructure dsY = f.value(dsX);
+        final DerivativeStructure dsY = this.f.value(dsX);
 
         // extract the gradient
         final double[] y = new double[point.length];
         final int[] orders = new int[point.length];
-        for (int i = 0; i < point.length; ++i) {
-            orders[i] = 1;
-            y[i] = dsY.getPartialDerivative(orders);
-            orders[i] = 0;
+        for (int j = 0; j < point.length; ++j) {
+            orders[j] = 1;
+            y[j] = dsY.getPartialDerivative(orders);
+            orders[j] = 0;
         }
 
         return y;
