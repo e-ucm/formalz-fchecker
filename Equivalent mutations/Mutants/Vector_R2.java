@@ -1,10 +1,10 @@
 package Examples.NN_InputVector;
 
-public class Vector_R2  {
+public class Vector  {
 	
 	private double[] vector;
 	
-	public Vector_R2(double[] vec) {
+	public Vector(double[] vec) {
 		this.vector = new double[vec.length] ;
 		System.arraycopy(vec, 0, this.vector, 0, vec.length);
 	}
@@ -22,25 +22,26 @@ public class Vector_R2  {
 	/**
 	 * R2 replaces the fall through in the ACCUMULATE case with a recursive call with INPRODUCT.
 	 */
-	public Vector_R2 combine_R2(int operation, Vector_R2 Z) {
+	public Vector combine(int operation, Vector Z) {
 		if (Z.getSize() != this.vector.length) throw new IllegalArgumentException() ;
 		double[] result = new double[this.vector.length] ;
 		double[] vector2 = Z.getVector() ;
 		switch (operation) {
-			case VectorCONST.ACCUMULATE: return combine_R2(VectorCONST.INPRODUCT,Z) ;
+			case VectorCONST.ACCUMULATE: return this.combine(VectorCONST.INPRODUCT,Z) ;
 			case VectorCONST.INPRODUCT: {
 				int r = 0 ;
-				for (int k=0; k<this.vector.length; k++) r += this.vector[k]*vector2[k] ;
-				double[] rr = {r} ;
-				return new Vector_R2(rr) ;
+				for (int k1=0; k1<this.vector.length; k1++) r += this.vector[k1]*vector2[k1] ;
+				double[] rr = new double[1];
+                rr[0] = r;
+				return new Vector(rr) ;
 			}
 			case VectorCONST.PLUS: {
-				for (int k=0; k<this.vector.length; k++) result[k] = this.vector[k] + vector2[k] ;
+				for (int k2=0; k2<this.vector.length; k2++) result[k2] = this.vector[k2] + vector2[k2] ;
 				break ;
 			}
 			default: return null ;
 		}
-		return new Vector_R2(result) ;
+		return new Vector(result) ;
 	}
 
 }

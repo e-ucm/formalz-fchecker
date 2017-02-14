@@ -1,10 +1,10 @@
 package Examples.NN_InputVector;
 
-public class Vector_R3 {
+public class Vector {
 	
 	private double[] vector;
 	
-	public Vector_R3(double[] vec) {
+	public Vector(double[] vec) {
 		this.vector = new double[vec.length] ;
 		System.arraycopy(vec, 0, this.vector, 0, vec.length);
 	}
@@ -22,22 +22,23 @@ public class Vector_R3 {
 	/**
 	 * R3 reorder the cases, and remove the use of return from the case arms.
 	 */
-	public Vector_R3 combine_R3(int operation, Vector_R3 Z) {
+	public Vector combine(int operation, Vector Z) {
 		if (Z.getSize() != this.vector.length) throw new IllegalArgumentException() ;
 		double[] result = new double[this.vector.length] ;
 		double[] vector2 = Z.getVector() ;
-		Vector_R3 resultingVector = null ;
+		Vector resultingVector = null ;
 		switch (operation) {
 	   	    case VectorCONST.PLUS: {
-			    for (int k=0; k<this.vector.length; k++) result[k] = this.vector[k] + vector2[k] ;
-			    resultingVector = new Vector_R3(result) ;
+			    for (int k1=0; k1<this.vector.length; k1++) result[k1] = this.vector[k1] + vector2[k1] ;
+			    resultingVector = new Vector(result) ;
 			    break ; }
 			case VectorCONST.ACCUMULATE: ; // does nothing, deliberately falling through to the code of INPRODUCT
 			case VectorCONST.INPRODUCT: {
 				int r = 0 ;
-				for (int k=0; k<this.vector.length; k++) r += this.vector[k]*vector2[k] ;
-				double[] rr = {r} ;
-				resultingVector = new Vector_R3(rr) ; // we will just let it fall through
+				for (int k2=0; k2<this.vector.length; k2++) r += this.vector[k2]*vector2[k2] ;
+				double[] rr = new double[1];
+                rr[0] = r;
+				resultingVector = new Vector(rr) ; // we will just let it fall through
 			}
 			default:  ;
 		}

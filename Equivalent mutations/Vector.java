@@ -26,12 +26,13 @@ public class Vector {
 			case VectorCONST.ACCUMULATE: ; // does nothing, deliberately falling through to the code of INPRODUCT
 			case VectorCONST.INPRODUCT: {
 				int r = 0 ;
-				for (int k=0; k<this.vector.length; k++) r += this.vector[k]*vector2[k] ;
-				double[] rr = {r} ;
+				for (int k1=0; k1<this.vector.length; k1++) r += this.vector[k1]*vector2[k1] ;
+				double[] rr = new double[1];
+                rr[0] = r;
 				return new Vector(rr) ;
 			}
 			case VectorCONST.PLUS: {
-				for (int k=0; k<this.vector.length; k++) result[k] = this.vector[k] + vector2[k] ;
+				for (int k2=0; k2<this.vector.length; k2++) result[k2] = this.vector[k2] + vector2[k2] ;
 				break ;
 			}
 			default: return null ;

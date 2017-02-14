@@ -14,9 +14,9 @@ public class MinsMaxs_R2 {
 		double[] maxs = new double[rowWidth] ;
 		
 		// initialize mins and maxs:
-		for (int c=0; c<rowWidth; c++) {
-			mins[c] =data[0][c] ;
-			maxs[c] =data[0][c] ;
+		for (int c1=0; c1<rowWidth; c1++) {
+			mins[c1] =data[0][c1] ;
+			maxs[c1] =data[0][c1] ;
 		}
 		// iterate over the matrix:
 		for (int r=1; r<data.length; r++) {

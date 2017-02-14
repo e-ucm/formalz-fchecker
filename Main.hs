@@ -151,8 +151,11 @@ testFalsePositives = do
     n1 <- testFalsePositives' results "BST.java" ["BST_no_parent.java"]
     n2 <- testFalsePositives' results "Fibonacci.java" ["Fibonacci_no_extra_prints.java"]
     n3 <- testFalsePositives' results "Stack.java" ["Stack_bool_is_result.java", "Stack_constructor_duplication.java", "Stack_useless_property.java"]
+    n4 <- testFalsePositives' results "MinsMaxs.java" ["MinsMaxs_R1.java", "MinsMaxs_R2.java", "MinsMaxs_R3.java"]
+    n5 <- testFalsePositives' results "Normalizer.java" ["Normalizer_R1.java", "Normalizer_R2.java", "Normalizer_R3.java", "Normalizer_R4.java"]
+    n6 <- testFalsePositives' results "Vector.java" ["Vector_R1.java", "Vector_R2.java", "Vector_R3.java"]
     
-    printAndAppend results ("Total number of false positives: " ++ show (n1 + n2 + n3))
+    printAndAppend results ("Total number of false positives: " ++ show (n1 + n2 + n3 + n4 + n5 + n6))
     where
     testFalsePositives' :: FilePath -> FilePath -> [FilePath] -> IO Int
     testFalsePositives' results source mutations = testFalsePositives'' results (joinPath ["Equivalent mutations", source]) (map (\mutant -> joinPath ["Equivalent mutations", "Mutants", mutant]) mutations)

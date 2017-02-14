@@ -11,15 +11,15 @@ public class MinsMaxs {
 		if (N < 1) throw new IllegalArgumentException() ;
 		int rowWidth = data[0].length ;
 		// check if every row has the same length:
-		for (int r=1; r<N; r++) 
-			if (data[r].length != rowWidth) throw new IllegalArgumentException() ;
+		for (int r1=1; r1<N; r1++) 
+			if (data[r1].length != rowWidth) throw new IllegalArgumentException() ;
 		
 		double[] mins = new double[rowWidth] ;
 		double[] maxs = new double[rowWidth] ;
 		// initialize mins and maxs:
-		for (int c=0; c<rowWidth; c++) {
-			mins[c] =data[0][c] ;
-			maxs[c] =data[0][c] ;
+		for (int c1=0; c1<rowWidth; c1++) {
+			mins[c1] =data[0][c1] ;
+			maxs[c1] =data[0][c1] ;
 		}
 		// iterate over the matrix:
 		for (int r=1; r<N; r++) {

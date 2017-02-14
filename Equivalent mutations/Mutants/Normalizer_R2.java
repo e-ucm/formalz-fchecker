@@ -13,7 +13,7 @@ public class Normalizer_R2 {
 				if (data[row].length != rowWidth) { throw new IllegalArgumentException() ; }
 				int col = 0 ;
 				while (col < rowWidth) {
-					data[row][col] = normalizeValue(data[row][col] ,mins[col],maxs[col]) ;
+					data[row][col] = this.normalizeValue(data[row][col] ,mins[col],maxs[col]) ;
 					col++ ;
 				}
 				row++ ;

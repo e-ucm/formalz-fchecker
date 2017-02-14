@@ -18,7 +18,7 @@ lookupType decls env (Name ((Ident s@('$':_)) : idents)) = getFieldType decls (g
 lookupType decls env (Name ((Ident s@('#':_)) : idents)) = PrimType undefined -- Names starting with a '#' symbol are generated and represent a variable introduced by handling operators
 lookupType decls env (Name idents) = case lookup (Name [head idents]) env of
                                         Just t  -> getFieldType decls t (Name (tail idents))
-                                        Nothing -> error ("can't find type of " ++ prettyPrint (Name idents) ++ "\r\n TypeEnv: " ++ show env)
+                                        Nothing -> PrimType IntT -- For now we assume library variables to be ints      error ("can't find type of " ++ prettyPrint (Name idents) ++ "\r\n TypeEnv: " ++ show env)
                                         
 -- | Gets the type of a field of an object of given type
 getFieldType :: [TypeDecl] -> Type -> Name -> Type
