@@ -1,0 +1,40 @@
+//http://www.introprogramming.info/english-intro-csharp-book/read-online/chapter-10-recursion/#demos-source-code
+
+class Vectors01Generator
+{
+    static void Gen01(int index, int[] vector1)
+    {
+        if (index == -1)
+        {
+            Print(vector1);
+        }
+        else
+        {
+            for (int i1 = 0; i1 <= 1; i1++)
+            {
+                vector1[index] = i1;
+                Gen01(index - 1, vector1);
+            }
+        }
+    }
+
+    static void Print(int[] vector2)
+    {
+        String str = "";
+        for (int i2 = 0; i2 < vector2.length; i2++)
+        {
+            str = str + Integer.toString(i2) + " ";
+        }
+        System.out.println(str);
+    }
+
+    static void main()
+    {
+        System.out.print("n = ");
+        int number = System.in.read();
+		
+        int[] vector3 = new int[number];
+		
+        Gen01(number - 1, vector3);
+    }
+}
