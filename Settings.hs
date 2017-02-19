@@ -7,7 +7,7 @@ testFile = "Vector"
 
 -- The post condition may depend on the type of the method we are looking at
 postCondVoid = "true"
-postCondRefType = heur1
+postCondRefType = heur2
 postCondPrimType = heur2
 
 -- When ignoreLibMethods is true, library calls will simply be ignored. When false, we consider library methods but make no assumptions about them (so the WLP will be true)

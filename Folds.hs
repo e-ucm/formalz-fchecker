@@ -58,7 +58,7 @@ foldStmt :: StmtAlgebra r -> Stmt -> r
 foldStmt (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhancedFor, fEmpty, fExpStmt, fAssert, fSwitch, fDo, fBreak, fContinue, fReturn, fSynchronized, fThrow, fTry, fLabeled) s = fold s where
     fold s = case s of
                   StmtBlock b -> fStmtBlock b
-                  IfThen e stmt -> fIfThen e (fold stmt)	
+                  IfThen e stmt -> fIfThen e (fold stmt)
                   IfThenElse e stmt1 stmt2 -> fIfThenElse e (fold stmt1) (fold stmt2)
                   While e stmt -> fWhile e (fold stmt)
                   BasicFor init e incr stmt -> fBasicFor init e incr (fold stmt)

@@ -1,0 +1,11 @@
+False positives test
+postCondVoid: true
+postCondRefType: returnValue != null
+postCondPrimType: true
+ignoreLibMethods: False
+ignoreMainMethod: False
+nrOfUnroll: 1
+False positives found in:
+Equivalent mutations\Mutants\Vector_R2.java combine
+Equivalent mutations\Mutants\Vector_R3.java combine
+Total number of false positives: 2

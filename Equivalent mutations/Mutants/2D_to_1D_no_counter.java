@@ -42,7 +42,7 @@ class twodmatrix
         {
             for (int j3 = 0; j3 < this.n; j3++)
             {
-                this.b[i*n+j] = this.a[i3][j3];
+                this.b[i3*this.n+j3] = this.a[i3][j3];
             }
         }
     }

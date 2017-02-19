@@ -109,7 +109,7 @@ compareWlps results env decls s (path, s') = do
     return (if sum errorsFound > 0 then 1 else 0)
         where 
         compareMethod (ident, e) = case lookup ident s' of
-                                    Nothing -> putStrLn ("The method \'" ++ show ident ++ "\' is missing in one of the mutations.") >> return 0 -- print a warning and return 0 errors found
+                                    Nothing -> putStrLn ("The method \'" ++ prettyPrint ident ++ "\' is missing in mutation " ++ path) >> return 0 -- print a warning and return 0 errors found
                                     Just e' -> if unsafeIsTrue (extendEnv env decls ident) decls (e `imp` e') then return 0 else printAndAppend results (path ++ " " ++ prettyPrint ident) >> return 1 -- print a message and return 1 error found
 
 -- Gets the right post-condition given the type of a method
@@ -151,11 +151,13 @@ testFalsePositives = do
     n1 <- testFalsePositives' results "BST.java" ["BST_no_parent.java"]
     n2 <- testFalsePositives' results "Fibonacci.java" ["Fibonacci_no_extra_prints.java"]
     n3 <- testFalsePositives' results "Stack.java" ["Stack_bool_is_result.java", "Stack_constructor_duplication.java", "Stack_useless_property.java"]
-    n4 <- testFalsePositives' results "MinsMaxs.java" ["MinsMaxs_R1.java", "MinsMaxs_R2.java", "MinsMaxs_R3.java"]
-    n5 <- testFalsePositives' results "Normalizer.java" ["Normalizer_R1.java", "Normalizer_R2.java", "Normalizer_R3.java", "Normalizer_R4.java"]
-    n6 <- testFalsePositives' results "Vector.java" ["Vector_R1.java", "Vector_R2.java", "Vector_R3.java"]
+    n4 <- testFalsePositives' results "2D_to_1D.java" ["2D_to_1D_no_counter.java", "2D_to_1D_no_1D.java"]
+    n5 <- testFalsePositives' results "Vectors01Generator.java" ["Vectors01Generator_no_for.java", "Vectors01Generator_print_string.java"]
+    n6 <- testFalsePositives' results "MinsMaxs.java" ["MinsMaxs_R1.java", "MinsMaxs_R2.java", "MinsMaxs_R3.java"]
+    n7 <- testFalsePositives' results "Normalizer.java" ["Normalizer_R1.java", "Normalizer_R2.java", "Normalizer_R3.java", "Normalizer_R4.java"]
+    n8 <- testFalsePositives' results "Vector.java" ["Vector_R1.java", "Vector_R2.java", "Vector_R3.java"]
     
-    printAndAppend results ("Total number of false positives: " ++ show (n1 + n2 + n3 + n4 + n5 + n6))
+    printAndAppend results ("Total number of false positives: " ++ show (n1 + n2 + n3 + n4 + n5 + n6 + n7 + n8))
     where
     testFalsePositives' :: FilePath -> FilePath -> [FilePath] -> IO Int
     testFalsePositives' results source mutations = testFalsePositives'' results (joinPath ["Equivalent mutations", source]) (map (\mutant -> joinPath ["Equivalent mutations", "Mutants", mutant]) mutations)
