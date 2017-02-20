@@ -1,7 +1,7 @@
 testFile: gradientfunction
 postCondVoid: true
-postCondRefType: returnValueVar == returnValue
-postCondPrimType: returnValueVar == returnValue
+postCondRefType: returnValue != null
+postCondPrimType: true
 ignoreLibMethods: False
 ignoreMainMethod: False
 nrOfUnroll: 1

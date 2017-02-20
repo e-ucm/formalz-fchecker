@@ -1,0 +1,30 @@
+testFile: iterator
+postCondVoid: true
+postCondRefType: true
+postCondPrimType: returnValueVar == returnValue
+ignoreLibMethods: False
+ignoreMainMethod: False
+nrOfUnroll: 1
+erronous mutations detected:
+9 hasNext
+8 hasNext
+7 hasNext
+6 hasNext
+42 advance
+41 advance
+39 advance
+32 advance
+31 advance
+28 value
+26 value
+25 value
+23 value
+22 value
+19 key
+17 key
+16 key
+14 key
+13 key
+10 hasNext
+Total number of mutants: 43
+Number of mutants in which we found an error: 20
