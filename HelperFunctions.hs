@@ -58,12 +58,17 @@ getMethodClassType decls id = head $ concatMap (flip getMethodTypeFromClassDecl 
 extendEnv :: TypeEnv -> [TypeDecl] -> Ident -> TypeEnv
 extendEnv env decls methodId = case getMethodType decls methodId of
                                 Nothing -> (Name [Ident "*obj"], getMethodClassType decls methodId) : env
+                                Just (RefType _)  -> (Name [Ident "returnValue"], returnValueType) : (Name [Ident "returnValueVar"], returnValueType) : (Name [Ident "*obj"], getMethodClassType decls methodId) : env
                                 Just t  -> (Name [Ident "returnValue"], t) : (Name [Ident "returnValueVar"], t) : (Name [Ident "*obj"], getMethodClassType decls methodId) : env
 
 -- | Creates a string that that represents the return var name of a method call. This name is extended by a number to indicate the depth of the recursive calls
 makeReturnVarName :: Ident -> String
 makeReturnVarName (Ident s) = "$" ++ s ++ "$"
         
+-- | We introduce a special type for the return value, 
+returnValueType :: Type
+returnValueType = RefType (ClassRefType (ClassType [(Ident "ReturnValueType", [])]))
+
 -- | Get's the type of a generated variable
 getReturnVarType :: [TypeDecl] -> String -> Type
 getReturnVarType decls s = case getMethodType decls (Ident (takeWhile (/= '$') (tail s))) of

@@ -8,7 +8,7 @@ testFile = test3
 -- The post condition may depend on the type of the method we are looking at
 postCondVoid = "true"
 postCondRefType = heur1
-postCondPrimType = heur0
+postCondPrimType = heur2
 
 -- When ignoreLibMethods is true, library calls will simply be ignored. When false, we consider library methods but make no assumptions about them (so the WLP will be true)
 -- To prevent insanely long calculation times, we may decide to not calculate the wlp of the main method when ignoring library methods
@@ -16,6 +16,9 @@ ignoreLibMethods, ignoreMainMethod :: Bool
 ignoreLibMethods = False -- No longer supported
 ignoreMainMethod = False
 
+-- If true, we accept mutations that satisfy either diraction of the implication, if false mutation must satisfy WLP(S, Q) => WLP(S', Q), where S' is the mutation.
+-- This does not seem to catch any mutations at all
+eitherWay = False
 
 nrOfUnroll :: Int
 nrOfUnroll = 1

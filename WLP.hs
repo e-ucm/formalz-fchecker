@@ -116,12 +116,13 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     -- Converts a switch into nested if-then-else statements. The switch is assumed to be non-trivial.
     desugarSwitch :: Exp -> [SwitchBlock] -> (Exp, Stmt, Stmt)
     desugarSwitch e [SwitchBlock l bs]          = case l of
-                                                    SwitchCase e'   -> (BinOp e Equal e', StmtBlock (Block bs), Empty)
-                                                    Default         -> (true, StmtBlock (Block bs), Empty)
+                                                    SwitchCase e'   -> (BinOp e Equal e', StmtBlock (Block (addBreak bs)), Break Nothing)
+                                                    Default         -> (true, StmtBlock (Block (addBreak bs)), Empty)
+        where addBreak bs = bs ++ [BlockStmt (Break Nothing)] -- Adds an explicit break statement add the end of a block (used for the final block)
     desugarSwitch e sbs@(SwitchBlock l bs:sbs') = case l of
                                                     SwitchCase e'   -> (BinOp e Equal e', StmtBlock (switchBlockToBlock sbs), otherCases)
                                                     Default         -> (true, StmtBlock (switchBlockToBlock sbs), otherCases)
-        where otherCases = let (e', s1, s2) = desugarSwitch e sbs' in IfThenElse e' s1 s2
+        where otherCases  = let (e', s1, s2) = desugarSwitch e sbs' in IfThenElse e' s1 s2
         
     -- Gets the statements from a switch statement
     switchBlockToBlock :: [SwitchBlock] -> Block

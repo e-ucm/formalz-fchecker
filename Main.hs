@@ -19,7 +19,7 @@ import Settings
 sourcePath, mutantsDir, resultsPath :: FilePath
 sourcePath = joinPath ["Tests", testFile ++ ".java"]
 mutantsDir = joinPath ["..", testFile ++ " mutants"]
-resultsPath = joinPath ["Results", testFile ++ "_" ++ postCondVoid ++ "_" ++ postCondRefType ++ "_" ++ postCondPrimType ++ "_" ++ show ignoreLibMethods ++ "_" ++ show ignoreMainMethod ++ "_" ++ show nrOfUnroll]
+resultsPath = joinPath ["Results", testFile ++ "_" ++ postCondVoid ++ "_" ++ postCondRefType ++ "_" ++ postCondPrimType ++ "_" ++ show ignoreLibMethods ++ "_" ++ show ignoreMainMethod ++ "_" ++ show nrOfUnroll ++ if eitherWay then "_either way" else ""]
 
 -- The main functions performs the mutation test on the test file, given that the mutations of the source are already created in the right location
 main :: IO ()
@@ -110,7 +110,7 @@ compareWlps results env decls s (path, s') = do
         where 
         compareMethod (ident, e) = case lookup ident s' of
                                     Nothing -> putStrLn ("The method \'" ++ prettyPrint ident ++ "\' is missing in mutation " ++ path) >> return 0 -- print a warning and return 0 errors found
-                                    Just e' -> if unsafeIsTrue (extendEnv env decls ident) decls (e `imp` e') then return 0 else printAndAppend results (path ++ " " ++ prettyPrint ident) >> return 1 -- print a message and return 1 error found
+                                    Just e' -> if unsafeIsTrue (extendEnv env decls ident) decls (if eitherWay then (e `imp` e') |* (e' `imp` e) else (e `imp` e')) then return 0 else printAndAppend results (path ++ " " ++ prettyPrint ident) >> return 1 -- print a message and return 1 error found
 
 -- Gets the right post-condition given the type of a method
 getPostCond :: Maybe Type -> Exp
@@ -136,7 +136,7 @@ getMutantNumber path = takeWhile (/= '\\') (path \\ (mutantsDir ++ "\\"))
 -- Performs the false-positives-test on the set of test programs with equivalent mutations
 testFalsePositives :: IO ()
 testFalsePositives = do
-    let results = joinPath ["Results", "False Positives", postCondVoid ++ "_" ++ postCondRefType ++ "_" ++ postCondPrimType ++ "_" ++ show ignoreLibMethods ++ "_" ++ show ignoreMainMethod ++ "_" ++ show nrOfUnroll]
+    let results = joinPath ["Results", "False Positives", postCondVoid ++ "_" ++ postCondRefType ++ "_" ++ postCondPrimType ++ "_" ++ show ignoreLibMethods ++ "_" ++ show ignoreMainMethod ++ "_" ++ show nrOfUnroll ++ if eitherWay then "_either way" else ""]
     
     -- Create the file for the results
     writeFile results ("False positives test")

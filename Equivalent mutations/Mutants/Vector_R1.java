@@ -23,12 +23,15 @@ public class Vector {
 	 * R1 replaces the return in the INPRODUCT-case with a break.
 	 */
 	public Vector combine(int operation, Vector Z) {
+        int ACCUMULATE = 1;
+        int INPRODUCT = 2;
+        int PLUS = 3;
 		if (Z.getSize() != this.vector.length) throw new IllegalArgumentException() ;
 		double[] result = new double[this.vector.length] ;
 		double[] vector2 = Z.getVector() ;
 		switch (operation) {
-			case VectorCONST.ACCUMULATE: ; // does nothing, deliberately falling through to the code of INPRODUCT
-			case VectorCONST.INPRODUCT: {
+			case ACCUMULATE: ; // does nothing, deliberately falling through to the code of INPRODUCT
+			case INPRODUCT: {
 				int r = 0 ;
 				for (int k1=0; k1<this.vector.length; k1++) r += this.vector[k1]*vector2[k1] ;
 				double[] rr = new double[1];
@@ -36,7 +39,7 @@ public class Vector {
 				result = rr ;
 				break ;
 			}
-			case VectorCONST.PLUS: {
+			case PLUS: {
 				for (int k2=0; k2<this.vector.length; k2++) result[k2] = this.vector[k2] + vector2[k2] ;
 				break ;
 			}
