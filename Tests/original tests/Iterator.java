@@ -30,12 +30,7 @@ public class Iterator {
     /**
      * Simple constructor.
      */
-    public Iterator(int[] keys, double[] values, byte[] states, int count) {
-        
-        this.keys = keys;
-        this.values = values;
-        this.states = states;
-        this.count = count;
+    private Iterator() {
 
         // preserve the modification this.count of the map to detect concurrent modifications later
         this.referenceCount = this.count;

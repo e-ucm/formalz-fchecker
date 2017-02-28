@@ -1,0 +1,5 @@
+iterator:
+5 mutations with error found: 2, 3, 4, 5, 32
+4 mutations with error found not detected by wlp: 2, 3, 4, 5
+2 mutations with unterminated calls: 1 and 31
+1 mutation stuck in a loop: 35
