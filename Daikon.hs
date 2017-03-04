@@ -1,3 +1,4 @@
+-- Contains all code used for running the daikon experiments
 module Daikon where
 
 import Control.Monad
@@ -6,7 +7,7 @@ import System.Directory
 import Data.List
 
 testNr :: Int
-testNr = 1
+testNr = 2
 
 source, pathDir, packageDir, methodName :: String
 source = case testNr of
