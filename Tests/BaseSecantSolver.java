@@ -52,7 +52,7 @@ import org.apache.commons.math3.util.FastMath;
  *
  * @since 3.0
  */
-public abstract class BaseSecantSolver
+public class BaseSecantSolver
     extends AbstractUnivariateSolver
     implements BracketedUnivariateSolver<UnivariateFunction> {
 
@@ -71,7 +71,7 @@ public abstract class BaseSecantSolver
      * @param absoluteAccuracy Absolute accuracy.
      * @param method <em>Secant</em>-based root-finding method to use.
      */
-    protected BaseSecantSolver(final double absoluteAccuracy, final Method method1) {
+    public BaseSecantSolver(final double absoluteAccuracy, final Method method1) {
         super(absoluteAccuracy);
         this.allowed = AllowedSolution.ANY_SIDE;
         this.method = method1;
@@ -84,7 +84,7 @@ public abstract class BaseSecantSolver
      * @param absoluteAccuracy Absolute accuracy.
      * @param method <em>Secant</em>-based root-finding method to use.
      */
-    protected BaseSecantSolver(final double relativeAccuracy,
+    public BaseSecantSolver(final double relativeAccuracy,
                                final double absoluteAccuracy1,
                                final Method method2) {
         super(relativeAccuracy, absoluteAccuracy1);
@@ -100,7 +100,7 @@ public abstract class BaseSecantSolver
      * @param functionValueAccuracy Maximum function value error.
      * @param method <em>Secant</em>-based root-finding method to use
      */
-    protected BaseSecantSolver(final double relativeAccuracy2,
+    public BaseSecantSolver(final double relativeAccuracy2,
                                final double absoluteAccuracy2,
                                final double functionValueAccuracy,
                                final Method method3) {
@@ -109,7 +109,7 @@ public abstract class BaseSecantSolver
         this.method = method3;
     }
 
-    protected final double doSolve()
+    public final double doSolve()
         throws ConvergenceException {
         // Get initial solution
         double x0 = getMin();
@@ -302,4 +302,20 @@ public abstract class BaseSecantSolver
         }
     }
     
+    
+    
+    
+    
+    public double solve(int maxEval, UnivariateFunction f, double min, double max, double startValue,
+                 AllowedSolution allowedSolution)
+                 {
+                     return 0;
+                 }
+    
+    
+    public double solve(int maxEval, UnivariateFunction f, double min, double max,
+                 AllowedSolution allowedSolution)
+                 {
+                     return 0;
+                 }
 }

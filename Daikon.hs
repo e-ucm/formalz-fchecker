@@ -7,7 +7,7 @@ import System.Directory
 import Data.List
 
 testNr :: Int
-testNr = 2
+testNr = 3
 
 source, pathDir, packageDir, methodName :: String
 source = case testNr of
@@ -21,7 +21,7 @@ pathDir = case testNr of
 methodName = case testNr of
                 1 -> "hasNext"
                 2 -> "value"
-                3 -> "doSolve"
+                3 -> "verifyBracketing"
 
 packageDir = map (\c -> if c == '/' then '.' else c) pathDir
 

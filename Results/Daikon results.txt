@@ -9,3 +9,9 @@ GradientFunction:
 4 mutations with error found not detected by wlp: 9, 13, 14, 22
 0 mutations with unterminated calls
 0 mutations stuck in a loop
+
+BaseSecantSolver (doSolve not checked yet):
+0 mutations with error found: 
+0 mutations with error found not detected by wlp: 
+0 mutations with unterminated calls
+0 mutations stuck in a loop
