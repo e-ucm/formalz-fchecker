@@ -30,7 +30,7 @@ import org.apache.commons.math3.exception.util.LocalizedFormats;
 import org.apache.commons.math3.util.FastMath;
 import org.apache.commons.math3.exception.TooManyEvaluationsException;
 
-import org.apache.commons.math3.analysis.function.Abs;
+import org.apache.commons.math3.analysis.function.Exp;
 
 /**
  * Base class for all bracketing <em>Secant</em>-based methods for root-finding
@@ -112,7 +112,7 @@ public class BaseSecantSolver
         this.method = method3;
     }
 
-    public static double doSolve1(final double ftol, final double atol, final double rtol, double x0, double x1, Method method, AllowedSolution allowed, Abs function)
+    public static double doSolve1(final double ftol, final double atol, final double rtol, double x0, double x1, Method method, AllowedSolution allowed, Exp function)
         throws ConvergenceException {
             
         double f0 = computeObjectiveValue1(x0, function);
@@ -136,7 +136,7 @@ public class BaseSecantSolver
         boolean inverted = false;
         
         // Keep finding better approximations.
-        for(int i = 0; i < 100; i++) {
+        for(int i = 0; i < 10000; i++) {
             // Calculate the next approximation.
             final double x = x1 - ((f1 * (x1 - x0)) / (f1 - f0));
             final double fx = computeObjectiveValue1(x, function);
@@ -248,7 +248,7 @@ public class BaseSecantSolver
         return (a + b) * 0.5;
     }
 
-    public static boolean isBracketing(Abs function1,
+    public static boolean isBracketing(Exp function1,
                                        final double lower1,
                                        final double upper1)
         throws NullArgumentException {
@@ -283,7 +283,7 @@ public class BaseSecantSolver
         verifyInterval1(initial, upper3);
     }
 
-    public static void verifyBracketing(Abs function2,
+    public static void verifyBracketing(Exp function2,
                                         final double lower4,
                                         final double upper4)
         throws NullArgumentException,
@@ -324,7 +324,7 @@ public class BaseSecantSolver
         }
         
         
-    protected static double computeObjectiveValue1(double point, Abs function)
+    protected static double computeObjectiveValue1(double point, Exp function)
     {
        return function.value(point);
     }
