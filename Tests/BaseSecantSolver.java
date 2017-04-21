@@ -28,9 +28,6 @@ import org.apache.commons.math3.exception.NullArgumentException;
 import org.apache.commons.math3.exception.NumberIsTooLargeException;
 import org.apache.commons.math3.exception.util.LocalizedFormats;
 import org.apache.commons.math3.util.FastMath;
-import org.apache.commons.math3.exception.TooManyEvaluationsException;
-
-import org.apache.commons.math3.analysis.function.*;
 
 /**
  * Base class for all bracketing <em>Secant</em>-based methods for root-finding
@@ -55,7 +52,7 @@ import org.apache.commons.math3.analysis.function.*;
  *
  * @since 3.0
  */
-public class BaseSecantSolver
+public abstract class BaseSecantSolver
     extends AbstractUnivariateSolver
     implements BracketedUnivariateSolver<UnivariateFunction> {
 
@@ -74,7 +71,7 @@ public class BaseSecantSolver
      * @param absoluteAccuracy Absolute accuracy.
      * @param method <em>Secant</em>-based root-finding method to use.
      */
-    public BaseSecantSolver(final double absoluteAccuracy, final Method method1) {
+    protected BaseSecantSolver(final double absoluteAccuracy, final Method method1) {
         super(absoluteAccuracy);
         this.allowed = AllowedSolution.ANY_SIDE;
         this.method = method1;
@@ -87,7 +84,7 @@ public class BaseSecantSolver
      * @param absoluteAccuracy Absolute accuracy.
      * @param method <em>Secant</em>-based root-finding method to use.
      */
-    public BaseSecantSolver(final double relativeAccuracy,
+    protected BaseSecantSolver(final double relativeAccuracy,
                                final double absoluteAccuracy1,
                                final Method method2) {
         super(relativeAccuracy, absoluteAccuracy1);
@@ -103,7 +100,7 @@ public class BaseSecantSolver
      * @param functionValueAccuracy Maximum function value error.
      * @param method <em>Secant</em>-based root-finding method to use
      */
-    public BaseSecantSolver(final double relativeAccuracy2,
+    protected BaseSecantSolver(final double relativeAccuracy2,
                                final double absoluteAccuracy2,
                                final double functionValueAccuracy,
                                final Method method3) {
@@ -112,13 +109,13 @@ public class BaseSecantSolver
         this.method = method3;
     }
 
-    public static double doSolve1(final double ftol, final double atol, final double rtol, double x0, double x1, Method method, AllowedSolution allowed, int functionGenerator)
+    protected final double doSolve()
         throws ConvergenceException {
-            
-        UnivariateFunction function = createFunction(functionGenerator);
-            
-        double f0 = computeObjectiveValue1(x0, function);
-        double f1 = computeObjectiveValue1(x1, function);
+        // Get initial solution
+        double x0 = getMin();
+        double x1 = getMax();
+        double f0 = computeObjectiveValue(x0);
+        double f1 = computeObjectiveValue(x1);
 
         // If one of the bounds is the exact root, return it. Since these are
         // not under-approximations or over-approximations, we can return them
@@ -131,17 +128,22 @@ public class BaseSecantSolver
         }
 
         // Verify bracketing of initial solution.
-        // verifyBracketing(x0, x1);
+        verifyBracketing(x0, x1);
+
+        // Get accuracies.
+        final double ftol = getFunctionValueAccuracy();
+        final double atol = getAbsoluteAccuracy();
+        final double rtol = getRelativeAccuracy();
 
         // Keep track of inverted intervals, meaning that the left bound is
         // larger than the right bound.
         boolean inverted = false;
-        
+
         // Keep finding better approximations.
-        for(int i = 0; i < 10000; i++) {
+        while (true) {
             // Calculate the next approximation.
             final double x = x1 - ((f1 * (x1 - x0)) / (f1 - f0));
-            final double fx = computeObjectiveValue1(x, function);
+            final double fx = computeObjectiveValue(x);
 
             // If the new approximation is the exact root, return it. Since
             // this is not an under-approximation or an over-approximation,
@@ -158,7 +160,7 @@ public class BaseSecantSolver
                 f0 = f1;
                 inverted = !inverted;
             } else {
-                switch (method) {
+                switch (this.method) {
                 case ILLINOIS:
                     f0 *= 0.5;
                     break;
@@ -185,7 +187,7 @@ public class BaseSecantSolver
             // given the function value accuracy, then we can't get closer to
             // the root than we already are.
             if (FastMath.abs(f1) <= ftol) {
-                switch (allowed) {
+                switch (this.allowed) {
                 case ANY_SIDE:
                     return x1;
                 case LEFT_SIDE:
@@ -217,7 +219,7 @@ public class BaseSecantSolver
             // are satisfied with the current approximation.
             if (FastMath.abs(x1 - x0) < FastMath.max(rtol * FastMath.abs(x1),
                                                      atol)) {
-                switch (allowed) {
+                switch (this.allowed) {
                 case ANY_SIDE:
                     return x1;
                 case LEFT_SIDE:
@@ -233,7 +235,6 @@ public class BaseSecantSolver
                 }
             }
         }
-        throw new ConvergenceException();
     }
 
     protected enum Method {
@@ -250,7 +251,7 @@ public class BaseSecantSolver
         return (a + b) * 0.5;
     }
 
-    public static boolean isBracketing(Exp function1,
+    public static boolean isBracketing(UnivariateFunction function1,
                                        final double lower1,
                                        final double upper1)
         throws NullArgumentException {
@@ -285,7 +286,7 @@ public class BaseSecantSolver
         verifyInterval1(initial, upper3);
     }
 
-    public static void verifyBracketing(Exp function2,
+    public static void verifyBracketing(UnivariateFunction function2,
                                         final double lower4,
                                         final double upper4)
         throws NullArgumentException,
@@ -301,42 +302,4 @@ public class BaseSecantSolver
         }
     }
     
-    
-    
-    
-    
-    public double solve(int maxEval, UnivariateFunction f, double min, double max, double startValue,
-                 AllowedSolution allowedSolution)
-                 {
-                     return 0;
-                 }
-    
-    
-    public double solve(int maxEval, UnivariateFunction f, double min, double max,
-                 AllowedSolution allowedSolution)
-                 {
-                     return 0;
-                 }
-                 
-                 
-    public final double doSolve()
-        throws ConvergenceException 
-        {
-            return 0;
-        }
-        
-        
-    protected static double computeObjectiveValue1(double point, UnivariateFunction function)
-    {
-       return function.value(point);
-    }
-    
-    protected static UnivariateFunction createFunction(int gen)
-    {
-        switch(gen)
-        {
-            case 0: return new Cos();
-            default: return new Exp();
-        }
-    }
 }
