@@ -1,5 +1,8 @@
+-- Copyright (c) 2017 Utrecht University
+-- Author: Koen Wermer
+
 -- Folds over Java data structures
-module Folds where
+module Javawlp.Engine.Folds where
 
 import Language.Java.Syntax
 

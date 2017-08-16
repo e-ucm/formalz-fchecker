@@ -1,13 +1,14 @@
-module Types where
+-- Copyright (c) 2017 Utrecht University
+-- Author: Koen Wermer
+
+module Javawlp.Engine.Types where
 
 import Language.Java.Syntax
 import Data.Maybe
 import Data.List
 
-import Folds
-import HelperFunctions
-import Settings
-
+import Javawlp.Engine.Folds
+import Javawlp.Engine.HelperFunctions
 
 typesStmtAlgebra :: StmtAlgebra TypeEnv
 typesStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhancedFor, fEmpty, fExpStmt, fAssert, fSwitch, fDo, fBreak, fContinue, fReturn, fSynchronized, fThrow, fTry, fLabeled) where

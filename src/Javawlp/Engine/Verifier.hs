@@ -1,13 +1,16 @@
-module Verifier where
+-- Copyright (c) 2017 Utrecht University
+-- Author: Koen Wermer
+
+-- Providing a converter from Java expression to Z3 expression
+module Javawlp.Engine.Verifier where
 
 import Language.Java.Syntax
 import Language.Java.Pretty
 import Z3.Monad
 import System.IO.Unsafe
 
-import Folds
-import HelperFunctions
-import Settings
+import Javawlp.Engine.Folds
+import Javawlp.Engine.HelperFunctions
 
 
 -- | Checks wether the negation is unsatisfiable

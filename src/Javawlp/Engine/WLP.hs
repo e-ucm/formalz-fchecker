@@ -1,4 +1,8 @@
-module WLP where
+-- Copyright (c) 2017 Utrecht University
+-- Author: Koen Wermer
+
+-- Implementing the wlp transformer.
+module Javawlp.Engine.WLP where
 
 import Language.Java.Syntax
 import Language.Java.Lexer
@@ -6,16 +10,23 @@ import Language.Java.Parser
 import Data.Maybe
 import Data.List
 
-import Folds
-import Verifier
-import Substitute
-import HelperFunctions
-import Settings
+import Javawlp.Engine.Folds
+import Javawlp.Engine.Verifier
+import Javawlp.Engine.Substitute
+import Javawlp.Engine.HelperFunctions
 
-    
+data WLPConf = WLPConf {
+      -- the max. number of times a loop/recursion is unrolled
+      nrOfUnroll :: Int,
+      -- When ignoreLibMethods is true, library calls will simply be ignored (treated as skip). 
+      -- When false, we consider library methods but make no assumptions about them (so the WLP will be true)
+      ignoreLibMethods :: Bool,
+      ignoreMainMethod :: Bool
+   }    
 
 -- | A type for the inherited attribute
-data Inh = Inh {acc     :: Exp -> Exp,              -- The accumulated transformer of the current block up until the current statement
+data Inh = Inh {wlpConfig :: WLPConf,               -- Some configuration parameters for the wlp
+                acc     :: Exp -> Exp,              -- The accumulated transformer of the current block up until the current statement
                 br      :: Exp -> Exp,              -- The accumulated transformer up until the last loop (this is used when handling break statements etc.)
                 catch   :: Maybe ([Catch], Bool),   -- The catches when executing a block in a try statement, and a Bool indicating wether there is a finally-block
                 env     :: TypeEnv,                 -- The type environment for typing expressions
@@ -41,7 +52,8 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
                                       in trans . substVar' inh var e' . (\q -> (ExpName (Name [var]) &* s1 inh q) |* (neg (ExpName (Name [var])) &* s2 inh q))
     fWhile e s inh                  = let (e', trans) = foldExp wlpExpAlgebra e inh {acc = id}
                                           var = getVar
-                                      in (\q -> unrollLoopOpt inh {br = const q} nrOfUnroll e' trans s q)
+                                          numberOfUnrolling = nrOfUnroll $ wlpConfig $ inh
+                                      in (\q -> unrollLoopOpt inh {br = const q} numberOfUnrolling e' trans s q)
     fBasicFor init me incr s inh    = let loop = (fWhile (fromMaybeGuard me) (\inh' -> s (inh' {acc = (wlp' inh' {acc = id} (incrToStmt incr))})) inh) in wlp' (inh {acc = loop}) (initToStmt init)
     fEnhancedFor                    = error "EnhancedFor"
     fEmpty inh                      = (acc inh) -- Empty does nothing, but still passes control to the next statement
@@ -163,9 +175,12 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     fArrayCreate t dimLengths dim inh                   = (ArrayCreate t (map (\e -> fst (e inh)) dimLengths) dim, acc inh)
     fArrayCreateInit t dim init inh                     = error "ArrayCreateInit" -- (ArrayCreateInit t dim init, acc inh)
     fFieldAccess fieldAccess inh                        = (foldFieldAccess inh fieldAccess, (acc inh))
-    fMethodInv invocation inh                           = case invocation of
+    fMethodInv invocation inh                           = let
+                                                          numberOfUnrolling = nrOfUnroll $ wlpConfig $ inh
+                                                          in
+                                                          case invocation of
                                                             MethodCall (Name [Ident "*assume"]) [e] -> (false, (if e == false then const true else imp e)) -- *assume is the regular assume function
-                                                            _   -> if getCallCount (calls inh) (invocationToId invocation) >= nrOfUnroll  -- Check the recursion depth
+                                                            _   -> if getCallCount (calls inh) (invocationToId invocation) >= numberOfUnrolling  -- Check the recursion depth
                                                                    then (undefined, const true) -- Recursion limit reached: we just assume the post codition will hold
                                                                    else let varId = getReturnVar invocation     
                                                                             callWlp = wlp' (inh {acc = id, calls = incrCallCount (calls inh) (invocationToId invocation), ret = Just varId, object = getObject inh invocation}) (inlineMethod inh invocation)
@@ -178,20 +193,30 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     -- x++ increments x but evaluates to the original value
     fPostIncrement e inh                                = let (e', trans) = e inh in 
                                                           case e' of
-                                                            var@(ExpName name) -> (var, substVar (env inh) (decls inh) (NameLhs name) (BinOp var Add (Lit (Int 1))) . trans)
+                                                            -- Wish: this is incorrect
+                                                            -- var@(ExpName name) -> (var, substVar (env inh) (decls inh) (NameLhs name) (BinOp var Add (Lit (Int 1))) . trans)
+                                                            -- fix:
+                                                            var@(ExpName name) -> (BinOp var Sub (Lit (Int 1)), substVar (env inh) (decls inh) (NameLhs name) (BinOp var Add (Lit (Int 1))) . trans)
                                                             exp  -> (exp, trans)
     fPostDecrement e inh                                = let (e', trans) = e inh in
                                                           case e' of
-                                                            var@(ExpName name) -> (var, substVar (env inh) (decls inh) (NameLhs name) (BinOp var Sub (Lit (Int 1))) . trans)
+                                                            -- incorrect
+                                                            -- var@(ExpName name) -> (var, substVar (env inh) (decls inh) (NameLhs name) (BinOp var Sub (Lit (Int 1))) . trans)
+                                                            var@(ExpName name) -> (BinOp var Add (Lit (Int 1)), substVar (env inh) (decls inh) (NameLhs name) (BinOp var Sub (Lit (Int 1))) . trans)
                                                             exp  -> (exp, trans)
     -- ++x increments x and evaluates to the new value of x
     fPreIncrement e inh                                 = let (e', trans) = e inh in 
                                                           case e' of
-                                                            var@(ExpName name) -> (BinOp var Add (Lit (Int 1)), substVar (env inh) (decls inh) (NameLhs name) (BinOp var Add (Lit (Int 1))) . trans)
+                                                            -- Wish: this is incorrect
+                                                            -- var@(ExpName name) -> (BinOp var Add (Lit (Int 1)), substVar (env inh) (decls inh) (NameLhs name) (BinOp var Add (Lit (Int 1))) . trans)
+                                                            -- fix:
+                                                            var@(ExpName name) -> (var, substVar (env inh) (decls inh) (NameLhs name) (BinOp var Add (Lit (Int 1))) . trans)
                                                             exp  -> (BinOp exp Add (Lit (Int 1)), trans)
     fPreDecrement e inh                                 = let (e', trans) = e inh in 
                                                           case e' of
-                                                            var@(ExpName name) -> (BinOp var Sub (Lit (Int 1)), substVar (env inh) (decls inh) (NameLhs name) (BinOp var Sub (Lit (Int 1))) . trans)
+                                                            -- incorrect
+                                                            -- var@(ExpName name) -> (BinOp var Sub (Lit (Int 1)), substVar (env inh) (decls inh) (NameLhs name) (BinOp var Sub (Lit (Int 1))) . trans)
+                                                            var@(ExpName name) -> (var, substVar (env inh) (decls inh) (NameLhs name) (BinOp var Sub (Lit (Int 1))) . trans)
                                                             exp  -> (BinOp exp Sub (Lit (Int 1)), trans)
     fPrePlus e inh                                      = let (e', trans) = e inh in (e', trans)
     fPreMinus e inh                                     = let (e', trans) = e inh in (PreMinus e', trans)
@@ -238,10 +263,14 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
         -- Gets the body of the method
         getBody :: Inh -> MethodInvocation -> Stmt
         getBody inh (MethodCall name _)             = case getMethod (decls inh) (getMethodId name) of
-                                                        Nothing -> if ignoreLibMethods then Empty else ExpStmt $ MethodInv (MethodCall (Name [Ident "*assume"]) [false])
+                                                        Nothing -> if (ignoreLibMethods $ wlpConfig $ inh)
+                                                                   then Empty 
+                                                                   else ExpStmt $ MethodInv (MethodCall (Name [Ident "*assume"]) [false])
                                                         Just s  -> s
         getBody inh (PrimaryMethodCall _ _ id _)    = case getMethod (decls inh) id of
-                                                        Nothing -> if ignoreLibMethods then Empty else ExpStmt $ MethodInv (MethodCall (Name [Ident "*assume"]) [false])
+                                                        Nothing -> if (ignoreLibMethods $ wlpConfig $ inh) 
+                                                                   then Empty 
+                                                                   else ExpStmt $ MethodInv (MethodCall (Name [Ident "*assume"]) [false])
                                                         Just s  -> s
         getBody inh _ = undefined
         -- Assigns the supplied parameter values to the parameter variables
@@ -303,12 +332,12 @@ substVar' :: Inh -> Ident -> Exp -> Syn
 substVar' inh var e = substVar (env inh) (decls inh) (NameLhs (Name [var])) e
 
 -- | Calculates the weakest liberal pre-condition of a statement and a given post-condition
-wlp :: [TypeDecl] -> Stmt -> Exp -> Exp
-wlp decls = wlpWithEnv decls []
+wlp :: WLPConf -> [TypeDecl] -> Stmt -> Exp -> Exp
+wlp config decls = wlpWithEnv config decls []
 
 -- | wlp with a given type environment
-wlpWithEnv :: [TypeDecl] -> TypeEnv -> Stmt -> Exp -> Exp
-wlpWithEnv decls env = wlp' (Inh id id Nothing env decls [] (Just (Ident "returnValue")) (Just (ExpName (Name [Ident "*obj"]))))
+wlpWithEnv :: WLPConf -> [TypeDecl] -> TypeEnv -> Stmt -> Exp -> Exp
+wlpWithEnv config decls env = wlp' (Inh config id id Nothing env decls [] (Just (Ident "returnValue")) (Just (ExpName (Name [Ident "targetObj_"]))))
 
 -- wlp' lets you specify the inherited attributes
 wlp' :: Inh -> Stmt -> Syn

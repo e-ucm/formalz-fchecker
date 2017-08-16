@@ -1,10 +1,16 @@
-module Substitute (substVar, desugarAssign) where
+-- Copyright (c) 2017 Utrecht University
+-- Author: Koen Wermer
+
+--
+-- Providing functions to do variable substitution [e/v] and to desugar assignments.
+--
+module Javawlp.Engine.Substitute (substVar, desugarAssign) where
 
 import Language.Java.Syntax
 import Data.List
 
-import Folds
-import HelperFunctions
+import Javawlp.Engine.Folds
+import Javawlp.Engine.HelperFunctions
 
 
 -- | A type for the inherited attribute

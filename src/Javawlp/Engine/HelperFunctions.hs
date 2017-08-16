@@ -1,5 +1,8 @@
+-- Copyright (c) 2017 Utrecht University
+-- Author: Koen Wermer
+
 -- Helper functions for the Java data structure
-module HelperFunctions where
+module Javawlp.Engine.HelperFunctions where
 
 import Language.Java.Syntax
 import Language.Java.Pretty
