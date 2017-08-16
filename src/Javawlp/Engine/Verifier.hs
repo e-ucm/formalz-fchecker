@@ -30,6 +30,22 @@ isFalse env decls e =
             Unsat -> return True
             _     -> return False
         
+-- | Check if a formula is satisfiable, and if so, return the model for it as well.
+-- The result is a pair (r,m) where r is either Sat, Unsat, or Undef. If r is Sat,
+-- then m is Just v where v a model witnessing the satisfiability of the input
+-- formula. Else m is Nothing.
+--            
+unsafeIsSatisfiable :: TypeEnv -> [TypeDecl] -> Exp -> (Result, Maybe Model)
+unsafeIsSatisfiable env decls e = unsafePerformIO $ evalZ3 z3
+    where
+    z3 = do
+         ast <- foldExp expAssertAlgebra e env decls
+         assert ast
+         r <- solverCheckAndGetModel
+         solverReset
+         return r  
+
+        
 -- | Unsafe version of isTrue
 unsafeIsTrue :: TypeEnv -> [TypeDecl] -> Exp -> Bool
 unsafeIsTrue env decls = unsafePerformIO . evalZ3 . isTrue env decls

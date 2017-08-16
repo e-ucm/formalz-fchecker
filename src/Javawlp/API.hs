@@ -6,6 +6,7 @@ module Javawlp.API where
 import Language.Java.Syntax
 import Language.Java.Parser
 import Language.Java.Pretty
+import Z3.Monad
 
 import Javawlp.Engine.WLP
 import Javawlp.Engine.Types
@@ -77,9 +78,23 @@ printWlp sourcePath methodName postCond = do
   let q = post_ postCond
   p <- wlpMethod defaultConf typeEnv decls (Ident methodName) q
   putStrLn $ showMethodWlp methodName q p
+  let (result,model) = unsafeIsSatisfiable (extendEnv typeEnv decls (Ident methodName)) decls p
+  case result of
+     Unsat -> putStrLn "** The wlp is UNSATISFIABLE."
+     Undef -> putStrLn "** Unable to decide the wlp's satisfiablity."
+     _     -> do
+              putStrLn "** The wlp is SATISFIABLE."
+              case model of
+                Just m -> do { putStrLn "** Model:" ; s <- evalZ3 (modelToString m) ; putStrLn s }
+                _      -> return ()
+                
 
 showMethodWlp :: String -> Exp -> Exp -> String
 showMethodWlp methodName postCond wlp = 
-       "wlp of " ++ methodName ++ " over " ++ prettyPrint postCond
+       "** wlp of " ++ methodName ++ " over " ++ prettyPrint postCond
                  ++ " is "
                  ++ prettyPrint wlp
+                 
+                 
+                 
+
