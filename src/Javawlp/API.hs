@@ -52,17 +52,38 @@ wlpMethod conf env decls methodName postCondition = do
                     
     -- Calculate the wlp:
     return $ wlpWithEnv conf decls env' methodBody postCondition
-   
+    
+-- | A variant of wlpMethod where we can specify a list of post-conditions.
+-- It returns a list of pairs (p,q) where q is a post-condition and p is the
+-- calcuated wlp of q.    
+wlpMethod_ :: WLPConf -> TypeEnv -> [TypeDecl] -> Ident -> [Exp] -> IO [(Exp,Exp)]    
+wlpMethod_ conf env decls methodName postconds = sequence [wlp q | q <- postconds]
+    where
+    wlp q = do
+            p <- wlpMethod conf env decls methodName q
+            return (p,q)
+     
+       
 -- | Calculates the wlps of a list of methods
 wlpMethods :: WLPConf -> TypeEnv -> [TypeDecl] -> [(Ident,Exp)] -> IO [(Ident, Exp)]
 wlpMethods conf env decls methods_and_postconds 
     = 
-    sequence $ map (\(mname,pcond) -> do { q <- wlpMethod conf env decls mname pcond ; return (mname,q) }) methods'
+    sequence $ map (\(mname,postc) -> do { p <- wlpMethod conf env decls mname postc ; return (mname,p) }) methods'
     where
     methods' = if ignoreMainMethod conf 
                then filter (\(mname,_) -> mname /= Ident "main") methods_and_postconds  
                else methods_and_postconds    
    
+-- | Variation of wlpMethods that takes a list of (m,postconditions)  
+wlpMethods_ :: WLPConf -> TypeEnv -> [TypeDecl] -> [(Ident,[Exp])] -> IO [(Ident, [(Exp,Exp)])]
+wlpMethods_ conf env decls methods_and_postconds 
+    = 
+    sequence $ map (\(mname,postcs) -> do { ps <- wlpMethod_ conf env decls mname postcs ; return (mname,ps) }) methods'
+    where
+    methods' = if ignoreMainMethod conf 
+               then filter (\(mname,_) -> mname /= Ident "main") methods_and_postconds  
+               else methods_and_postconds  
+
    
 defaultConf :: WLPConf
 defaultConf = WLPConf {
