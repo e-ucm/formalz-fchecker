@@ -105,6 +105,7 @@ printWlp sourcePath methodName postCond = do
   let q = post_ postCond
   p <- wlpMethod defaultConf typeEnv decls (Ident methodName) q
   putStrLn $ showMethodWlp methodName q p
+  --putStrLn ("\n### " ++ show p) 
   let (result,model) = unsafeIsSatisfiable (extendEnv typeEnv decls (Ident methodName)) decls p
   case result of
      Unsat -> putStrLn "** The wlp is UNSATISFIABLE."
@@ -114,7 +115,7 @@ printWlp sourcePath methodName postCond = do
               case model of
                 Just m -> do { putStrLn "** Model:" ; s <- evalZ3 (modelToString m) ; putStrLn s }
                 _      -> return ()
-                
+         
 
 showMethodWlp :: String -> Exp -> Exp -> String
 showMethodWlp methodName postCond wlp = 

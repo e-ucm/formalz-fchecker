@@ -77,3 +77,14 @@ Haskell packages:
 Other software:
 
 - You will need the actual z3
+
+### Pre-processing 
+
+Some limitations in the current implementation requires the target source code to meet certain 
+syntactical constraints; so some pre-processing is required before a source file can be exposed
+to javawlp.
+
+- Reference to an instance member x should be explicitly written as this.x
+- Binary subexpressions should be explicitly parathesized since our parser does not take
+  Java's built in operators priority into account. So, instead of `x==y && x+z>0` write
+  `(x==y) && ((x+z)>0)`
