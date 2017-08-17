@@ -37,7 +37,13 @@ post_ e = case parser Language.Java.Parser.exp e of
           Right e_ -> e_
           _        -> error "syntax error in post-condition"
                                                     
--- | Calculates the wlp for a given method
+-- | Calculates the wlp for a given method. Example usage:
+--
+--     do (tyenv,decls,methods) <- parseJava filepath
+--        configuration <- defaultConf
+--        p <- wlpMethod configuration tyenv decls (Ident methodname) (post_ "returnValue == 0")
+--        putStrLn (prettyPrint p)
+--
 wlpMethod :: WLPConf -> TypeEnv -> [TypeDecl] -> Ident -> Exp -> IO Exp
 wlpMethod conf env decls methodName postCondition = do
     -- Find the return type of the method
