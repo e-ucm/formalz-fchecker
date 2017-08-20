@@ -1,12 +1,15 @@
 // A simple mml file to generate all mutants
 
 list_aor={+,-,*,/,%};
+list_aorPM={+,-};
 list_lor={&,|,^};
 list_sor={<<,>>,>>>};
 list_oru={+,-,~};
 
-BIN(+)->list_aor;
-BIN(-)->list_aor;
+//BIN(+)->list_aor;
+//BIN(-)->list_aor;
+BIN(+)->list_aorPM;
+BIN(-)->list_aorPM;
 BIN(*)->list_aor;
 BIN(/)->list_aor;
 BIN(%)->list_aor;
