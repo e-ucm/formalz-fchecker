@@ -1,49 +1,37 @@
-public static class Main
+public class Methods
 {
-    static int x, y;
-    public static void main(String[] args) 
-    {
-        C c1, c2;
-        c1 = new C(1);
-        c2 = new C(0);
-        c1.method1(1, true);
-        c2.method1(1, true); 
-        x = c1.c + c2.c;
-       // C.staticMethod();
-    }
-    
-    
-    
-    public static int method() 
-    {
-        return 1;
-    }
-}
+    int c ;
 
-public class C
-{
-    int c;
-    
-    public C(int init)
-    {
-        this.c = init;
-    }
-    
-    public static void staticMethod()
-    {
-        x = 4;
-    }
-    
-    public void method1(int n, boolean b)
-    {
+    public Methods(int init) { this.c = init; }
+
+    public int method1() { return 1; }
+
+    public void method2(int n, boolean b) {
         assert b;
         this.c += n;
         if(this.c < 2)
             this.method1();
     }
     
-    public int method2()
+    
+    static int x, y;
+
+    public static int staticmethod1() { return 1; }
+
+    public static void staticmethod2() { x = 4 ; }
+
+    public static void main(String[] args) 
     {
-        return 1;
+        Methods c1, c2;
+        c1 = new Methods(1);
+        c2 = new Methods(0);
+        c1.method2(1, true);
+        c2.method2(1, true); 
+        x = c1.c + c2.c;
+       // staticmethod2();
     }
+    
+    
+    
+
 }

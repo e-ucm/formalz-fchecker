@@ -1,8 +1,8 @@
 //https://www.tutorialspoint.com/java/java_arrays.htm
 
-public class TestArray {
+public class Arrays2 {
 
-   public static void main(String[] args) {
+   public static void foo() {
       double[] myList = new double[4];
       myList[0] = 1.9;
       myList[1] = 2.9;

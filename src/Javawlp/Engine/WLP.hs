@@ -100,9 +100,16 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     -- Unrolls a while-loop a finite amount of times
     unrollLoop :: Inh -> Int -> Exp -> (Exp -> Exp) -> (Inh -> Exp -> Exp) -> Exp -> Exp
     unrollLoop inh 0 g gTrans _             = let var = getVar
-                                              in gTrans . substVar' inh var g . (neg (ExpName (Name [var])) `imp`) . acc inh
+                                              -- in gTrans . substVar' inh var g . (neg (ExpName (Name [var])) `imp`) . acc inh
+                                              in gTrans . substVar' inh var g . (neg (ExpName (Name [var])) &*) . acc inh
     unrollLoop inh n g gTrans bodyTrans     = let var = getVar
-                                              in gTrans . substVar' inh var g . (\q -> (neg (ExpName (Name [var])) `imp` acc inh q) &* ((ExpName (Name [var])) `imp` bodyTrans inh {acc = (unrollLoop inh (n-1) g gTrans bodyTrans)} q))
+                                              -- in gTrans . substVar' inh var g . (\q -> (neg (ExpName (Name [var])) `imp` acc inh q) &* ((ExpName (Name [var])) `imp` bodyTrans inh {acc = (unrollLoop inh (n-1) g gTrans bodyTrans)} q))
+                                              -- reformulating it as a disjunction rather than conjunction ; this should be equivalent
+                                              in gTrans 
+                                                 . substVar' inh var g 
+                                                 . (\q -> (neg (ExpName (Name [var])) &* acc inh q) 
+                                                          |* 
+                                                          ((ExpName (Name [var])) &* bodyTrans inh {acc = (unrollLoop inh (n-1) g gTrans bodyTrans)} q))
     
     -- An optimized version of unroll loop to reduce the size of the wlp
     unrollLoopOpt :: Inh -> Int -> Exp -> (Exp -> Exp) -> (Inh -> Exp -> Exp) -> Exp -> Exp

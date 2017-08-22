@@ -1,11 +1,9 @@
-
-
-public class C1 
+public class Loops 
 {
-    public static void main(String[] args) 
-    {
-        
-        for(int i = 0; i < 6; i++)
+    public static void foo() 
+    {      
+        int i ;
+        for(i = 0; i < 6; i++)
         {
             for(int j = 0; j < 6; j++)
             {
@@ -13,8 +11,6 @@ public class C1
                     assert j == 1;
             }
         }
-        
-        
         int x = i;
     }
 }

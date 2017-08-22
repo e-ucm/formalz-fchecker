@@ -1,10 +1,10 @@
 //https://examples.javacodegeeks.com/java-basics/arrays-java-basics/java-string-array-example/
 
-package com.javacodegeeks.javabasics.stringarray;
+// package com.javacodegeeks.javabasics.stringarray;
 
-public class JavaStringArrayExample {
+public class Arrays3 {
 
-	public static void main(String args[]) {
+	public static void foo() {
 
 		// declare a string array with initial size
 		String[] schoolbag = new String[4];

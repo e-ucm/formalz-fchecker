@@ -1,5 +1,5 @@
-public class simple
-{
+public class Simple {
+
     // try for example with postcond: returnValue >= 0
     int f1(int x) { x++ ; return x ; }
     
@@ -14,7 +14,7 @@ public class simple
     
     int a ;
     // try pcond: returnValue.a >= 0
-    simple g1(int delta) { this.a = this.a + delta ; return this ; }
+    Simple g1(int delta) { this.a = this.a + delta ; return this ; }
 
     // try pcond: returnValue >= 0
     int g2(int delta) { this.a = this.a + delta ; return this.a ; }
