@@ -21,5 +21,13 @@ public class Simple {
 
     // try pcond: targetObj_.a >= 0
     void g3(int delta) { this.a = this.a + delta ; }
+
+    int Seq(int x) { x = x + 1 ; x = x + 9 ; return x ; }
+
+    int ReturnInTheMiddle(int x) { 
+        x = x + 1 ; 
+        if (x==0) return x ;
+        x = x + 9 ; 
+        return x ; }
     
 }

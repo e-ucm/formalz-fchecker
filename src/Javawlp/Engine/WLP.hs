@@ -28,7 +28,9 @@ data WLPConf = WLPConf {
 data Inh = Inh {wlpConfig :: WLPConf,               -- Some configuration parameters for the wlp
                 acc     :: Exp -> Exp,              -- The accumulated transformer of the current block up until the current statement
                 br      :: Exp -> Exp,              -- The accumulated transformer up until the last loop (this is used when handling break statements etc.)
-                catch   :: Maybe ([Catch], Bool),   -- The catches when executing a block in a try statement, and a Bool indicating wether there is a finally-block
+                -- Wish: adding this attribute to handle "continue" commands:
+                cont    :: Exp -> Exp,              -- The accumulated transformer to handle the "continue" jump
+                catch   :: Maybe ([(Catch, Exp->Exp)], Bool),   -- The catches when executing a block in a try statement, and a Bool indicating wether there is a finally-block
                 env     :: TypeEnv,                 -- The type environment for typing expressions
                 decls   :: [TypeDecl],              -- Class declarations
                 calls   :: CallCount,               -- The number of recursive calls per method
@@ -45,25 +47,58 @@ type Syn = Exp -> Exp -- The wlp transformer
 --   Statements that pass control to the next statement have to explicitly combine their wlp function with the accumulated function, as some statements (e.g. break) ignore the accumulated function.
 wlpStmtAlgebra :: StmtAlgebra (Inh -> Syn)
 wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhancedFor, fEmpty, fExpStmt, fAssert, fSwitch, fDo, fBreak, fContinue, fReturn, fSynchronized, fThrow, fTry, fLabeled) where
-    fStmtBlock (Block bs) inh       = foldr (\b r -> wlpBlock inh {acc = r} b) (acc inh) bs -- The result of the last block-statement will be the accumulated transformer for the second-last etc. The type environment is build from the left, so it has to be done seperately.
+    
+    -- The result of the last block-statement will be the accumulated transformer for the second-last etc. 
+    -- The type environment is build from the left, so it has to be done seperately.
+    fStmtBlock (Block bs) inh       = foldr (\b r -> wlpBlock inh{acc = r} b) (acc inh) bs 
+    
     fIfThen e s1                    = fIfThenElse e s1 acc -- if-then is just an if-then-else with an empty else-block
-    fIfThenElse e s1 s2 inh         = let (e', trans) = foldExp wlpExpAlgebra e inh {acc = id}
+    fIfThenElse e s1 s2 inh         = let (e', trans) = foldExp wlpExpAlgebra e inh{acc = id}
                                           var = getVar
                                       in trans . substVar' inh var e' . (\q -> (ExpName (Name [var]) &* s1 inh q) |* (neg (ExpName (Name [var])) &* s2 inh q))
-    fWhile e s inh                  = let (e', trans) = foldExp wlpExpAlgebra e inh {acc = id}
+
+    fWhile e s inh                  = let (e', trans) = foldExp wlpExpAlgebra e inh{acc = id}
                                           var = getVar
                                           numberOfUnrolling = nrOfUnroll $ wlpConfig $ inh
-                                      in (\q -> unrollLoopOpt inh {br = const q} numberOfUnrolling e' trans s q)
-    fBasicFor init me incr s inh    = let loop = (fWhile (fromMaybeGuard me) (\inh' -> s (inh' {acc = (wlp' inh' {acc = id} (incrToStmt incr))})) inh) in wlp' (inh {acc = loop}) (initToStmt init)
+                                      -- Wish: this seems to be wrong:
+                                      -- in (\q -> unrollLoopOpt inh{br = const q} numberOfUnrolling e' trans s q)
+                                      -- Fixing:
+                                      in (\q -> unrollLoopOpt inh{br = (\q'-> acc inh q)} numberOfUnrolling e' trans s q)
+                                      
+    fBasicFor init me incr s inh    = let 
+                                      -- encode the for loop as a while-loop
+                                      -- loop below is the wlp-transformer over the loop without the initialization part:
+                                      loop = fWhile (fromMaybeGuard me)  -- the guard
+                                                    -- constructing s ; incr. 
+                                                    -- However, this looks to be wrong:
+                                                    -- (\inh' -> s (inh'{acc = wlp' inh'{acc = id} (incrToStmt incr)}) ) 
+                                                    -- Fixing to:
+                                                    (\inh' -> s (inh'{acc = wlp' inh' (incrToStmt incr)}) )                              
+                                                    inh 
+                                      in 
+                                      wlp' inh{acc = loop} (initToStmt init)
+                                      
     fEnhancedFor                    = error "EnhancedFor"
     fEmpty inh                      = (acc inh) -- Empty does nothing, but still passes control to the next statement
     fExpStmt e inh                  = snd $ foldExp wlpExpAlgebra e inh
     fAssert e _ inh                 = let (e', trans) = foldExp wlpExpAlgebra e inh {acc = id}
                                       in (trans . (e' &*) . acc inh)
     fSwitch e bs inh                = let (e', s1, s2) = desugarSwitch e bs in fIfThenElse e' (flip wlp' s1) (flip wlp' s2) (inh {acc = id, br = acc inh})
-    fDo s e inh                     = s (inh {acc = fWhile e s inh}) -- Do is just a while with the statement block executed one additional time. Break and continue still have to be handled in this additional execution.
+    
+    fDo s e inh                     = -- Do is just a while with the statement block executed one additional time. 
+                                      -- Break and continue still have to be handled in this additional execution.
+                                      let
+                                      whileTransf = fWhile e s inh
+                                      in
+                                      s (inh {acc = whileTransf, br = acc inh, cont = whileTransf }) 
+    
     fBreak _ inh                    = br inh -- wlp of the breakpoint. Control is passed to the statement after the loop
-    fContinue _ inh                 = id     -- at a continue statement it's as if the body of the loop is fully executed
+    
+    -- Wish: his seems to be wrong
+    -- fContinue _ inh                 = id     -- at a continue statement it's as if the body of the loop is fully executed
+    -- Fixing to:
+    fContinue _ inh                 = cont inh  
+        
     fReturn me inh                  = case me of
                                         Nothing -> id -- Return ignores acc, as it terminates the method
                                         Just e  -> fExpStmt (Assign (NameLhs (Name [fromJust' "fReturn" (ret inh)])) EqualA e) (inh {acc = id}) -- We treat "return e" as an assignment to a variable specifically created to store the return value in
@@ -71,12 +106,24 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     fSynchronized _                 = fStmtBlock
     fThrow e inh                    = (case catch inh of
                                         Nothing      -> ((\q -> q &* throwException e)) -- acc is ignored, as the rest of the block is not executed
-                                        Just (cs, f) -> (maybe (if f then id else (\q -> q &* throwException e)) (flip fStmtBlock (inh {acc = id, catch = Nothing})) (getCatch (decls inh) (env inh) e cs)))
+                                        Just (cs, f) -> maybe (if f then id else (\q -> q &* throwException e)) 
+                                                              {- (flip fStmtBlock (inh {acc = id, catch = Nothing})) -}
+                                                              id 
+                                                              (getCatch (decls inh) (env inh) e cs)
+                                       )
                                       .
                                       (case ret inh of
                                         Nothing -> id
                                         _       -> fReturn (Just e) inh)
-    fTry (Block bs) cs f inh        = let r = (fStmtBlock (Block bs) (inh {acc = id, catch = Just (cs, isJust f)})) in (r . maybe (acc inh) (flip fStmtBlock inh) f) -- The finally-block is always executed
+    fTry (Block bs) cs f inh        = let              
+                                        finalyTranf = case f of
+                                            Nothing -> acc inh
+                                            Just b  -> fStmtBlock b inh
+                                                   
+                                        csTransfs = [ fStmtBlock b inh{acc=finalyTranf} | Catch p b <- cs]       
+                                        in 
+                                        fStmtBlock (Block bs) inh{acc=finalyTranf, catch = Just (zip cs csTransfs, isJust f)}                   
+                                      
     fLabeled _ s                    = s
     
     -- Helper functions
@@ -102,19 +149,20 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     unrollLoop inh 0 g gTrans _             = let var = getVar
                                               -- in gTrans . substVar' inh var g . (neg (ExpName (Name [var])) `imp`) . acc inh
                                               in gTrans . substVar' inh var g . (neg (ExpName (Name [var])) &*) . acc inh
-    unrollLoop inh n g gTrans bodyTrans     = let var = getVar
-                                              -- in gTrans . substVar' inh var g . (\q -> (neg (ExpName (Name [var])) `imp` acc inh q) &* ((ExpName (Name [var])) `imp` bodyTrans inh {acc = (unrollLoop inh (n-1) g gTrans bodyTrans)} q))
-                                              -- reformulating it as a disjunction rather than conjunction ; this should be equivalent
+    unrollLoop inh n g gTrans bodyTrans     = let 
+                                              var = getVar
+                                              nextUnrollingTrans = unrollLoop inh (n-1) g gTrans bodyTrans
                                               in gTrans 
                                                  . substVar' inh var g 
                                                  . (\q -> (neg (ExpName (Name [var])) &* acc inh q) 
                                                           |* 
-                                                          ((ExpName (Name [var])) &* bodyTrans inh {acc = (unrollLoop inh (n-1) g gTrans bodyTrans)} q))
+                                                          ((ExpName (Name [var])) &* bodyTrans inh{acc = nextUnrollingTrans, cont = nextUnrollingTrans} q))
     
     -- An optimized version of unroll loop to reduce the size of the wlp
     unrollLoopOpt :: Inh -> Int -> Exp -> (Exp -> Exp) -> (Inh -> Exp -> Exp) -> Exp -> Exp
-    unrollLoopOpt inh n g gTrans bodyTrans q | gTrans (bodyTrans inh q) == acc inh q            = acc inh q                                 -- q is not affected by the loop
-                                             | otherwise                                        = unrollLoop inh n g gTrans bodyTrans q     -- default to the standard version of unroll loop
+    unrollLoopOpt inh n g gTrans bodyTrans q 
+           | gTrans (bodyTrans inh q) == acc inh q  = acc inh q                              -- q is not affected by the loop
+           | otherwise                              = unrollLoop inh n g gTrans bodyTrans q  -- default to the standard version of unroll loop
     
     -- Converts initialization code of a for loop to a statement
     initToStmt :: Maybe ForInit -> Stmt
@@ -152,16 +200,18 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
 throwException :: Exp -> Exp
 throwException e = false
     
-getCatch :: [TypeDecl] -> TypeEnv -> Exp -> [Catch] -> Maybe Block
+getCatch :: [TypeDecl] -> TypeEnv -> Exp -> [(Catch,Exp->Exp)] -> Maybe (Exp->Exp)
 getCatch decls env e []             = Nothing
-getCatch decls env e (Catch p b:cs) = if catches decls env p e then Just b else getCatch decls env e cs
+getCatch decls env e ((Catch p b,transf):cs) = if catches decls env p e then Just transf else getCatch decls env e cs
 
 -- Checks whether a catch block catches a certain error
 catches :: [TypeDecl] -> TypeEnv -> FormalParam -> Exp -> Bool
-catches decls env (FormalParam _ t _ _) e = t == RefType (ClassRefType (ClassType [(Ident "Exception", [])])) || 
+catches decls env (FormalParam _ t _ _) e = True
+                                            {- t == RefType (ClassRefType (ClassType [(Ident "Exception", [])])) || 
                                               case e of
                                                 ExpName name -> lookupType decls env name == t
                                                 InstanceCreation _ t' _ _ -> t == RefType (ClassRefType t')
+                                             -}
     
 -- | The algebra that defines the wlp transformer for expressions with side effects
 --   The first attribute is the expression itself (this is passed to handle substitutions in case of assignments)
@@ -251,7 +301,13 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     arrayAccessWlp a i inh q =  case catch inh of
                                     Nothing      -> (foldr (\(i, l) e -> e &* (BinOp i LThan l) &* (BinOp i GThanE (Lit (Int 0)))) true (zip i (dimLengths a))) &* q
                                     Just (cs, f) -> let e = InstanceCreation [] (ClassType [(Ident "ArrayIndexOutOfBoundsException", [])]) [] Nothing
-                                                    in Cond (foldr (\(i, l) e -> e &* (BinOp i LThan l) &* (BinOp i GThanE (Lit (Int 0)))) true (zip i (dimLengths a))) q ((maybe (if f then q else q &* throwException e)) (\b -> wlp' (inh {acc = id, catch = Nothing}) (StmtBlock b) q) (getCatch (decls inh) (env inh) e cs))
+                                                    in 
+                                                    Cond (foldr (\(i, l) e -> e &* (BinOp i LThan l) &* (BinOp i GThanE (Lit (Int 0)))) true (zip i (dimLengths a))) 
+                                                         q 
+                                                         (maybe (if f then q else q &* throwException e) 
+                                                                {-(\b -> wlp' (inh {acc = id, catch = Nothing}) (StmtBlock b) q) -}
+                                                                (\transf-> transf q)
+                                                                (getCatch (decls inh) (env inh) e cs))
                                 
     dimLengths a = case a of
                     ArrayCreate t exps dim          -> exps
@@ -344,7 +400,7 @@ wlp config decls = wlpWithEnv config decls []
 
 -- | wlp with a given type environment
 wlpWithEnv :: WLPConf -> [TypeDecl] -> TypeEnv -> Stmt -> Exp -> Exp
-wlpWithEnv config decls env = wlp' (Inh config id id Nothing env decls [] (Just (Ident "returnValue")) (Just (ExpName (Name [Ident "targetObj_"]))))
+wlpWithEnv config decls env = wlp' (Inh config id id id Nothing env decls [] (Just (Ident "returnValue")) (Just (ExpName (Name [Ident "targetObj_"]))))
 
 -- wlp' lets you specify the inherited attributes
 wlp' :: Inh -> Stmt -> Syn

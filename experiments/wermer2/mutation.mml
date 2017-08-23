@@ -39,13 +39,13 @@ BIN(&&)->{==,LHS,RHS,FALSE};
 BIN(||)->{!=,LHS,RHS,TRUE};
 
 // Delete all types of supported statements
-//DEL(CALL); //don't do this...
+DEL(CALL); 
 DEL(INC);
 DEL(DEC);
 DEL(ASSIGN);
 DEL(CONT);
 DEL(BREAK);
-//DEL(RETURN);  //don't do this...
+DEL(RETURN);  
 
 // Let's include all operators
 myOp {
@@ -60,4 +60,8 @@ myOp {
 }
 
 // Specify scopes:
-myOp<"Triangle@tritype1" ;
+myOp<"Triangle@tritype1"> ;
+//myOp<"MinsMaxs@testme"> ;
+myOp<"MinsMaxs@getMinsMaxs"> ;
+
+
