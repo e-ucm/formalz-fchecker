@@ -9,6 +9,7 @@ import Language.Java.Lexer
 import Language.Java.Parser
 import Data.Maybe
 import Data.List
+import Debug.Trace
 
 import Javawlp.Engine.Folds
 import Javawlp.Engine.Verifier
@@ -30,7 +31,7 @@ data Inh = Inh {wlpConfig :: WLPConf,               -- Some configuration parame
                 br      :: Exp -> Exp,              -- The accumulated transformer up until the last loop (this is used when handling break statements etc.)
                 -- Wish: adding this attribute to handle "continue" commands:
                 cont    :: Exp -> Exp,              -- The accumulated transformer to handle the "continue" jump
-                catch   :: Maybe ([(Catch, Exp->Exp)], Bool),   -- The catches when executing a block in a try statement, and a Bool indicating wether there is a finally-block
+                catch   :: [ExceptionTable],        -- the hierarchy of catch-finalize blocks to jump, with the first one in the list being the immediate handlers to look up
                 env     :: TypeEnv,                 -- The type environment for typing expressions
                 decls   :: [TypeDecl],              -- Class declarations
                 calls   :: CallCount,               -- The number of recursive calls per method
@@ -38,6 +39,13 @@ data Inh = Inh {wlpConfig :: WLPConf,               -- Some configuration parame
                 object  :: Maybe Exp                -- The object the method is called from when handling a method call
                 }
             
+-- | Representing the handler + finalize sections of a try-catch-block.            
+data ExceptionTable = ExceptionTable 
+                         [Catch]        -- the handlers
+                         (Maybe Block)  -- the finalize code, if any
+                         (Exp -> Exp)   -- the continuation post-wlp, which is to composed after the whole try-catch block
+
+           
            
 -- | A type synonym for the synthesized attributea
 type Syn = Exp -> Exp -- The wlp transformer
@@ -104,25 +112,42 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
                                         Just e  -> fExpStmt (Assign (NameLhs (Name [fromJust' "fReturn" (ret inh)])) EqualA e) (inh {acc = id}) -- We treat "return e" as an assignment to a variable specifically created to store the return value in
                                                             
     fSynchronized _                 = fStmtBlock
-    fThrow e inh                    = (case catch inh of
-                                        Nothing      -> ((\q -> q &* throwException e)) -- acc is ignored, as the rest of the block is not executed
-                                        Just (cs, f) -> maybe (if f then id else (\q -> q &* throwException e)) 
-                                                              {- (flip fStmtBlock (inh {acc = id, catch = Nothing})) -}
-                                                              id 
-                                                              (getCatch (decls inh) (env inh) e cs)
-                                       )
-                                      .
-                                      (case ret inh of
-                                        Nothing -> id
-                                        _       -> fReturn (Just e) inh)
-    fTry (Block bs) cs f inh        = let              
-                                        finalyTranf = case f of
+    
+    fThrow e inh                    = case catch inh of
+        
+                                        [] -> {- we have no more handlers, so the exception escape -} (\q -> q &* throwException e)
+                                        
+                                        (ExceptionTable cs f postTransf : therest) ->
+                                           case getCatch (decls inh) (env inh) e cs of
+                                              -- no matching handler is found in the immediate exception-table;
+                                              -- search higher up:
+                                              Nothing -> 
+                                                  let rethrowTransf = fThrow e inh{catch = therest} 
+                                                  in 
+                                                  -- we will first do the finally section, then rethrow the exception before passing
+                                                  -- up to the higher level handlers
+                                                  case f of
+                                                     Nothing        -> rethrowTransf
+                                                     Just finalizer -> -- trace ("\n ## invoking finalizer on MISmatch " ++ show finalizer) $
+                                                                        fStmtBlock finalizer inh{acc=rethrowTransf,catch=therest}
+                                              
+                                              -- a matching handler is found; handle it, compose with finalizer if there is one:
+                                              Just handler ->
+                                                   let
+                                                   finalizeTransf = case f of
+                                                       Nothing        -> postTransf
+                                                       Just finalizer -> -- trace "\n ## invoking finalizer on match " $ 
+                                                                         fStmtBlock finalizer inh{acc=postTransf,catch=therest}
+                                                   in
+                                                   fStmtBlock handler inh{acc=finalizeTransf,catch=therest}
+        
+    fTry (Block bs) cs f inh        = let     
+                                        excTable = ExceptionTable cs f (acc inh)    
+                                        normalfinalyTranf = case f of
                                             Nothing -> acc inh
-                                            Just b  -> fStmtBlock b inh
-                                                   
-                                        csTransfs = [ fStmtBlock b inh{acc=finalyTranf} | Catch p b <- cs]       
+                                            Just b  -> fStmtBlock b inh       
                                         in 
-                                        fStmtBlock (Block bs) inh{acc=finalyTranf, catch = Just (zip cs csTransfs, isJust f)}                   
+                                        fStmtBlock (Block bs) inh{acc=normalfinalyTranf, catch = excTable : catch inh}                   
                                       
     fLabeled _ s                    = s
     
@@ -200,18 +225,17 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
 throwException :: Exp -> Exp
 throwException e = false
     
-getCatch :: [TypeDecl] -> TypeEnv -> Exp -> [(Catch,Exp->Exp)] -> Maybe (Exp->Exp)
+getCatch :: [TypeDecl] -> TypeEnv -> Exp -> [Catch] -> Maybe Block
 getCatch decls env e []             = Nothing
-getCatch decls env e ((Catch p b,transf):cs) = if catches decls env p e then Just transf else getCatch decls env e cs
+getCatch decls env e (Catch p b:cs) = if catches decls env p e then Just b else getCatch decls env e cs
 
 -- Checks whether a catch block catches a certain error
 catches :: [TypeDecl] -> TypeEnv -> FormalParam -> Exp -> Bool
-catches decls env (FormalParam _ t _ _) e = True
-                                            {- t == RefType (ClassRefType (ClassType [(Ident "Exception", [])])) || 
+catches decls env (FormalParam _ t _ _) e = t == RefType (ClassRefType (ClassType [(Ident "Exception", [])])) || 
                                               case e of
                                                 ExpName name -> lookupType decls env name == t
                                                 InstanceCreation _ t' _ _ -> t == RefType (ClassRefType t')
-                                             -}
+                                             
     
 -- | The algebra that defines the wlp transformer for expressions with side effects
 --   The first attribute is the expression itself (this is passed to handle substitutions in case of assignments)
@@ -298,16 +322,14 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
                             
     -- gets the transformer for array access (as array access may throw an error)
     arrayAccessWlp :: Exp -> [Exp] -> Inh -> Exp -> Exp
-    arrayAccessWlp a i inh q =  case catch inh of
-                                    Nothing      -> (foldr (\(i, l) e -> e &* (BinOp i LThan l) &* (BinOp i GThanE (Lit (Int 0)))) true (zip i (dimLengths a))) &* q
-                                    Just (cs, f) -> let e = InstanceCreation [] (ClassType [(Ident "ArrayIndexOutOfBoundsException", [])]) [] Nothing
-                                                    in 
-                                                    Cond (foldr (\(i, l) e -> e &* (BinOp i LThan l) &* (BinOp i GThanE (Lit (Int 0)))) true (zip i (dimLengths a))) 
-                                                         q 
-                                                         (maybe (if f then q else q &* throwException e) 
-                                                                {-(\b -> wlp' (inh {acc = id, catch = Nothing}) (StmtBlock b) q) -}
-                                                                (\transf-> transf q)
-                                                                (getCatch (decls inh) (env inh) e cs))
+    arrayAccessWlp a i inh q =  
+        let
+        accessConstraint = (foldr (\(i, l) e -> e &* (BinOp i LThan l) &* (BinOp i GThanE (Lit (Int 0)))) true (zip i (dimLengths a)))
+        arrayException   = InstanceCreation [] (ClassType [(Ident "ArrayIndexOutOfBoundsException", [])]) [] Nothing
+        in
+        case catch inh of
+          [] -> {- no handler, then impose the constraint -} accessConstraint &* acc inh q
+          _  -> (accessConstraint &* acc inh q) |* wlp' inh (Throw arrayException) q
                                 
     dimLengths a = case a of
                     ArrayCreate t exps dim          -> exps
@@ -317,6 +339,7 @@ wlpExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualIns
     editName :: Inh -> Name -> Exp
     editName inh (Name name) | last name == Ident "length" = case lookupType (decls inh) (env inh) (Name (take (length name - 1) name)) of -- For arrays we know that "length" refers to the length of the array
                                                                 RefType (ArrayType _) -> MethodInv (MethodCall (Name [Ident "*length"]) [ExpName (Name (take (length name - 1) name)), (Lit (Int 0))])
+
                                                                 _ -> ExpName (Name name)
                              | otherwise = ExpName (Name name)
                     
@@ -400,7 +423,7 @@ wlp config decls = wlpWithEnv config decls []
 
 -- | wlp with a given type environment
 wlpWithEnv :: WLPConf -> [TypeDecl] -> TypeEnv -> Stmt -> Exp -> Exp
-wlpWithEnv config decls env = wlp' (Inh config id id id Nothing env decls [] (Just (Ident "returnValue")) (Just (ExpName (Name [Ident "targetObj_"]))))
+wlpWithEnv config decls env = wlp' (Inh config id id id [] env decls [] (Just (Ident "returnValue")) (Just (ExpName (Name [Ident "targetObj_"]))))
 
 -- wlp' lets you specify the inherited attributes
 wlp' :: Inh -> Stmt -> Syn
