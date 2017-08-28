@@ -1,0 +1,61 @@
+1:ROR:<=(float,float):<(float,float):Triangle@tritype1():15:this.x <= 0 |==> this.x < 0
+2:ROR:<=(float,float):==(float,float):Triangle@tritype1():15:this.x <= 0 |==> this.x == 0
+3:ROR:<=(float,float):TRUE(float,float):Triangle@tritype1():15:this.x <= 0 |==> true
+4:ROR:<=(float,float):<(float,float):Triangle@tritype1():15:this.y <= 0 |==> this.y < 0
+5:ROR:<=(float,float):==(float,float):Triangle@tritype1():15:this.y <= 0 |==> this.y == 0
+6:ROR:<=(float,float):TRUE(float,float):Triangle@tritype1():15:this.y <= 0 |==> true
+7:COR:||(boolean,boolean):!=(boolean,boolean):Triangle@tritype1():15:(this.x <= 0) || (this.y <= 0) |==> (this.x <= 0) != (this.y <= 0)
+8:COR:||(boolean,boolean):LHS(boolean,boolean):Triangle@tritype1():15:(this.x <= 0) || (this.y <= 0) |==> (this.x <= 0)
+9:COR:||(boolean,boolean):RHS(boolean,boolean):Triangle@tritype1():15:(this.x <= 0) || (this.y <= 0) |==> (this.y <= 0)
+10:COR:||(boolean,boolean):TRUE(boolean,boolean):Triangle@tritype1():15:(this.x <= 0) || (this.y <= 0) |==> true
+11:ROR:<=(float,float):<(float,float):Triangle@tritype1():15:this.z <= 0 |==> this.z < 0
+12:ROR:<=(float,float):==(float,float):Triangle@tritype1():15:this.z <= 0 |==> this.z == 0
+13:ROR:<=(float,float):TRUE(float,float):Triangle@tritype1():15:this.z <= 0 |==> true
+14:COR:||(boolean,boolean):!=(boolean,boolean):Triangle@tritype1():15:(this.x <= 0) || (this.y <= 0) || (this.z <= 0) |==> ((this.x <= 0) || (this.y <= 0)) != (this.z <= 0)
+15:COR:||(boolean,boolean):LHS(boolean,boolean):Triangle@tritype1():15:(this.x <= 0) || (this.y <= 0) || (this.z <= 0) |==> (this.x <= 0) || (this.y <= 0)
+16:COR:||(boolean,boolean):RHS(boolean,boolean):Triangle@tritype1():15:(this.x <= 0) || (this.y <= 0) || (this.z <= 0) |==> (this.z <= 0)
+17:COR:||(boolean,boolean):TRUE(boolean,boolean):Triangle@tritype1():15:(this.x <= 0) || (this.y <= 0) || (this.z <= 0) |==> true
+18:AOR:+(float,float):-(float,float):Triangle@tritype1():16:this.y + this.z |==> this.y - this.z
+19:ROR:>=(float,float):==(float,float):Triangle@tritype1():16:this.x >= (this.y + this.z) |==> this.x == (this.y + this.z)
+20:ROR:>=(float,float):>(float,float):Triangle@tritype1():16:this.x >= (this.y + this.z) |==> this.x > (this.y + this.z)
+21:ROR:>=(float,float):TRUE(float,float):Triangle@tritype1():16:this.x >= (this.y + this.z) |==> true
+22:STD:<RETURN>:<NO-OP>:Triangle@tritype1():16:return -1; |==> <NO-OP>
+23:AOR:+(float,float):-(float,float):Triangle@tritype1():17:this.x + this.z |==> this.x - this.z
+24:ROR:>=(float,float):==(float,float):Triangle@tritype1():17:this.y >= (this.x + this.z) |==> this.y == (this.x + this.z)
+25:ROR:>=(float,float):>(float,float):Triangle@tritype1():17:this.y >= (this.x + this.z) |==> this.y > (this.x + this.z)
+26:ROR:>=(float,float):TRUE(float,float):Triangle@tritype1():17:this.y >= (this.x + this.z) |==> true
+27:STD:<RETURN>:<NO-OP>:Triangle@tritype1():17:return -1; |==> <NO-OP>
+28:AOR:+(float,float):-(float,float):Triangle@tritype1():18:this.x + this.y |==> this.x - this.y
+29:ROR:>=(float,float):==(float,float):Triangle@tritype1():18:this.z >= (this.x + this.y) |==> this.z == (this.x + this.y)
+30:ROR:>=(float,float):>(float,float):Triangle@tritype1():18:this.z >= (this.x + this.y) |==> this.z > (this.x + this.y)
+31:ROR:>=(float,float):TRUE(float,float):Triangle@tritype1():18:this.z >= (this.x + this.y) |==> true
+32:STD:<RETURN>:<NO-OP>:Triangle@tritype1():18:return -1; |==> <NO-OP>
+33:ROR:==(float,float):<=(float,float):Triangle@tritype1():19:this.x == this.y |==> this.x <= this.y
+34:ROR:==(float,float):>=(float,float):Triangle@tritype1():19:this.x == this.y |==> this.x >= this.y
+35:ROR:==(float,float):FALSE(float,float):Triangle@tritype1():19:this.x == this.y |==> false
+36:ROR:==(float,float):<=(float,float):Triangle@tritype1():19:this.y == this.z |==> this.y <= this.z
+37:ROR:==(float,float):>=(float,float):Triangle@tritype1():19:this.y == this.z |==> this.y >= this.z
+38:ROR:==(float,float):FALSE(float,float):Triangle@tritype1():19:this.y == this.z |==> false
+39:COR:&&(boolean,boolean):==(boolean,boolean):Triangle@tritype1():19:(this.x == this.y) && (this.y == this.z) |==> (this.x == this.y) == (this.y == this.z)
+40:COR:&&(boolean,boolean):FALSE(boolean,boolean):Triangle@tritype1():19:(this.x == this.y) && (this.y == this.z) |==> false
+41:COR:&&(boolean,boolean):LHS(boolean,boolean):Triangle@tritype1():19:(this.x == this.y) && (this.y == this.z) |==> (this.x == this.y)
+42:COR:&&(boolean,boolean):RHS(boolean,boolean):Triangle@tritype1():19:(this.x == this.y) && (this.y == this.z) |==> (this.y == this.z)
+43:STD:<RETURN>:<NO-OP>:Triangle@tritype1():19:return 1; |==> <NO-OP>
+44:ROR:==(float,float):<=(float,float):Triangle@tritype1():20:this.x == this.y |==> this.x <= this.y
+45:ROR:==(float,float):>=(float,float):Triangle@tritype1():20:this.x == this.y |==> this.x >= this.y
+46:ROR:==(float,float):FALSE(float,float):Triangle@tritype1():20:this.x == this.y |==> false
+47:ROR:==(float,float):<=(float,float):Triangle@tritype1():20:this.y == this.z |==> this.y <= this.z
+48:ROR:==(float,float):>=(float,float):Triangle@tritype1():20:this.y == this.z |==> this.y >= this.z
+49:ROR:==(float,float):FALSE(float,float):Triangle@tritype1():20:this.y == this.z |==> false
+50:COR:||(boolean,boolean):!=(boolean,boolean):Triangle@tritype1():20:(this.x == this.y) || (this.y == this.z) |==> (this.x == this.y) != (this.y == this.z)
+51:COR:||(boolean,boolean):LHS(boolean,boolean):Triangle@tritype1():20:(this.x == this.y) || (this.y == this.z) |==> (this.x == this.y)
+52:COR:||(boolean,boolean):RHS(boolean,boolean):Triangle@tritype1():20:(this.x == this.y) || (this.y == this.z) |==> (this.y == this.z)
+53:COR:||(boolean,boolean):TRUE(boolean,boolean):Triangle@tritype1():20:(this.x == this.y) || (this.y == this.z) |==> true
+54:ROR:==(float,float):<=(float,float):Triangle@tritype1():20:this.x == this.z |==> this.x <= this.z
+55:ROR:==(float,float):>=(float,float):Triangle@tritype1():20:this.x == this.z |==> this.x >= this.z
+56:ROR:==(float,float):FALSE(float,float):Triangle@tritype1():20:this.x == this.z |==> false
+57:COR:||(boolean,boolean):!=(boolean,boolean):Triangle@tritype1():20:(this.x == this.y) || (this.y == this.z) || (this.x == this.z) |==> ((this.x == this.y) || (this.y == this.z)) != (this.x == this.z)
+58:COR:||(boolean,boolean):LHS(boolean,boolean):Triangle@tritype1():20:(this.x == this.y) || (this.y == this.z) || (this.x == this.z) |==> (this.x == this.y) || (this.y == this.z)
+59:COR:||(boolean,boolean):RHS(boolean,boolean):Triangle@tritype1():20:(this.x == this.y) || (this.y == this.z) || (this.x == this.z) |==> (this.x == this.z)
+60:COR:||(boolean,boolean):TRUE(boolean,boolean):Triangle@tritype1():20:(this.x == this.y) || (this.y == this.z) || (this.x == this.z) |==> true
+61:STD:<RETURN>:<NO-OP>:Triangle@tritype1():20:return 2; |==> <NO-OP>

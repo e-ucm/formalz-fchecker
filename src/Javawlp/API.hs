@@ -105,6 +105,7 @@ printWlp sourcePath methodName postCond = do
   let q = post_ postCond
   p <- wlpMethod defaultConf typeEnv decls (Ident methodName) q
   putStrLn $ showMethodWlp methodName q p
+  putStrLn ("** Expr complexity of the wlp: " ++ show (exprComplexity p))
   --putStrLn ("\n### " ++ show p) 
   let (result,model) = unsafeIsSatisfiable (extendEnv typeEnv decls (Ident methodName)) decls p
   case result of

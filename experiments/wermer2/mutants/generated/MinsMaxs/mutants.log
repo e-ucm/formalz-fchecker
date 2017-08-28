@@ -1,0 +1,30 @@
+1:ROR:<(int,int):!=(int,int):MinsMaxs@getMinsMaxs(double[][]):12:N < 1 |==> N != 1
+2:ROR:<(int,int):<=(int,int):MinsMaxs@getMinsMaxs(double[][]):12:N < 1 |==> N <= 1
+3:ROR:<(int,int):FALSE(int,int):MinsMaxs@getMinsMaxs(double[][]):12:N < 1 |==> false
+4:ROR:<(int,int):!=(int,int):MinsMaxs@getMinsMaxs(double[][]):15:r1 < N |==> r1 != N
+5:ROR:<(int,int):<=(int,int):MinsMaxs@getMinsMaxs(double[][]):15:r1 < N |==> r1 <= N
+6:ROR:<(int,int):FALSE(int,int):MinsMaxs@getMinsMaxs(double[][]):15:r1 < N |==> false
+7:ROR:!=(int,int):<(int,int):MinsMaxs@getMinsMaxs(double[][]):16:data[r1].length != rowWidth |==> data[r1].length < rowWidth
+8:ROR:!=(int,int):>(int,int):MinsMaxs@getMinsMaxs(double[][]):16:data[r1].length != rowWidth |==> data[r1].length > rowWidth
+9:ROR:!=(int,int):TRUE(int,int):MinsMaxs@getMinsMaxs(double[][]):16:data[r1].length != rowWidth |==> true
+10:ROR:<(int,int):!=(int,int):MinsMaxs@getMinsMaxs(double[][]):21:c1 < rowWidth |==> c1 != rowWidth
+11:ROR:<(int,int):<=(int,int):MinsMaxs@getMinsMaxs(double[][]):21:c1 < rowWidth |==> c1 <= rowWidth
+12:ROR:<(int,int):FALSE(int,int):MinsMaxs@getMinsMaxs(double[][]):21:c1 < rowWidth |==> false
+13:STD:<ASSIGN>:<NO-OP>:MinsMaxs@getMinsMaxs(double[][]):22:mins[c1] = data[0][c1] |==> <NO-OP>
+14:STD:<ASSIGN>:<NO-OP>:MinsMaxs@getMinsMaxs(double[][]):23:maxs[c1] = data[0][c1] |==> <NO-OP>
+15:ROR:<(int,int):!=(int,int):MinsMaxs@getMinsMaxs(double[][]):26:r < N |==> r != N
+16:ROR:<(int,int):<=(int,int):MinsMaxs@getMinsMaxs(double[][]):26:r < N |==> r <= N
+17:ROR:<(int,int):FALSE(int,int):MinsMaxs@getMinsMaxs(double[][]):26:r < N |==> false
+18:ROR:<(int,int):!=(int,int):MinsMaxs@getMinsMaxs(double[][]):27:c < rowWidth |==> c != rowWidth
+19:ROR:<(int,int):<=(int,int):MinsMaxs@getMinsMaxs(double[][]):27:c < rowWidth |==> c <= rowWidth
+20:ROR:<(int,int):FALSE(int,int):MinsMaxs@getMinsMaxs(double[][]):27:c < rowWidth |==> false
+21:ROR:<=(double,double):<(double,double):MinsMaxs@getMinsMaxs(double[][]):28:data[r][c] <= mins[c] |==> data[r][c] < mins[c]
+22:ROR:<=(double,double):==(double,double):MinsMaxs@getMinsMaxs(double[][]):28:data[r][c] <= mins[c] |==> data[r][c] == mins[c]
+23:ROR:<=(double,double):TRUE(double,double):MinsMaxs@getMinsMaxs(double[][]):28:data[r][c] <= mins[c] |==> true
+24:STD:<ASSIGN>:<NO-OP>:MinsMaxs@getMinsMaxs(double[][]):28:mins[c] = data[r][c] |==> <NO-OP>
+25:ROR:>=(double,double):==(double,double):MinsMaxs@getMinsMaxs(double[][]):29:data[r][c] >= maxs[c] |==> data[r][c] == maxs[c]
+26:ROR:>=(double,double):>(double,double):MinsMaxs@getMinsMaxs(double[][]):29:data[r][c] >= maxs[c] |==> data[r][c] > maxs[c]
+27:ROR:>=(double,double):TRUE(double,double):MinsMaxs@getMinsMaxs(double[][]):29:data[r][c] >= maxs[c] |==> true
+28:STD:<ASSIGN>:<NO-OP>:MinsMaxs@getMinsMaxs(double[][]):29:maxs[c] = data[r][c] |==> <NO-OP>
+29:STD:<ASSIGN>:<NO-OP>:MinsMaxs@getMinsMaxs(double[][]):33:output[0] = mins |==> <NO-OP>
+30:STD:<ASSIGN>:<NO-OP>:MinsMaxs@getMinsMaxs(double[][]):34:output[1] = maxs |==> <NO-OP>

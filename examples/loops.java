@@ -43,6 +43,26 @@ public class Loops
       y = y+11 ;
     } 
 
+    public static void WhileWhile(int N){
+      int i=0 ;
+      while (i<N) { if (i==1) i = i+2 ;  i++ ; }
+      int j=0 ;
+      while (j<N) { i++ ; j++ ; }
+      i = i+9 ;
+    }
+    
+    public static void WhileWhileWhile(int N){
+      int i=0 ;
+      while (i<N) { if (i==1) i = i+2 ;  
+          int k=0 ;
+          while (k<N) { if (k==1) i = i+2 ; i++ ; k++ ;}
+          i++ ; 
+      }
+      int j=0 ;
+      while (j<N) { i++ ; j++ ; }
+      i = i+9 ;
+    }
+
     public static void For(int N){
       int i ;
       int x ;

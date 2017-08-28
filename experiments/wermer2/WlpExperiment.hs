@@ -15,6 +15,7 @@ import System.IO
 import System.IO.Unsafe
 import System.FilePath
 import System.Directory
+import System.CPUTime
 
    
 -- ======================================================================
@@ -23,24 +24,46 @@ import System.Directory
     
 main = do 
     clean
-    sequence_ [ main1 "FN" s | s <- subjects ]    -- checking wlp's false negatives rate, using Major's generated mutants
-    sequence_ [ main1 "FP" s | s <- subjectsFP ]  -- checking wlp's false positives rate, using manually crafted equivalent mutants 
+    sequence_ [ main1 s | s <- subjects ]  
     
-    
-main1 mode subject = do 
+main1 subject = do 
       let (classname,targetMethodName,postconditions) = subject
-      checkAllMutants mode classname targetMethodName postconditions
+      let check configuration experimentName mutantDir postConds = checkAllMutants configuration experimentName classname targetMethodName mutantDir postConds
+      let conf1 = stdWlpConfiguration
+      -- this blows up, unfortunately:
+      -- let conf2 = stdWlpConfiguration{nrOfUnroll=2}
+      
+      let mutantDir1 = majorMutantsDir </> classname
+      let mutantDir2 = handcraftedMutantsDir </> classname
+      
+      check conf1 (classname ++ "_bug_trivpost")  mutantDir1 ["true"]
+      check conf1 (classname ++ "_bug_simplepost")  mutantDir1 postconditions
+      -- check conf2 (classname ++ "_bug_simplepost2") mutantDir1  postconditions
+      
+      if classname `elem` has_equivmutants
+          then do
+               check conf1 (classname ++ "_equiv_trivpost")  mutantDir2 ["true"]
+               check conf1 (classname ++ "_equiv_simplepost")  mutantDir2  postconditions
+               -- check conf2 (classname ++ "_equiv_simplepost2") mutantDir2  postconditions
+          else return ()
+      
        
 clean = do
    removeFile logFile
-   removeFile dataFile
       
 -- ======================================================================
 -- List of all subjects: class name, target method name, list of post-conditions
 -- ======================================================================
 
--- all subjects
-subjects = [ ("Triangle", "tritype1", ["returnValue == -1", "returnValue == 0", "returnValue == 1", "returnValue == 2"]) ]  
+-- All subjects
+-- Each is specified as a tuple: (target-class, method-name, [post-cond1, post-cond2, ... ])
+--
+subjects = [ ("Triangle", "tritype1", ["returnValue == -1", "returnValue == 0", "returnValue == 1", "returnValue == 2"]) ,
+             ("MinsMaxs", "getMinsMaxs", ["(mins[0]==0)" , "(maxs[0]==1)" , "(mins[1]==1)"])
+           ]  
+
+-- specify which subjects has equivalent mutants to compare against
+has_equivmutants = ["MinsMaxs"]
 
 -- subjects which are to be included for false-positive-checking experiment
 subjectsFor_FP_experiment = [ ]
@@ -57,8 +80,8 @@ handcraftedMutantsDir = "." </> "mutants" </> "handcrafted"
 dataDir     = "." </> "data"
 tmpDir      = "." </> "tmp"
 
--- specify the wlp global configuration here
-wlpConfiguretion = WLPConf {
+-- standard wlp-configuration
+stdWlpConfiguration = WLPConf {
       nrOfUnroll=1,
       ignoreLibMethods=False,
       ignoreMainMethod =False
@@ -75,8 +98,6 @@ logWriteLn s = logWrite (s ++ "\n")
 debugWrite s = hPutStr stderr s
 debugWriteLn s = debugWrite (s ++ "\n")
 
-dataFile = dataDir </> "wlpResults.txt"
-writeToDataFile items = appendFile dataFile $ (concat $ intersperse "," items) ++ "\n"
 
 -- ======================================================================
 -- Main functions to check a mutant vs orginal using wlp.
@@ -89,8 +110,10 @@ writeToDataFile items = appendFile dataFile $ (concat $ intersperse "," items) +
 --
 -- This will check the method tritype1 in subjects/src/Triangle.java vs mdir/Triangle.java
 --
-rawCheckMutant :: String -> FilePath  -> String -> [String] -> IO (Maybe Bool)
-rawCheckMutant original mutantDir methodName postconds = do 
+-- Returns an indication whether the mutant is killed, and the total complexity measure of formulas to check
+--
+rawCheckMutant :: WLPConf -> String -> FilePath  -> String -> [String] -> IO (Maybe Bool, Int)
+rawCheckMutant wlpConfiguration original mutantDir methodName postconds = do 
     let srcName = original ++ ".java"
     let srcPath    = subjectsDir </>  srcName
     let mutantPath = mutantDir </> srcName
@@ -103,23 +126,27 @@ rawCheckMutant original mutantDir methodName postconds = do
     let comparePreC p1 p2 = let 
                             f = PreNot (p1 ==* p2)
                             (result,_) = unsafeIsSatisfiable (extendEnv typeEnv1 decls1 mname) decls1 f
+                            complexity = exprComplexity f
                             in
-                            result
+                            (result,complexity)
                             
-    ps1 <- sequence [ wlpMethod wlpConfiguretion typeEnv1 decls1 mname q | q <- qs ]
-    ps2 <- sequence [ wlpMethod wlpConfiguretion typeEnv2 decls2 mname q | q <- qs ]
+    ps1 <- sequence [ wlpMethod wlpConfiguration typeEnv1 decls1 mname q | q <- qs ]
+    ps2 <- sequence [ wlpMethod wlpConfiguration typeEnv2 decls2 mname q | q <- qs ]
     logWriteLn ("## Checking mutant " ++ mutantPath)
-    let z = zipWith comparePreC ps1 ps2
-    if any (== Sat) z        then return $ Just False -- the mutant is killed
-    else if all (== Unsat) z then return $ Just True  -- the mutant definitely survives
-    else return Nothing                          -- some of the wlps are undecidable
+    let z_ = zipWith comparePreC ps1 ps2
+    let z  = map fst z_
+    -- total complexity ... we sum the complexities of all the conditions to check:
+    let complexity = sum (map snd z_)
+    if any (== Sat) z        then return (Just False,complexity) -- the mutant is killed
+    else if all (== Unsat) z then return (Just True,complexity)  -- the mutant definitely survives
+    else return (Nothing,complexity)                             -- some of the wlps are undecidable
     
 -- check all mutants of a single subject
-rawCheckAllMutants original mutantsRootDir methodName postconds = do   
+rawCheckAllMutants wlpConfiguration original mutantsRootDir methodName postconds = do   
     mdirs <- getMutantsSubdirs mutantsRootDir
     let mdirs_ = [ mutantsRootDir </> d | d <- mdirs ]
-    results <- sequence [ rawCheckMutant original md methodName postconds | md <- mdirs_ ]
-    let killed = length $ filter (== Just False) results
+    results <- sequence [ rawCheckMutant wlpConfiguration original md methodName postconds | md <- mdirs_ ]
+    let killed = length $ filter (== Just False) $ map fst results
     debugWriteLn ("## " ++ original ++ "." ++ methodName ++ ", killed: " ++ show killed ++ "/" ++ show (length results))
     return (zip mdirs results)
     where
@@ -131,30 +158,50 @@ rawCheckAllMutants original mutantsRootDir methodName postconds = do
          return mdirs
          
                   
-checkAllMutants mode subjectClassName subjectMethodName postconds = do  
+checkAllMutants wlpConfiguration 
+                experimentName  -- will be used to prefix the name of the generated data file
+                subjectClassName 
+                subjectMethodName 
+                mutantsDir
+                postconds 
+                = 
+    do  
+    putStrLn ("** Starting experiment " ++ experimentName ++ "...")
+    time1   <- getCPUTime         
+    results <- rawCheckAllMutants wlpConfiguration subjectClassName mutantsDir subjectMethodName postconds
     
-    let mutantsDir = if mode == "FN" 
-                     then majorMutantsDir </> subjectClassName
-                     else handcraftedMutantsDir </> subjectClassName
+    let killInfos = map fst $ map snd results
+    let complexityInfos = map snd $ map snd results
+    let maxFormulaComplexity = foldr max 0 complexityInfos
     
-    results <- rawCheckAllMutants subjectClassName mutantsDir subjectMethodName postconds
-     
-    let nmutants = length results
-    let killed = length $ filter (== Just False) $ map snd results
-    let undecided = length $ filter (== Nothing) $ map snd results
-    putStrLn ("** " ++ mode ++ " checking " ++ subjectClassName ++ "." ++ subjectMethodName ++ " on " ++ show nmutants ++ " mutants.")
+    let nmutants = length killInfos
+    let killed = length $ filter (== Just False) killInfos
+    let undecided = length $ filter (== Nothing) killInfos
+    putStrLn ("** Experiment " ++ experimentName ++ ", checking " ++ subjectClassName ++ "." ++ subjectMethodName ++ " on " ++ show nmutants ++ " mutants.")
     putStrLn ("** Killed=" ++ show killed ++ ", Survived=" ++ show (nmutants - killed)
               ++ " (incl. " ++ show undecided ++ " undecided)" )
-    let survivors = [ (m,r) | (m,r) <- results, not(r == Just False) ]
+    time2 <- getCPUTime
+    
+    let runtime_duration = (time2 - time1) `div` (10^9) -- in milli seconds
+    
+    let survivors = [ (m,r) | (m,(r,_)) <- results, not(r == Just False) ]
     sequence_ [ putStrLn ("** Unable to kill mutant " ++ m ++ ", " ++ show r) | (m,r) <- survivors ]
     
-    writeToDataFile $ [ mode,
-                        subjectClassName ++ "." ++ subjectMethodName,
-                        show nmutants,
-                        show killed,
-                        show (nmutants - killed) ]
-                        ++
-                        map fst survivors
+    writeFile dataFile "Subject, number-of-mutants, #killed, #survivors, formula-complexity, runtime, list-of-survivors\n" 
+    writeItemsToDataFile $
+             [ subjectClassName ++ "." ++ subjectMethodName,
+               show nmutants,
+               show killed,
+               show (nmutants - killed),
+               show maxFormulaComplexity,
+               show runtime_duration ]
+               ++
+               map fst survivors
     
+    
+    where
+
+    dataFile = dataDir </> (experimentName ++ "_wlpResults.txt")
+    writeItemsToDataFile items = appendFile dataFile $ (concat $ intersperse "," items) ++ "\n"
     
     
