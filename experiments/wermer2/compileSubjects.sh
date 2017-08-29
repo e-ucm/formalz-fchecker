@@ -1,6 +1,7 @@
 #!/bin/bash  
 
 SRC="./subjects/src"
-SUBJECTS="$SRC/Triangle.java"
-javac -cp "./subjects/bin"  -d "./subjects/bin" $SUBJECTS
+DESTDIR="./subjects/compiled" 
+SUBJECTS="$SRC/Triangle.java $SRC/MinsMaxs.java"
+javac -cp "."  -d $DESTDIR $SUBJECTS
 

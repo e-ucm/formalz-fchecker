@@ -19,7 +19,10 @@ import Sequenic.T3.Info.JacocoInstrumenter;
 import Sequenic.T3.Sequence.Datatype.*;
 import static Sequenic.T3.Generator.Value.ValueMGCombinators.* ;
 
-public class MyT3SuiteGenerator {
+/**
+ * Provide a wrapper class around T3 to make it easier to deply for the experiments.
+ */
+public class MyT3 {
 
 	/**
 	 * T3, which is the actual worker of this generator.
@@ -49,7 +52,7 @@ public class MyT3SuiteGenerator {
 	 * Class Under Test (CUT). In addition, you can pass on a custom primitive-values generator. 
 	 * Use null if you do not want to pass a custom generator.
 	 */
-	public MyT3SuiteGenerator(Config configTemplate, 
+	public MyT3(Config configTemplate, 
 			         String CUTrootDir, 
 			         String classname, 
 			         Sequenic.T3.Generator.Generator<PARAM,STEP> custom_values_generator) 
@@ -186,9 +189,9 @@ public class MyT3SuiteGenerator {
 	
 	
 	/**
-	 * The function to generate T3 suite for a given target.
+	 * A top level function to generate T3 suite for a given target. 
 	 */
-	static public void generate(
+	static public SUITE generate(
 			Sequenic.T3.Generator.Generator<PARAM,STEP> my_custom_values_generator, 
 			String CUTrootDir,
 			String CUT, 
@@ -198,44 +201,12 @@ public class MyT3SuiteGenerator {
 			String saveFile,
 			String reportFile) throws Exception 
 	{
-		MyT3SuiteGenerator gen = new MyT3SuiteGenerator(mkStandardTemplateOfT3Configuration(),CUTrootDir,CUT,my_custom_values_generator) ;
-		gen.generate_(targetMethod,desiredSuiteSize,maximumNumberOfTestSequences_to_try,saveFile,reportFile) ;	
+		MyT3 gen = new MyT3(mkStandardTemplateOfT3Configuration(),CUTrootDir,CUT,my_custom_values_generator) ;
+		SUITE S = gen.generate_(targetMethod,desiredSuiteSize,maximumNumberOfTestSequences_to_try,saveFile,reportFile) ;
+		return S ;
 	}
 	
 	
-	static String ExperimentHome = "/Users/iswbprasetya/workshop/projects/koenwlp/repo/javawlp/experiments/wermer2" ;
-	static String XCUTrootdir = ExperimentHome + "/subjects/compiled" ;
-	static String XDatadir = ExperimentHome + "/data" ;
-	static String XT3suitedir = ExperimentHome + "/tests/t3suite" ;
-	static int XdesiredSuiteSize = 1000 ;
-	static int XmaximumNumberOfTestSequences_to_try = 5000 ;
 	
-	static void genSuiteTriangle() throws Exception {
-		Sequenic.T3.Generator.Generator<PARAM,STEP> customgen = Float(OneOf(-1f,0f,1f,1.1f,2f,3f,9f)) ;
-		String CUT = "Triangle" ;
-		generate(customgen,XCUTrootdir,CUT,"tritype1",
-				XdesiredSuiteSize,
-				XmaximumNumberOfTestSequences_to_try,
-				XT3suitedir + "/" + CUT + ".tr",
-				XDatadir + "/" + CUT + "_t3gen.txt") ;
-	}
-	
-	static void genSuiteMinsMaxs() throws Exception {
-		String CUT = "MinsMaxs" ;
-		generate(null,XCUTrootdir,
-				CUT,
-				"getMinsMaxs",
-				XdesiredSuiteSize,
-				XmaximumNumberOfTestSequences_to_try,
-				XT3suitedir + "/" + CUT + ".tr",
-				XDatadir + "/" + CUT + "_t3gen.txt") ;
-	}
-	
-
-
-	static public void main(String[] args) throws Exception {
-		//genSuiteTriangle() ;
-		genSuiteMinsMaxs() ;
-	}
 	
 }

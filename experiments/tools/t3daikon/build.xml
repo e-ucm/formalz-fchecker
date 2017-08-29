@@ -1,0 +1,12 @@
+<project default="compile">
+    
+<target name="compile">
+    <javac includeantruntime="true" 
+               srcdir="./src"
+               classpath="T3.jar;T3daikon.jar"
+               destdir="."
+               debug="yes">
+    </javac>
+</target> 
+    
+</project>
