@@ -7,7 +7,6 @@ module Javawlp.Engine.WLP where
 import Language.Java.Syntax
 import Language.Java.Lexer
 import Language.Java.Parser
-import Language.Java.Pretty
 import Data.Maybe
 import Data.List
 import Debug.Trace

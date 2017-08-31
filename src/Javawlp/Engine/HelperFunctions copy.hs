@@ -65,7 +65,6 @@ extendEnv env decls methodId = case getMethodType decls methodId of
                                 Nothing -> (Name [Ident "*obj"], getMethodClassType decls methodId) : env
                                 Just (RefType _)  -> (Name [Ident "returnValue"], returnValueType) : (Name [Ident "returnValueVar"], returnValueType) : (Name [Ident "*obj"], getMethodClassType decls methodId) : env
                                 Just t  -> (Name [Ident "returnValue"], t) : (Name [Ident "returnValueVar"], t) : (Name [Ident "*obj"], getMethodClassType decls methodId) : env
-
         
 -- | We introduce a special type for the return value, 
 returnValueType :: Type
@@ -149,11 +148,13 @@ isIntroducedVar (Name (Ident ('#':_): _)) = True
 isIntroducedVar (Name (Ident ('$':_): _)) = True
 isIntroducedVar _ = False
 
--- Gets the variable that represents the return value of an invocation of a method
+-- Gets the variable that represents the return value of an invocation of a method; 
+-- the variable name is appended with a unique count to distinguish one invocation from another
 getReturnVar :: MethodInvocation -> Ident
-getReturnVar invocation = Ident (name ++  "___retval" ++ show (getIncrVarMethodInvokesCount methodid))
+getReturnVar invocation = Ident (mname ++ "___retval" ++ show (getIncrLibMethodCallsCount methodid))
    where
-   methodid@(Ident name) = invocationToId invocation
+   methodid@(Ident mname) = invocationToId invocation
+   
 
 -- Gets the method Id from an invocation
 invocationToId :: MethodInvocation -> Ident
@@ -168,12 +169,12 @@ arrayContentType t = t
 
 -- Gets a new unique variable
 getVar :: Ident
-getVar = Ident ('#' : show (getIncrVarPointer ()))
+getVar = Ident ('#' : show getIncrVarPointer)
     
 -- Gets multiple new unique variables
 getVars :: Int -> [Ident]
 getVars 0 = []
-getVars n = Ident ('#' : show (getIncrVarPointer ())) : getVars (n-1)
+getVars n = Ident ('#' : show getIncrVarPointer) : getVars (n-1)
 
 -- The number of new variables introduced ; also used to assign new variable names
 varPointer :: IORef Int
@@ -181,29 +182,28 @@ varPointer = unsafePerformIO $ newIORef 0
 
 resetVarPointer = do { writeIORef varPointer 0 ; readIORef varPointer }
 
--- | Gets the current var-pointer and increases the pointer by 1. 
--- Don't drop the dummy () argument; this is to force a re-evaluation of the expression. Otherwise we will
--- get the same integer every time.       
-getIncrVarPointer :: () -> Int
-getIncrVarPointer () = unsafePerformIO $ do
-        p <- readIORef varPointer
-        writeIORef varPointer (p + 1)
-        return p    
-    
--- | To keep track of the number of times each method is invoked; also used to assign unique return-value 
--- name to each method invocation.    
-varMethodInvokesCount :: IORef CallCount 
-varMethodInvokesCount =  unsafePerformIO $ newIORef []  
-    
-resetVarMethodInvokesCount = do { writeIORef varMethodInvokesCount [] ; readIORef varMethodInvokesCount }
+--- | Gets the current var-pointer and increases the pointer by 1
+getIncrVarPointer :: Int
+getIncrVarPointer = unsafePerformIO $ do
+                      p <- readIORef varPointer
+                      writeIORef varPointer (p + 1)
+                      return p
 
-getIncrVarMethodInvokesCount :: Ident -> Int
-getIncrVarMethodInvokesCount methodid = unsafePerformIO $ do
-        callcount <- readIORef varMethodInvokesCount
-        let callcount' = incrCallCount callcount methodid
-        let k = getCallCount callcount' methodid
-        writeIORef varMethodInvokesCount callcount'
-        return k   
+
+-- to count the number of calls to each library method
+varLibMethodCallsCount :: IORef CallCount
+varLibMethodCallsCount = unsafePerformIO $ newIORef []
+
+resetVarLibMethodCallsCount = do { writeIORef varLibMethodCallsCount [] ; readIORef varLibMethodCallsCount }
+
+getIncrLibMethodCallsCount  :: Ident -> Int
+getIncrLibMethodCallsCount methodId = unsafePerformIO $ do
+    callcounts <- readIORef varLibMethodCallsCount
+    let callcounts' = incrCallCount callcounts methodId
+    let k = getCallCount callcounts' methodId
+    writeIORef varLibMethodCallsCount callcounts'
+    return k
+    
     
 -- Used for debugging
 fromJust' :: String -> Maybe a -> a
@@ -267,83 +267,45 @@ getInitValue (RefType t)  = Lit Null
 -- counting expressing complexity
 exprComplexity :: Exp -> Int
 exprComplexity e = foldExp expComplexityCountAlgebra e 
-   where
-   expComplexityCountAlgebra :: ExpAlgebra Int
-   expComplexityCountAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualInstanceCreation, fArrayCreate, fArrayCreateInit, fFieldAccess, fMethodInv, fArrayAccess, fExpName, fPostIncrement, fPostDecrement, fPreIncrement, fPreDecrement, fPrePlus, fPreMinus, fPreBitCompl, fPreNot, fCast, fBinOp, fInstanceOf, fCond, fAssign, fLambda, fMethodRef) where
-     fLit _     = 0
-     fClassLit  = undefined
-     fThis      = undefined
-     fThisClass = undefined
-     fInstanceCreation     = undefined
-     fQualInstanceCreation = undefined
-     fArrayCreate       = error "ArrayCreate"
-     fArrayCreateInit   = undefined
-     fFieldAccess _     = 0
-     fMethodInv _       = 0
-     fArrayAccess _     = 0
-     fExpName _         = 0
-     fPostIncrement     = undefined
-     fPostDecrement     = undefined
-     fPreIncrement      = undefined
-     fPreDecrement      = undefined
-     fPrePlus _   = 0
-     fPreMinus _  = 0
-     fPreBitCompl = undefined
-     fPreNot e = e + 1
-     fCast = undefined
-     fBinOp e1 op e2  = case op of
-        And  -> e1 + e2 + 1
-        Or   -> e1 + e2 + 1
-        Xor  -> e1 + e2 + 1
-        CAnd -> e1 + e2 + 1
-        COr  -> e1 + e2 + 1
-        _    -> e1 + e2
-                                
-     fInstanceOf = undefined
-     fCond g e1 e2  = e1 + e2 + g + 1
-     fAssign = undefined
-     fLambda = undefined
-     fMethodRef = undefined
 
-{-
-normalizeInvocationNumbers :: Exp -> Exp
-normalizeInvocationNumbers e = normalize e
-   where
-   isCall s =        
-       
-   normalize e = case e of 
-      Lit lit -> fLit lit
-   
-   PrePlus e -> fPrePlus (fold e)
-   PreMinus e -> fPreMinus (fold e)
-   PreBitCompl e -> fPreBitCompl (fold e)
-   PreNot e -> fPreNot (fold e)
-   Cast t e -> fCast t (fold e)
-   BinOp e1 op e2 -> fBinOp (fold e1) op (fold e2)
-   InstanceOf e refType -> fInstanceOf (fold e) refType
-   Cond g e1 e2 -> fCond (fold g) (fold e1) (fold e2)
-   Lambda lParams lExp -> fLambda lParams lExp   
-      
-      
-      ClassLit mt -> fClassLit mt
-      This -> fThis
-      ThisClass name -> fThisClass name
-      InstanceCreation typeArgs classType args mBody -> fInstanceCreation typeArgs classType args mBody
-      QualInstanceCreation e typeArgs ident args mBody -> fQualInstanceCreation (fold e) typeArgs ident args mBody
-      ArrayCreate t exps dim -> fArrayCreate t (map fold exps) dim
-      ArrayCreateInit t dim arrayInit -> fArrayCreateInit t dim arrayInit
-      FieldAccess fieldAccess -> fFieldAccess fieldAccess
-      MethodInv invocation -> fMethodInv invocation
-      ArrayAccess i -> fArrayAccess i
-      ExpName name -> fExpName name
-      PostIncrement e -> fPostIncrement (fold e)
-      PostDecrement  e -> fPostDecrement  (fold e)
-      PreIncrement e -> fPreIncrement (fold e)
-      PreDecrement  e -> fPreDecrement  (fold e)
-      
+-- | Defines the convertion from an expression to AST so that Z3 can assert satisfiability
+--   This is used to fold expressions generated by the WLP transformer, so not all valid Java expressions need to be handled
+expComplexityCountAlgebra :: ExpAlgebra Int
+expComplexityCountAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualInstanceCreation, fArrayCreate, fArrayCreateInit, fFieldAccess, fMethodInv, fArrayAccess, fExpName, fPostIncrement, fPostDecrement, fPreIncrement, fPreDecrement, fPrePlus, fPreMinus, fPreBitCompl, fPreNot, fCast, fBinOp, fInstanceOf, fCond, fAssign, fLambda, fMethodRef) where
+    fLit _     = 0
+    fClassLit  = undefined
+    fThis      = undefined
+    fThisClass = undefined
+    fInstanceCreation     = undefined
+    fQualInstanceCreation = undefined
+    fArrayCreate       = error "ArrayCreate"
+    fArrayCreateInit   = undefined
+    fFieldAccess _     = 0
+    fMethodInv _       = 0
+    fArrayAccess _     = 0
+    fExpName _         = 0
+    fPostIncrement     = undefined
+    fPostDecrement     = undefined
+    fPreIncrement      = undefined
+    fPreDecrement      = undefined
+    fPrePlus _   = 0
+    fPreMinus _  = 0
+    fPreBitCompl = undefined
+    fPreNot e = e + 1
+    fCast = undefined
+    fBinOp e1 op e2  = case op of
+                          And  -> e1 + e2 + 1
+                          Or   -> e1 + e2 + 1
+                          Xor  -> e1 + e2 + 1
+                          CAnd -> e1 + e2 + 1
+                          COr  -> e1 + e2 + 1
+                          _    -> e1 + e2
+                                    
+    fInstanceOf = undefined
+    fCond g e1 e2  = e1 + e2 + g + 1
+    fAssign = undefined
+    fLambda = undefined
+    fMethodRef = undefined
 
-      
-      Assign lhs assOp e -> fAssign lhs assOp (fold e)
-      
-      MethodRef className methodName -> fMethodRef className methodName
-       -} 
+
+

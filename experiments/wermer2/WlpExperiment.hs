@@ -7,6 +7,7 @@ import Javawlp.API
 import Javawlp.Engine.HelperFunctions
 import Javawlp.Engine.Verifier
 import Javawlp.Engine.WLP
+import Language.Java.Pretty
 
 import Language.Java.Syntax
 import Z3.Monad
@@ -16,6 +17,9 @@ import System.IO.Unsafe
 import System.FilePath
 import System.Directory
 import System.CPUTime
+import Data.IORef
+import Control.DeepSeq
+import Debug.Trace
 
    
 -- ======================================================================
@@ -42,7 +46,7 @@ main1 subject = do
       
       if classname `elem` has_equivmutants
           then do
-               check conf1 (classname ++ "_equiv_trivpost")  mutantDir2 ["true"]
+               -- check conf1 (classname ++ "_equiv_trivpost")  mutantDir2 ["true"]
                check conf1 (classname ++ "_equiv_simplepost")  mutantDir2  postconditions
                -- check conf2 (classname ++ "_equiv_simplepost2") mutantDir2  postconditions
           else return ()
@@ -59,11 +63,12 @@ clean = do
 -- Each is specified as a tuple: (target-class, method-name, [post-cond1, post-cond2, ... ])
 --
 subjects = [ ("Triangle", "tritype1", ["returnValue == -1", "returnValue == 0", "returnValue == 1", "returnValue == 2"]) ,
-             ("MinsMaxs", "getMinsMaxs", ["(mins[0]==0)" , "(maxs[0]==1)" , "(mins[1]==1)"])
+             ("MinsMaxs", "getMinsMaxs", ["(mins[0]==0)" , "(maxs[0]==1)" , "(mins[1]==1)"]),
+             ("Fibonacci", "fibonacciInteractive", ["f3==0"]) -- f3==0 is actually not a possibele output; but this will kill all major mutants; f3==2 on the otherhand, does not kill any mutant!
            ]  
 
 -- specify which subjects has equivalent mutants to compare against
-has_equivmutants = ["MinsMaxs"]
+has_equivmutants = ["MinsMaxs","Fibonacci"]
 
 -- subjects which are to be included for false-positive-checking experiment
 subjectsFor_FP_experiment = [ ]
@@ -83,7 +88,7 @@ tmpDir      = "." </> "tmp"
 -- standard wlp-configuration
 stdWlpConfiguration = WLPConf {
       nrOfUnroll=1,
-      ignoreLibMethods=False,
+      ignoreLibMethods=True,
       ignoreMainMethod =False
    }
 
@@ -125,13 +130,14 @@ rawCheckMutant wlpConfiguration original mutantDir methodName postconds = do
     -- this function will be used to compare the resulting wlps
     let comparePreC p1 p2 = let 
                             f = PreNot (p1 ==* p2)
-                            (result,_) = unsafeIsSatisfiable (extendEnv typeEnv1 decls1 mname) decls1 f
+                            (result,_) = unsafeIsSatisfiable (extendEnv typeEnv1 decls1 mname) decls1 $ trace ("### " ++ prettyPrint f) f
                             complexity = exprComplexity f
                             in
                             (result,complexity)
                             
-    ps1 <- sequence [ wlpMethod wlpConfiguration typeEnv1 decls1 mname q | q <- qs ]
-    ps2 <- sequence [ wlpMethod wlpConfiguration typeEnv2 decls2 mname q | q <- qs ]
+    ps1 <- sequence [ wlpMethod wlpConfiguration typeEnv1 decls1 mname q  | q <- qs ]
+    ps2 <- sequence [ wlpMethod wlpConfiguration typeEnv2 decls2 mname q  | q <- qs ]
+    
     logWriteLn ("## Checking mutant " ++ mutantPath)
     let z_ = zipWith comparePreC ps1 ps2
     let z  = map fst z_
@@ -140,6 +146,8 @@ rawCheckMutant wlpConfiguration original mutantDir methodName postconds = do
     if any (== Sat) z        then return (Just False,complexity) -- the mutant is killed
     else if all (== Unsat) z then return (Just True,complexity)  -- the mutant definitely survives
     else return (Nothing,complexity)                             -- some of the wlps are undecidable
+    
+
     
 -- check all mutants of a single subject
 rawCheckAllMutants wlpConfiguration original mutantsRootDir methodName postconds = do   

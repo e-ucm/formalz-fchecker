@@ -13,6 +13,8 @@ import Javawlp.Engine.Types
 import Javawlp.Engine.HelperFunctions
 import Javawlp.Engine.Verifier
 
+import Control.DeepSeq
+
 -- | Parses a Java source file, and extracts the necessary information from the compilation unit
 parseJava :: FilePath -> IO (TypeEnv, [TypeDecl], [Ident])
 parseJava s = do
@@ -55,9 +57,12 @@ wlpMethod conf env decls methodName postCondition = do
     let methodBody = case getMethod decls methodName of
                      Just stmt -> stmt
                      _         -> error "wlpMethod: cannot get the method body."
-                    
+    
+    -- reset the counters for assigning fresh names    
+    dummy1 <- resetVarPointer       
+    dummy2 <- resetVarMethodInvokesCount
     -- Calculate the wlp:
-    return $ wlpWithEnv conf decls env' methodBody postCondition
+    dummy1 `deepseq` (length dummy2) `deepseq` return $ wlpWithEnv conf decls env' methodBody postCondition
     
 -- | A variant of wlpMethod where we can specify a list of post-conditions.
 -- It returns a list of pairs (p,q) where q is a post-condition and p is the
@@ -94,7 +99,8 @@ wlpMethods_ conf env decls methods_and_postconds
 defaultConf :: WLPConf
 defaultConf = WLPConf {
       nrOfUnroll=1,
-      ignoreLibMethods=False,
+      -- ignoreLibMethods=False,
+      ignoreLibMethods=True,
       ignoreMainMethod =False
    }
 
