@@ -46,7 +46,7 @@ main1 subject = do
       
       if classname `elem` has_equivmutants
           then do
-               -- check conf1 (classname ++ "_equiv_trivpost")  mutantDir2 ["true"]
+               check conf1 (classname ++ "_equiv_trivpost")  mutantDir2 ["true"]
                check conf1 (classname ++ "_equiv_simplepost")  mutantDir2  postconditions
                -- check conf2 (classname ++ "_equiv_simplepost2") mutantDir2  postconditions
           else return ()
@@ -64,7 +64,7 @@ clean = do
 --
 subjects = [ ("Triangle", "tritype1", ["returnValue == -1", "returnValue == 0", "returnValue == 1", "returnValue == 2"]) ,
              ("MinsMaxs", "getMinsMaxs", ["(mins[0]==0)" , "(maxs[0]==1)" , "(mins[1]==1)"]),
-             ("Fibonacci", "fibonacciInteractive", ["f3==0"]) -- f3==0 is actually not a possibele output; but this will kill all major mutants; f3==2 on the otherhand, does not kill any mutant!
+             ("Fibonacci", "fibonacciInteractive", ["f3==1", "f3==0", "f3 == 2"]) -- f3==0 is actually not a possibele output; but this will kill all major mutants; f3==2 on the otherhand, does not kill any mutant!
            ]  
 
 -- specify which subjects has equivalent mutants to compare against
@@ -87,7 +87,7 @@ tmpDir      = "." </> "tmp"
 
 -- standard wlp-configuration
 stdWlpConfiguration = WLPConf {
-      nrOfUnroll=1,
+      nrOfUnroll=3,
       ignoreLibMethods=True,
       ignoreMainMethod =False
    }
@@ -130,7 +130,7 @@ rawCheckMutant wlpConfiguration original mutantDir methodName postconds = do
     -- this function will be used to compare the resulting wlps
     let comparePreC p1 p2 = let 
                             f = PreNot (p1 ==* p2)
-                            (result,_) = unsafeIsSatisfiable (extendEnv typeEnv1 decls1 mname) decls1 $ trace ("### " ++ prettyPrint f) f
+                            (result,_) = unsafeIsSatisfiable (extendEnv typeEnv1 decls1 mname) decls1 $ f -- trace ("### " ++ prettyPrint f) f
                             complexity = exprComplexity f
                             in
                             (result,complexity)

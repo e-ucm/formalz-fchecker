@@ -9,6 +9,7 @@ import Javawlp.Engine.Folds
 import Language.Java.Syntax
 import Language.Java.Pretty
 import Data.Maybe
+import Data.List
 import System.IO.Unsafe
 import Data.IORef
 import Debug.Trace
@@ -305,45 +306,102 @@ exprComplexity e = foldExp expComplexityCountAlgebra e
      fLambda = undefined
      fMethodRef = undefined
 
-{-
+
+findInfix [] s = Just 0
+findInfix u s  = find (>=0) [ if u `isPrefixOf` z then i else -1| (i,z) <- tails_ ]
+    where
+    tails_ = [ (getStartPosition v, getString v) | v <- tails (zip [0..] s) ]
+    getString v = map snd v
+    getStartPosition [] = -1
+    getStartPosition  v = head (map fst v)
+    
+getCallCount__ (ExpName (Name [Ident s])) = case k of
+    Just pos -> read $ drop (pos + length key) s
+    _        -> -1
+    where
+    key = "___retval"
+    k = findInfix key s  
+        
+getCallCount__ _ = -1
+
+adjustCallCount__ (ExpName (Name [Ident s])) newCount = (ExpName (Name [Ident (s0 ++ key ++ show newCount)])) 
+    where
+    key = "___retval"
+    k = fromJust $ findInfix key s
+    s0 = take k s
+
+getMethodId__ (ExpName (Name [Ident s])) = Ident (take k s)
+    where
+    key = "___retval"
+    k = fromJust $ findInfix key s
+
 normalizeInvocationNumbers :: Exp -> Exp
 normalizeInvocationNumbers e = normalize e
    where
-   isCall s =        
+   calls_ :: [(Ident,[Int])]       
+   calls_ = countCallVars [] e
+   
+   callscount :: CallCount
+   callscount = [ (i,length (nub instances)) | (i,instances) <- calls_ ]
+   
+     
+   normalizeName e@(ExpName (Name [ident])) = if k>=0 then adjustCallCount__ e (k `mod` m) else e
+        where
+        k = getCallCount__ e
+        m = getCallCount callscount (getMethodId__ e)
+   
        
    normalize e = case e of 
-      Lit lit -> fLit lit
-   
-   PrePlus e -> fPrePlus (fold e)
-   PreMinus e -> fPreMinus (fold e)
-   PreBitCompl e -> fPreBitCompl (fold e)
-   PreNot e -> fPreNot (fold e)
-   Cast t e -> fCast t (fold e)
-   BinOp e1 op e2 -> fBinOp (fold e1) op (fold e2)
-   InstanceOf e refType -> fInstanceOf (fold e) refType
-   Cond g e1 e2 -> fCond (fold g) (fold e1) (fold e2)
-   Lambda lParams lExp -> fLambda lParams lExp   
-      
-      
-      ClassLit mt -> fClassLit mt
-      This -> fThis
-      ThisClass name -> fThisClass name
-      InstanceCreation typeArgs classType args mBody -> fInstanceCreation typeArgs classType args mBody
-      QualInstanceCreation e typeArgs ident args mBody -> fQualInstanceCreation (fold e) typeArgs ident args mBody
-      ArrayCreate t exps dim -> fArrayCreate t (map fold exps) dim
-      ArrayCreateInit t dim arrayInit -> fArrayCreateInit t dim arrayInit
-      FieldAccess fieldAccess -> fFieldAccess fieldAccess
-      MethodInv invocation -> fMethodInv invocation
-      ArrayAccess i -> fArrayAccess i
-      ExpName name -> fExpName name
-      PostIncrement e -> fPostIncrement (fold e)
-      PostDecrement  e -> fPostDecrement  (fold e)
-      PreIncrement e -> fPreIncrement (fold e)
-      PreDecrement  e -> fPreDecrement  (fold e)
-      
-
-      
-      Assign lhs assOp e -> fAssign lhs assOp (fold e)
-      
-      MethodRef className methodName -> fMethodRef className methodName
-       -} 
+       -- base case
+       ename@(ExpName _) -> normalizeName ename
+       
+       -- recursions
+       PrePlus e -> PrePlus (normalize e)
+       PreMinus e -> PreMinus (normalize e)
+       PreBitCompl e -> PreBitCompl (normalize e)
+       PreNot e -> PreNot (normalize e)
+       Cast t e -> Cast t (normalize e)
+       BinOp e1 op e2 -> BinOp (normalize e1) op (normalize e2)
+       Cond g e1 e2 -> Cond (normalize g) (normalize e1) (normalize e2)
+       
+       -- left undefined:
+       Lambda lParams lExp -> undefined
+       InstanceOf e refType -> undefined
+       
+       -- unchanged:
+       e' -> e'
+       
+       
+   registerInvocation (methodid,k) calls = worker calls
+      where 
+      worker [] =  [ (methodid, [k]) ]
+      worker ((mx,z):therest)  
+          | methodid == mx = (mx, k:z) : therest
+          | otherwise      = (mx,z) : worker therest
+          
+       
+   countCallVars calls e = case e of
+       -- base case
+       ename@(ExpName n) -> 
+          let
+          k = getCallCount__ ename 
+          methodid = getMethodId__ ename
+          in
+          if k >= 0 then registerInvocation (methodid,k) calls
+                    else calls
+ 
+       -- recursions
+       PrePlus e      -> countCallVars calls e
+       PreMinus e     -> countCallVars calls e
+       PreBitCompl e  -> countCallVars calls e
+       PreNot e       -> countCallVars calls e
+       Cast t e       -> countCallVars calls e
+       BinOp e1 op e2 ->  countCallVars (countCallVars calls e1) e2
+       Cond g e1 e2   -> countCallVars (countCallVars (countCallVars calls g) e1) e2
+ 
+       -- left undefined:
+       Lambda lParams lExp  -> undefined
+       InstanceOf e refType -> undefined
+ 
+       -- ignored (should not contian method calls):
+       e' -> calls      

@@ -59,10 +59,12 @@ wlpMethod conf env decls methodName postCondition = do
                      _         -> error "wlpMethod: cannot get the method body."
     
     -- reset the counters for assigning fresh names    
-    dummy1 <- resetVarPointer       
-    dummy2 <- resetVarMethodInvokesCount
+    -- dummy1 <- resetVarPointer       
+    -- dummy2 <- resetVarMethodInvokesCount
     -- Calculate the wlp:
-    dummy1 `deepseq` (length dummy2) `deepseq` return $ wlpWithEnv conf decls env' methodBody postCondition
+    let p = wlpWithEnv conf decls env' methodBody postCondition
+    return $ normalizeInvocationNumbers p
+    
     
 -- | A variant of wlpMethod where we can specify a list of post-conditions.
 -- It returns a list of pairs (p,q) where q is a post-condition and p is the
