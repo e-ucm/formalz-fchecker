@@ -61,6 +61,13 @@ wlpMethod conf env decls methodName postCondition = do
     -- reset the counters for assigning fresh names    
     -- dummy1 <- resetVarPointer       
     -- dummy2 <- resetVarMethodInvokesCount
+    
+    -- We need to resent the method-invocation counters to make generated names the same accross multiple
+    -- invocation of the wlp over the same method. However the above resets do not really work, due to
+    -- the combination of lazy-evaluation and unsafeIO that screw things up. The above resets are not
+    -- guaranteed to be executed. Messy. So instead, we enforce renumbering by applying post-processing
+    -- normalization:
+    
     -- Calculate the wlp:
     let p = wlpWithEnv conf decls env' methodBody postCondition
     return $ normalizeInvocationNumbers p
