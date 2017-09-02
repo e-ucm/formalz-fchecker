@@ -18,6 +18,9 @@ import Debug.Trace
 type TypeEnv    = [(Name, Type)]
 type CallCount  = [(Ident, Int)]
 
+prettyprintTypeEnv :: TypeEnv -> String
+prettyprintTypeEnv env = concat $ intersperse "\n" $ map show env
+
 -- | Retrieves the type from the environment
 lookupType :: [TypeDecl] -> TypeEnv -> Name -> Type
 lookupType decls env (Name ((Ident s@('$':_)) : idents)) = getFieldType decls (getReturnVarType decls s) (Name idents) -- Names starting with a '$' symbol are generated and represent the return variable of a function
@@ -264,47 +267,27 @@ getInitValue (PrimType t) = case t of
                                 DoubleT -> Lit (Double 0)
 getInitValue (RefType t)  = Lit Null
 
-
--- counting expressing complexity
+-- counting expressing complexity, which is the number of logical operators in the expression
 exprComplexity :: Exp -> Int
-exprComplexity e = foldExp expComplexityCountAlgebra e 
-   where
-   expComplexityCountAlgebra :: ExpAlgebra Int
-   expComplexityCountAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualInstanceCreation, fArrayCreate, fArrayCreateInit, fFieldAccess, fMethodInv, fArrayAccess, fExpName, fPostIncrement, fPostDecrement, fPreIncrement, fPreDecrement, fPrePlus, fPreMinus, fPreBitCompl, fPreNot, fCast, fBinOp, fInstanceOf, fCond, fAssign, fLambda, fMethodRef) where
-     fLit _     = 0
-     fClassLit  = undefined
-     fThis      = undefined
-     fThisClass = undefined
-     fInstanceCreation     = undefined
-     fQualInstanceCreation = undefined
-     fArrayCreate       = error "ArrayCreate"
-     fArrayCreateInit   = undefined
-     fFieldAccess _     = 0
-     fMethodInv _       = 0
-     fArrayAccess _     = 0
-     fExpName _         = 0
-     fPostIncrement     = undefined
-     fPostDecrement     = undefined
-     fPreIncrement      = undefined
-     fPreDecrement      = undefined
-     fPrePlus _   = 0
-     fPreMinus _  = 0
-     fPreBitCompl = undefined
-     fPreNot e = e + 1
-     fCast = undefined
-     fBinOp e1 op e2  = case op of
-        And  -> e1 + e2 + 1
-        Or   -> e1 + e2 + 1
-        Xor  -> e1 + e2 + 1
-        CAnd -> e1 + e2 + 1
-        COr  -> e1 + e2 + 1
-        _    -> e1 + e2
-                                
-     fInstanceOf = undefined
-     fCond g e1 e2  = e1 + e2 + g + 1
-     fAssign = undefined
-     fLambda = undefined
-     fMethodRef = undefined
+exprComplexity e = case e of
+    -- recursions
+    PreNot e        -> exprComplexity e + 1
+    BinOp e1 op e2  ->
+        let
+        k1 = exprComplexity e1
+        k2 = exprComplexity e2
+        in
+        case op of
+         And  -> k1 + k2 + 1
+         Or   -> k1 + k2 + 1
+         Xor  -> k1 + k2 + 1
+         CAnd -> k1 + k2 + 1
+         COr  -> k1 + k2 + 1
+         _    -> 1
+    Cond g e1 e2   -> exprComplexity e1 + exprComplexity e2 + exprComplexity g + 1         
+    -- other cases are 0
+    _              ->  0
+    
 
 
 findInfix [] s = Just 0
@@ -349,6 +332,8 @@ normalizeInvocationNumbers e = normalize e
         where
         k = getCallCount__ e
         m = getCallCount callscount (getMethodId__ e)
+        
+   normalizeName e = e
    
        
    normalize e = case e of 

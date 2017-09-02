@@ -13,10 +13,11 @@ import Javawlp.Engine.Types
 import Javawlp.Engine.HelperFunctions
 import Javawlp.Engine.Verifier
 
-import Control.DeepSeq
+import Debug.Trace
+-- import Control.DeepSeq
 
 -- | Parses a Java source file, and extracts the necessary information from the compilation unit
-parseJava :: FilePath -> IO (TypeEnv, [TypeDecl], [Ident])
+parseJava :: FilePath -> IO CompilationUnit
 parseJava s = do
     -- Get the source code
     source <- readFile s
@@ -24,14 +25,8 @@ parseJava s = do
     -- Parse the source code
     case parser compilationUnit source of
         Left parseError -> error (show parseError)
-        Right compUnit -> do
-                            let decls = getDecls compUnit
-                            let methods = getMethodIds decls
-                            let env = getTypeEnv compUnit decls methods
-                            
-                            return (env, decls, methods)
-                            
-                            
+        Right compUnit  -> return compUnit
+           
 -- | Parse a string containing a Java-expression to a parse tree. This is intended to formulate
 -- a post-condition to be passed to the wlp transformer.
 post_ :: String -> Exp
@@ -41,20 +36,21 @@ post_ e = case parser Language.Java.Parser.exp e of
                                                     
 -- | Calculates the wlp for a given method. Example usage:
 --
---     do (tyenv,decls,methods) <- parseJava filepath
+--     do compunit <- parseJava filepath
 --        configuration <- defaultConf
---        p <- wlpMethod configuration tyenv decls (Ident methodname) (post_ "returnValue == 0")
+--        p <- wlpMethod configuration compunit methodname (post_ "returnValue == 0")
 --        putStrLn (prettyPrint p)
 --
-wlpMethod :: WLPConf -> TypeEnv -> [TypeDecl] -> Ident -> Exp -> IO Exp
-wlpMethod conf env decls methodName postCondition = do
+wlpMethod :: WLPConf -> CompilationUnit -> String -> Exp -> IO Exp
+wlpMethod conf compUnit methodName postCondition = do
     -- Find the return type of the method
-    let returnType = getMethodType decls methodName -- for now, ignored
-    
+    -- let returnType = getMethodType decls methodName -- for now, ignored
+    let decls = getDecls compUnit
+    let env = getTypeEnv compUnit decls [Ident methodName]
     -- Add returnValue to the type environment with the correct type
-    let env' = extendEnv env decls methodName
-    
-    let methodBody = case getMethod decls methodName of
+    let env' = extendEnv env decls (Ident methodName)
+
+    let methodBody = case getMethod decls (Ident methodName) of
                      Just stmt -> stmt
                      _         -> error "wlpMethod: cannot get the method body."
     
@@ -69,39 +65,42 @@ wlpMethod conf env decls methodName postCondition = do
     -- normalization:
     
     -- Calculate the wlp:
-    let p = wlpWithEnv conf decls env' methodBody postCondition
+    let p = wlpWithEnv conf decls (trace ("\n##\n" ++ prettyprintTypeEnv env') env') methodBody postCondition
+    -- return p
     return $ normalizeInvocationNumbers p
+    
+    
     
     
 -- | A variant of wlpMethod where we can specify a list of post-conditions.
 -- It returns a list of pairs (p,q) where q is a post-condition and p is the
 -- calcuated wlp of q.    
-wlpMethod_ :: WLPConf -> TypeEnv -> [TypeDecl] -> Ident -> [Exp] -> IO [(Exp,Exp)]    
-wlpMethod_ conf env decls methodName postconds = sequence [wlp q | q <- postconds]
+wlpMethod_ :: WLPConf -> CompilationUnit -> String -> [Exp] -> IO [(Exp,Exp)]    
+wlpMethod_ conf compunit methodName postconds = sequence [wlp q | q <- postconds]
     where
     wlp q = do
-            p <- wlpMethod conf env decls methodName q
+            p <- wlpMethod conf compunit methodName q
             return (p,q)
      
        
 -- | Calculates the wlps of a list of methods
-wlpMethods :: WLPConf -> TypeEnv -> [TypeDecl] -> [(Ident,Exp)] -> IO [(Ident, Exp)]
-wlpMethods conf env decls methods_and_postconds 
+wlpMethods :: WLPConf -> CompilationUnit -> [(String,Exp)] -> IO [(String, Exp)]
+wlpMethods conf compunit methods_and_postconds 
     = 
-    sequence $ map (\(mname,postc) -> do { p <- wlpMethod conf env decls mname postc ; return (mname,p) }) methods'
+    sequence $ map (\(mname,postc) -> do { p <- wlpMethod conf compunit mname postc ; return (mname,p) }) methods'
     where
     methods' = if ignoreMainMethod conf 
-               then filter (\(mname,_) -> mname /= Ident "main") methods_and_postconds  
+               then filter (\(mname,_) -> mname /= "main") methods_and_postconds  
                else methods_and_postconds    
    
 -- | Variation of wlpMethods that takes a list of (m,postconditions)  
-wlpMethods_ :: WLPConf -> TypeEnv -> [TypeDecl] -> [(Ident,[Exp])] -> IO [(Ident, [(Exp,Exp)])]
-wlpMethods_ conf env decls methods_and_postconds 
+wlpMethods_ :: WLPConf -> CompilationUnit -> [(String,[Exp])] -> IO [(String, [(Exp,Exp)])]
+wlpMethods_ conf compunit methods_and_postconds 
     = 
-    sequence $ map (\(mname,postcs) -> do { ps <- wlpMethod_ conf env decls mname postcs ; return (mname,ps) }) methods'
+    sequence $ map (\(mname,postcs) -> do { ps <- wlpMethod_ conf compunit mname postcs ; return (mname,ps) }) methods'
     where
     methods' = if ignoreMainMethod conf 
-               then filter (\(mname,_) -> mname /= Ident "main") methods_and_postconds  
+               then filter (\(mname,_) -> mname /= "main") methods_and_postconds  
                else methods_and_postconds  
 
    
@@ -116,13 +115,16 @@ defaultConf = WLPConf {
 -- | Print the wlp of a method with respect to a given post-condition.
 printWlp :: String -> String -> String -> IO ()
 printWlp sourcePath methodName postCond = do
-  (typeEnv,decls,methodNames) <- parseJava sourcePath 
+  compunit <- parseJava sourcePath 
+  let decls = getDecls compunit
+  let env = getTypeEnv compunit decls [Ident methodName]
+  let env' = extendEnv env decls (Ident methodName)
   let q = post_ postCond
-  p <- wlpMethod defaultConf typeEnv decls (Ident methodName) q
+  p <- wlpMethod defaultConf compunit methodName q
   putStrLn $ showMethodWlp methodName q p
   putStrLn ("** Expr complexity of the wlp: " ++ show (exprComplexity p))
   --putStrLn ("\n### " ++ show p) 
-  let (result,model) = unsafeIsSatisfiable (extendEnv typeEnv decls (Ident methodName)) decls p
+  let (result,model) = unsafeIsSatisfiable env' decls p
   case result of
      Unsat -> putStrLn "** The wlp is UNSATISFIABLE."
      Undef -> putStrLn "** Unable to decide the wlp's satisfiablity."

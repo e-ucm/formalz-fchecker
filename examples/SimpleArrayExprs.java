@@ -10,6 +10,27 @@ public class SimpleArrayExprs {
         return x[k] ;
     }
     
+    static public void f2b(int[] x, int[] b, int k) {
+        x[k] = x[k] + 1 ;
+        b[0] = 9 ;
+        return x[k] ;
+    }
+    
+    static public void f2c(int[] x, int k) {
+        bool[] b = new bool[2] ;
+        x[k] = x[k] + 1 ;
+        b[0] = false ;
+        return x[k] ;
+    }
+
+    int[] abc ;    
+    int[] x ;
+    bool[] b ;
+    public void f2d(int k) {
+        x[k] = x[k] + 1 ;
+        b[0] = false ;
+        return x[k] ;
+    }
     
     static public void f3(int[][] x, int k) {
         int y = x[k][3] ;

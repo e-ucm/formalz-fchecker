@@ -25,6 +25,11 @@ data WLPConf = WLPConf {
       ignoreLibMethods :: Bool,
       ignoreMainMethod :: Bool
    }    
+   
+-- | The name used to represent the return value of the top-method.   
+returnVarName = "returnValue"
+-- | The name used to represent the "this" target object in the top-method.
+targetObjName = "targetObj_"
 
 -- | A type for the inherited attribute
 data Inh = Inh {wlpConfig :: WLPConf,               -- Some configuration parameters for the wlp
@@ -161,7 +166,7 @@ wlpStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanced
     wlpBlock inh b  = case b of
                         BlockStmt s            -> wlp' inh s
                         LocalClass _           -> (acc inh)
-                        LocalVars mods t vars  -> foldr (\v r -> (wlpDeclAssignment t (inh {acc = r}) v)) (acc inh) vars
+                        LocalVars mods t vars  -> foldr (\v r -> wlpDeclAssignment t (inh{acc = r}) v) (acc inh) vars
                 
     -- wlp of a var declaration that also assigns a value. Declaring without assignment assigns the default value
     wlpDeclAssignment :: Type -> Inh -> VarDecl -> Exp -> Exp
@@ -437,7 +442,7 @@ wlp config decls = wlpWithEnv config decls []
 
 -- | wlp with a given type environment
 wlpWithEnv :: WLPConf -> [TypeDecl] -> TypeEnv -> Stmt -> Exp -> Exp
-wlpWithEnv config decls env = wlp' (Inh config id id id [] env decls [] (Just (Ident "returnValue")) (Just (ExpName (Name [Ident "targetObj_"]))))
+wlpWithEnv config decls env = wlp' (Inh config id id id [] env decls [] (Just (Ident returnVarName)) (Just (ExpName (Name [Ident targetObjName]))))
 
 -- wlp' lets you specify the inherited attributes
 wlp' :: Inh -> Stmt -> Syn

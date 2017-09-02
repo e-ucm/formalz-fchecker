@@ -12,6 +12,7 @@ import Data.List
 import Javawlp.Engine.Folds
 import Javawlp.Engine.HelperFunctions
 
+import Debug.Trace
 
 -- | A type for the inherited attribute
 data SubstInh = SubstInh {  lhs         :: Lhs,         -- Left hand side of the assignment
@@ -44,7 +45,7 @@ substVarExpAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQu
     fArrayAccess (ArrayIndex a i) inh   = let a' = foldExp substVarExpAlgebra a (inh {arrayLookup = True})
                                               i' = map (flip (foldExp substVarExpAlgebra) inh) i in
                                           case lhs inh of
-                                            ArrayLhs (ArrayIndex a'' i'') -> Cond (foldr (\(i1, i2) e -> e &* (i1 ==* i2)) (a' ==* a'') (zip i' i'')) (rhs inh) (arrayAccess a' i')
+                                            ArrayLhs (ArrayIndex a'' i'') ->  {-- trace ("\n## typeenv: " ++ show (env inh) ++ "\n") $ --} Cond (foldr (\(i1, i2) e -> e &* (i1 ==* i2)) (a' ==* a'') (zip i' i'')) (rhs inh) (arrayAccess a' i')
                                             _ -> arrayAccess a' i'
     fExpName (Name name) inh = case combs inh of
                                 -- fill in the combs and recurse:
