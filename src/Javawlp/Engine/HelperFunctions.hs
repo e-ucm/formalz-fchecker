@@ -60,7 +60,7 @@ getMethodClassType decls id = head $ concatMap (flip getMethodTypeFromClassDecl 
         
         getMethodTypeFromMemberDecls :: Type -> [Decl] -> Ident -> [Type]
         getMethodTypeFromMemberDecls t [] _ = []
-        getMethodTypeFromMemberDecls t (MemberDecl (MethodDecl _ _ _ id' _ _ _) : decls) id = if id' == id then [t] else getMethodTypeFromMemberDecls t decls id
+        getMethodTypeFromMemberDecls t (MemberDecl (MethodDecl _ _ _ id' _ _ _ _) : decls) id = if id' == id then [t] else getMethodTypeFromMemberDecls t decls id
         getMethodTypeFromMemberDecls t (_ : decls) id = getMethodTypeFromMemberDecls t decls id
         
 -- | Adds the special variables *obj, returnValue and returnValueVar to a type environment, given the id of the method we're looking at
@@ -123,7 +123,7 @@ getMethod' classTypeDecls methodId = case (concatMap searchClass classTypeDecls)
   where
     searchClass (ClassTypeDecl (ClassDecl _ _ _ _ _ (ClassBody decls))) = searchDecls decls
     searchClass _ = []
-    searchDecls (MemberDecl (MethodDecl _ _ t id params _ (MethodBody (Just b))):_) | methodId == id = [(StmtBlock b, t, params)]
+    searchDecls (MemberDecl (MethodDecl _ _ t id params _ _ (MethodBody (Just b))):_) | methodId == id = [(StmtBlock b, t, params)]
     searchDecls (MemberDecl (ConstructorDecl _ _ id params _ (ConstructorBody _ b)):_) | methodId == toConstrId id = [(StmtBlock (Block b), Just (RefType (ClassRefType (ClassType [(id, [])]))), params)]
     searchDecls (_:decls) = searchDecls decls
     searchDecls [] = []
@@ -139,7 +139,7 @@ getMethodIds :: [TypeDecl] -> [Ident]
 getMethodIds classTypeDecls = concatMap searchClass classTypeDecls where
     searchClass (ClassTypeDecl (ClassDecl _ _ _ _ _ (ClassBody decls))) = searchDecls decls
     searchClass _ = []
-    searchDecls (MemberDecl (MethodDecl _ _ _ id _ _ _):decls) = id : searchDecls decls
+    searchDecls (MemberDecl (MethodDecl _ _ _ id _ _ _ _):decls) = id : searchDecls decls
     searchDecls (_:decls) = searchDecls decls
     searchDecls [] = []
 

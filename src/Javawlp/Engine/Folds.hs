@@ -6,53 +6,53 @@ module Javawlp.Engine.Folds where
 
 import Language.Java.Syntax
 
-type StmtAlgebra r = (Block -> r,           
-                      Exp -> r -> r,        
-                      Exp -> r -> r -> r,
-                      Exp -> r -> r,
-                      (Maybe ForInit) -> (Maybe Exp) -> (Maybe [Exp]) -> r -> r,
-                      [Modifier] -> Type -> Ident -> Exp -> r -> r,
-                      r, 
-                      Exp -> r,
-                      Exp -> (Maybe Exp) -> r,
-                      Exp -> [SwitchBlock] -> r,
-                      r -> Exp -> r,
-                      Maybe Ident -> r,
-                      Maybe Ident -> r,
-                      Maybe Exp -> r, 
-                      Exp -> Block -> r,
-                      Exp -> r,
-                      Block -> [Catch] -> (Maybe Block) -> r,
-                      Ident -> r -> r
+type StmtAlgebra r = (Block -> r, -- StmtBlock
+                      Exp -> r -> r, -- IfThen
+                      Exp -> r -> r -> r, -- IfThenElse
+                      Exp -> r -> r,  -- While
+                      (Maybe ForInit) -> (Maybe Exp) -> (Maybe [Exp]) -> r -> r,  -- BasicFor
+                      [Modifier] -> Type -> Ident -> Exp -> r -> r,  -- EnhancedFor
+                      r, -- Empty
+                      Exp -> r, -- ExpStmt
+                      Exp -> (Maybe Exp) -> r, -- Assert
+                      Exp -> [SwitchBlock] -> r, -- Switch
+                      r -> Exp -> r, -- Do
+                      Maybe Ident -> r, -- Break
+                      Maybe Ident -> r, -- Continue
+                      Maybe Exp -> r, -- Return
+                      Exp -> Block -> r, -- Synchronized
+                      Exp -> r, -- Throw
+                      Block -> [Catch] -> (Maybe Block) -> r, -- Try
+                      Ident -> r -> r -- Labeled
                       )
                       
-type ExpAlgebra r  = (Literal -> r,           
-                      Maybe Type -> r,        
-                      r,
-                      Name -> r,
-                      [TypeArgument] -> ClassType -> [Argument] -> (Maybe ClassBody) -> r,
-                      r -> [TypeArgument] -> Ident -> [Argument] -> (Maybe ClassBody) -> r,
-                      Type -> [r] -> Int -> r, 
-                      Type -> Int -> ArrayInit -> r,
-                      FieldAccess -> r,
-                      MethodInvocation -> r,
-                      ArrayIndex -> r,
-                      Name -> r,
-                      r -> r,
-                      r -> r,
-                      r -> r,
-                      r -> r,
-                      r -> r,
-                      r -> r,
-                      r -> r,
-                      r -> r,
-                      Type -> r -> r, 
-                      r -> Op -> r -> r,
-                      r -> RefType -> r,
-                      r -> r -> r -> r,
-                      Lhs -> AssignOp -> r -> r,
-                      LambdaParams -> LambdaExpression -> r,
-                      Ident -> Ident -> r
+type ExpAlgebra r  = (Literal -> r, -- Lit
+                      Maybe Type -> r, -- ClassLit
+                      r, -- This
+                      Name -> r, -- ThisClass
+                      [TypeArgument] -> TypeDeclSpecifier -> [Argument] -> (Maybe ClassBody) -> r, -- InstanceCreation
+                      r -> [TypeArgument] -> Ident -> [Argument] -> (Maybe ClassBody) -> r, -- QualInstanceCreation
+                      Type -> [r] -> Int -> r, -- ArrayCreate
+                      Type -> Int -> ArrayInit -> r, -- ArrayCreateInit
+                      FieldAccess -> r, -- FieldAccess
+                      MethodInvocation -> r, -- MethodInv
+                      ArrayIndex -> r, -- ArrayAccess
+                      Name -> r, -- ExpName
+                      r -> r, -- PostIncrement
+                      r -> r, -- PostDecrement
+                      r -> r, -- PreIncrement
+                      r -> r, -- PreDecrement
+                      r -> r, -- PrePlus
+                      r -> r, -- PreMinus
+                      r -> r, -- PreBitCompl
+                      r -> r, -- PreNot
+                      Type -> r -> r, -- Cast
+                      r -> Op -> r -> r, -- BinOp
+                      r -> RefType -> r, -- InstanceOf
+                      r -> r -> r -> r, -- Cond
+                      Lhs -> AssignOp -> r -> r, -- Assign
+                      LambdaParams -> LambdaExpression -> r, -- Lambda
+                      Name -> Ident -> r -- MethodRef
                       )
                       
 
@@ -110,3 +110,4 @@ foldExp (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualInstanceCre
                   Assign lhs assOp e -> fAssign lhs assOp (fold e)
                   Lambda lParams lExp -> fLambda lParams lExp
                   MethodRef className methodName -> fMethodRef className methodName
+                  
