@@ -74,6 +74,10 @@ checkformula javasrc methodname = do
     let formula = e
     
     putStrLn ("\n** Formula to check: " ++ prettyPrint formula ++ "\n")
+
+    let formula = e
+
+    putStrLn ("** Formula AST: " ++ show formula ++ "\n")
     
     -- Check if the formula is satisfiable. If it is, print the instantiation of its free
     -- variables that would make it true:
