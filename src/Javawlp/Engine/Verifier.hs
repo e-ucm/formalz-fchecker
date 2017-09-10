@@ -29,6 +29,19 @@ isFalse env decls e =
         case result of
             Unsat -> return True
             _     -> return False
+
+-- | Check if two formulas are equivalent
+unsafeIsEquivalent :: (TypeEnv, [TypeDecl], Exp) -> (TypeEnv, [TypeDecl], Exp) -> (Result, Maybe Model)
+unsafeIsEquivalent (env1, decls1, e1) (env2, decls2, e2) = unsafePerformIO $ evalZ3 z3
+    where
+    z3 = do
+         ast1 <- foldExp expAssertAlgebra e1 env1 decls1
+         ast2 <- foldExp expAssertAlgebra e2 env2 decls2
+         astEq <- mkEq ast1 ast2
+         assert astEq
+         r <- solverCheckAndGetModel
+         solverReset
+         return r
         
 -- | Check if a formula is satisfiable, and if so, return the model for it as well.
 -- The result is a pair (r,m) where r is either Sat, Unsat, or Undef. If r is Sat,
@@ -43,7 +56,7 @@ unsafeIsSatisfiable env decls e = unsafePerformIO $ evalZ3 z3
          assert ast
          r <- solverCheckAndGetModel
          solverReset
-         return r  
+         return r
 
         
 -- | Unsafe version of isTrue
