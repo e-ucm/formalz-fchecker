@@ -12,15 +12,17 @@ import System.IO.Unsafe
 import Javawlp.Engine.Folds
 import Javawlp.Engine.HelperFunctions
 
+import Control.Monad.Trans (liftIO)
+
 
 -- | Checks wether the negation is unsatisfiable
 isTrue :: TypeEnv -> [TypeDecl] -> Exp -> Z3 Bool
 isTrue env decls e = isFalse env decls (PreNot e)
-            
-          
+
+
 -- | Checks wether the expression is unsatisfiable
 isFalse :: TypeEnv -> [TypeDecl] -> Exp -> Z3 Bool
-isFalse env decls e = 
+isFalse env decls e =
     do
         ast <- foldExp expAssertAlgebra e env decls
         assert ast
@@ -39,15 +41,57 @@ unsafeIsEquivalent (env1, decls1, e1) (env2, decls2, e2) = unsafePerformIO $ eva
          ast2 <- foldExp expAssertAlgebra e2 env2 decls2
          astEq <- mkEq ast1 ast2
          assert astEq
-         r <- solverCheckAndGetModel
+         r <- solverCheckAndGetModel -- check in documentatie
          solverReset
          return r
-        
+
+zprint :: MonadZ3 z3 => (a -> z3 String) -> a -> z3 ()
+zprint mshowx x = mshowx x >>= liftIO . putStrLn
+
+-- Equivalent to "z3_tests/forall.py"
+testForall :: IO ()
+testForall = evalZ3 $
+    do
+    sInt <- mkIntSort
+    fSym <- mkStringSymbol "f"
+    fDecl <- mkFuncDecl fSym [sInt, sInt] sInt
+    printFunc fDecl
+
+    x <- int "x"
+    call1 <- mkApp fDecl [x, x]
+    zero <- mkInteger 0
+    body <- mkEq call1 zero
+    xApp <- toApp x
+    ast1 <- mkForallConst [] [xApp] body
+    printAst ast1
+    assert ast1
+
+    a <- int "a"
+    b <- int "b"
+    call2 <- mkApp fDecl [a, b]
+    one <- mkInteger 1
+    ast2 <- mkEq call2 one
+    printAst ast2
+    assert ast2
+
+    r <- solverCheckAndGetModel
+    solverReset
+
+    let (result, model) = r
+    liftIO $ putStrLn $ "result: " ++ show result
+    case model of Nothing -> liftIO $ putStrLn $ "model: " ++ "Nothing"
+                  Just m -> do s <- showModel m; liftIO $ putStrLn $ "model: " ++ s
+
+    where int x = mkStringSymbol x >>= mkIntVar
+          printFunc x = zprint funcDeclToString x
+          printAst x = zprint astToString x
+          
+
 -- | Check if a formula is satisfiable, and if so, return the model for it as well.
 -- The result is a pair (r,m) where r is either Sat, Unsat, or Undef. If r is Sat,
 -- then m is Just v where v a model witnessing the satisfiability of the input
 -- formula. Else m is Nothing.
---            
+--
 unsafeIsSatisfiable :: TypeEnv -> [TypeDecl] -> Exp -> (Result, Maybe Model)
 unsafeIsSatisfiable env decls e = unsafePerformIO $ evalZ3 z3
     where
@@ -58,7 +102,7 @@ unsafeIsSatisfiable env decls e = unsafePerformIO $ evalZ3 z3
          solverReset
          return r
 
-        
+
 -- | Unsafe version of isTrue
 unsafeIsTrue :: TypeEnv -> [TypeDecl] -> Exp -> Bool
 unsafeIsTrue env decls = unsafePerformIO . evalZ3 . isTrue env decls
@@ -73,13 +117,13 @@ stringToBv (c:cs) = do
                         c' <- mkIntNum (fromEnum c) >>= mkInt2bv 8
                         cs' <- stringToBv cs
                         mkConcat c' cs'
-                        
+
 -- Creates a string to represent a name as a z3 variable
 getVarName :: Name -> String
 getVarName name = case prettyPrint name of
                     -- The wlp may contain variables introduced by method call (since methods may loop indefinitely we can't always get the return value)
                     -- We must ignore the exact number of the call, as it would introduce false positives
-                    '$':s   -> '$' : takeWhile (/= '$') s 
+                    '$':s   -> '$' : takeWhile (/= '$') s
                     s       -> s
 
 -- | Defines the convertion from an expression to AST so that Z3 can assert satisfiability
@@ -135,7 +179,7 @@ expAssertAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQual
                                             ArrayIndex e _ -> foldExp expAssertAlgebra e env decls
     fExpName name env decls      = do
                                     symbol <- mkStringSymbol (getVarName name)
-                                        
+
                                     -- If we're not dealing with library methods, we should be able to get the type from the type environment
                                     case lookupType decls env name of
                                         PrimType BooleanT    -> mkBoolVar symbol
