@@ -54,6 +54,15 @@ def neq_forall2():
 	solve(Exists(x, ast, patterns = [x]))
 	solve(ast)
 
+def neq_forall3():
+	print "3"
+	x = Int('x')
+	ast1 = ForAll(x, x*x>=x, patterns = [x])
+	ast2 = ForAll(x, x*x>=x-1, patterns = [x])
+	s = Solver()
+	s.add(Not(ast1) and ast2)
+	print s.check(), s.model()
+
 # A <=> B means A => B and B => A, so if we prove (A & ~B), A => B doesn't hold so A != B
 # - joao
 
@@ -64,3 +73,5 @@ print ""
 neq_forall()
 print ""
 neq_forall2()
+print ""
+neq_forall3()
