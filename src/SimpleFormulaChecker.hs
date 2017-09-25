@@ -89,68 +89,50 @@ getMethodCalls (_, StmtBlock (Block bs), _) name = catMaybes (map extractMethodI
         extractMethodInv (BlockStmt (ExpStmt (MethodInv i@(MethodCall (Name [Ident n]) _)))) = if n == name then Just i else Nothing
         extractMethodInv _ = Nothing
 
-edslSrc = "javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
+combineExprs :: Op -> [Exp] -> Exp
+combineExprs o (e:[]) = e
+combineExprs o (e:es) = BinOp e o (combineExprs o es)
 
-test = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec2")
+andExprs :: [Exp] -> Exp
+andExprs = combineExprs CAnd
+
+orExprs :: [Exp] -> Exp
+orExprs = combineExprs COr
+
+extractExpr :: Op -> [MethodInvocation] -> Exp
+extractExpr op call = combineExprs op $ map (\(MethodCall (Name [Ident _]) [a]) -> a) call
 
 compareSpec :: (FilePath, String) -> (FilePath, String) -> IO ()
 compareSpec method1 method2 = do
     -- load the methods
     m1@(decls1, mbody1, env1) <- parseMethod method1
     m2@(decls2, mbody2, env2) <- parseMethod method2
+    if env1 /= env2 then fail "inconsistent method parameters" else return ()
+    if decls1 /= decls2 then fail "inconsistent class declarations (TODO)" else return ()
     -- get preconditions
-    let (pre1, pre2) = (getMethodCalls m1 "pre", getMethodCalls m2 "pre")
-    let (post1, post2) = (getMethodCalls m1 "post", getMethodCalls m2 "post")
-    putStrLn $ "pre1:\n" ++ show pre1 ++ "\npre2:\n" ++ show pre2 ++ "\npost1:\n" ++ show post1 ++ "\npost2:\n" ++ show post2
-
-checkformula :: FilePath -> String -> IO ()
-checkformula javasrc methodname = do
-    -- parse the Java source file:
-    compilationnUnit <- parseJava javasrc
-    -- get all the class declarations in the Java source file; usually a single file defines only
-    -- one class, but it could theoretically have more:
-    let decls = getDecls compilationnUnit
-
-    -- get the method's body ; to make it simple, the method's name is assumed to uniquely identify its body
-    let mbody = fromJust $ getMethod decls (Ident methodname)
-    -- get the method's formal parameters:
-    let env = getMethodTypeEnv decls  (Ident methodname)
-
-    putStrLn $ show mbody
-
-    -- In this example, we expect the method's body to be of the form { return e ; }
-    -- Let's grab e:
-    let StmtBlock (Block [BlockStmt (Return (Just e))]) = mbody -- trace (show mbody) $ mbody
-
-    let formula = e
-
-    putStrLn ("\n** Formula to check: " ++ prettyPrint formula ++ "\n")
-
-    let formula = e
-
-    putStrLn ("** Formula AST: " ++ show formula ++ "\n")
-
+    let (pre1, pre2) = (extractCond m1 "pre", extractCond m2 "pre")
+    putStrLn $ "pre1:\n" ++ prettyPrint pre1 ++ "\n\npre2:\n" ++ prettyPrint pre2 ++ "\n"
+    {--- get postconditions
+    let (post1, post2) = (extractCond m1 "post", extractCond m2 "post")
+    putStrLn $ "post1:\n" ++ prettyPrint post1 ++ "\npost2:\n" ++ prettyPrint post2 ++ "\n"-}
     -- Check if the formula is satisfiable. If it is, print the instantiation of its free
     -- variables that would make it true:
-    let (result,model) = unsafeIsSatisfiable env decls formula
+    (result,model) <- isEquivalent (env1, decls1, pre1) (env2, decls2, pre2)
     case result of
-       Unsat -> putStrLn "** UNSATISFIABLE."
-       Undef -> putStrLn "** Unable to decide the satisfiablity."
+       Unsat -> putStrLn "formulas are equivalent!"
+       Undef -> putStrLn "Unable to decide the satisfiablity (TODO: use QuickCheck)"
        _     -> do
-                putStrLn "** SATISFIABLE."
+                putStrLn "formulas are NOT equivalent, model:"
                 case model of
-                  Just m -> do { putStrLn "** Model:" ; s <- evalZ3 (modelToString m) ; putStrLn s }
+                  Just m -> do s <- evalZ3 (modelToString m)
+                               putStrLn s
                   _      -> return ()
-
-
     where
-    -- | Parse a Java source file, and extracts the necessary information from the compilation unit
-    parseJava :: FilePath -> IO CompilationUnit
-    parseJava s = do
-        -- Get the source code
-        source <- readFile s
+        extractCond :: MethodDef -> String -> Exp
+        extractCond m n = extractExpr CAnd (getMethodCalls m n)
 
-        -- Parse the source code
-        case parser compilationUnit source of
-            Left parseError -> error (show parseError)
-            Right compUnit  -> return compUnit
+
+
+edslSrc = "javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
+testEq = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec1")
+testNeq = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec2")

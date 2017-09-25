@@ -88,7 +88,7 @@ public class Main {
     }
 
     public static void swap_spec2(int[] a, int i, int j) {
-        pre(a != null && a.length > 0 && i >= 0 && j >= 0);
+        pre(a != null && a.length > 0 && i >= 0 && j > 0);
         // introducing vars to remember old values
         int oldai = a[i], oldaj = a[j];
         swap(a, i, j);

@@ -33,14 +33,15 @@ isFalse env decls e =
             _     -> return False
 
 -- | Check if two formulas are equivalent
-unsafeIsEquivalent :: (TypeEnv, [TypeDecl], Exp) -> (TypeEnv, [TypeDecl], Exp) -> (Result, Maybe Model)
-unsafeIsEquivalent (env1, decls1, e1) (env2, decls2, e2) = unsafePerformIO $ evalZ3 z3
+isEquivalent :: (TypeEnv, [TypeDecl], Exp) -> (TypeEnv, [TypeDecl], Exp) -> IO (Result, Maybe Model)
+isEquivalent (env1, decls1, e1) (env2, decls2, e2) = evalZ3 z3
     where
     z3 = do
          ast1 <- foldExp expAssertAlgebra e1 env1 decls1
          ast2 <- foldExp expAssertAlgebra e2 env2 decls2
          astEq <- mkEq ast1 ast2
-         assert astEq
+         blub <- mkNot astEq -- negate the question to get a model
+         assert blub
          r <- solverCheckAndGetModel -- check in documentatie
          solverReset
          return r
