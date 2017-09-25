@@ -80,11 +80,15 @@ public class Main {
     }
 
     public static void swap_spec1(int[] a, int i, int j) {
-        pre(a != null && a.length > 0 && i >= 0 && j >= 0);
+        pre(a != null);
+        pre(a.length > 0);
+        pre(i >= 0);
+        pre(j >= 0);
         // introducing vars to remember old values
         int oldai = a[i], oldaj = a[j];
         swap(a, i, j);
-        post(a[j] == oldai && a[i] == oldaj);
+        post(a[j] == oldai);
+        post(a[i] == oldaj);
     }
 
     public static void swap_spec2(int[] a, int i, int j) {
