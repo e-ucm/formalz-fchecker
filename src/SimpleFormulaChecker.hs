@@ -102,6 +102,30 @@ orExprs = combineExprs COr
 extractExpr :: Op -> [MethodInvocation] -> Exp
 extractExpr op call = combineExprs op $ map (\(MethodCall (Name [Ident _]) [a]) -> a) call
 
+determineFormulaEq :: MethodDef -> MethodDef -> String -> IO ()
+determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
+    -- get preconditions
+    let (e1, e2) = (extractCond m1 name, extractCond m2 name)
+    putStrLn $ "e1:\n" ++ prettyPrint e1 ++ "\n\ne2:\n" ++ prettyPrint e2 ++ "\n"
+    {--- get postconditions
+    let (post1, post2) = (extractCond m1 "post", extractCond m2 "post")
+    putStrLn $ "post1:\n" ++ prettyPrint post1 ++ "\npost2:\n" ++ prettyPrint post2 ++ "\n"-}
+    -- Check if the formula is satisfiable. If it is, print the instantiation of its free
+    -- variables that would make it true:
+    (result,model) <- isEquivalent (env1, decls1, e1) (env2, decls2, e2)
+    case result of
+       Unsat -> putStrLn "formulas are equivalent!"
+       Undef -> putStrLn "unable to decide the satisfiablity (TODO: use QuickCheck)"
+       _     -> do
+                putStrLn "formulas are NOT equivalent, model:"
+                case model of
+                  Just m -> do s <- evalZ3 (modelToString m)
+                               putStr s
+                  _      -> return ()
+    where
+        extractCond :: MethodDef -> String -> Exp
+        extractCond m n = extractExpr CAnd (getMethodCalls m n)
+
 compareSpec :: (FilePath, String) -> (FilePath, String) -> IO ()
 compareSpec method1 method2 = do
     -- load the methods
@@ -109,29 +133,10 @@ compareSpec method1 method2 = do
     m2@(decls2, mbody2, env2) <- parseMethod method2
     if env1 /= env2 then fail "inconsistent method parameters" else return ()
     if decls1 /= decls2 then fail "inconsistent class declarations (TODO)" else return ()
-    -- get preconditions
-    let (pre1, pre2) = (extractCond m1 "pre", extractCond m2 "pre")
-    putStrLn $ "pre1:\n" ++ prettyPrint pre1 ++ "\n\npre2:\n" ++ prettyPrint pre2 ++ "\n"
-    {--- get postconditions
-    let (post1, post2) = (extractCond m1 "post", extractCond m2 "post")
-    putStrLn $ "post1:\n" ++ prettyPrint post1 ++ "\npost2:\n" ++ prettyPrint post2 ++ "\n"-}
-    -- Check if the formula is satisfiable. If it is, print the instantiation of its free
-    -- variables that would make it true:
-    (result,model) <- isEquivalent (env1, decls1, pre1) (env2, decls2, pre2)
-    case result of
-       Unsat -> putStrLn "formulas are equivalent!"
-       Undef -> putStrLn "Unable to decide the satisfiablity (TODO: use QuickCheck)"
-       _     -> do
-                putStrLn "formulas are NOT equivalent, model:"
-                case model of
-                  Just m -> do s <- evalZ3 (modelToString m)
-                               putStrLn s
-                  _      -> return ()
-    where
-        extractCond :: MethodDef -> String -> Exp
-        extractCond m n = extractExpr CAnd (getMethodCalls m n)
-
-
+    putStrLn "----PRE----"
+    determineFormulaEq m1 m2 "pre"
+    putStrLn "\n----POST---"
+    determineFormulaEq m1 m2 "post"
 
 edslSrc = "javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
 testEq = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec1")
