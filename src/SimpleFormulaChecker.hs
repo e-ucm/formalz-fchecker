@@ -54,7 +54,7 @@ Dependencies:
 
 -}
 
-        
+checkformula :: FilePath -> String -> IO ()
 checkformula javasrc methodname = do
     -- parse the Java source file:
     compilationnUnit <- parseJava javasrc   
@@ -66,6 +66,8 @@ checkformula javasrc methodname = do
     let mbody = fromJust $ getMethod decls (Ident methodname)
     -- get the method's formal parameters:
     let env = getMethodTypeEnv decls  (Ident methodname)
+
+    putStrLn $ show mbody
     
     -- In this example, we expect the method's body to be of the form { return e ; }
     -- Let's grab e:

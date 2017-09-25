@@ -292,5 +292,5 @@ expAssertAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQual
                                 ast2 <- e2 env decls
                                 mkIte astg ast1 ast2
     fAssign = undefined
-    fLambda = undefined
+    fLambda params expr = error $ ('\n': show params) ++ "\n" ++ show expr
     fMethodRef = undefined
