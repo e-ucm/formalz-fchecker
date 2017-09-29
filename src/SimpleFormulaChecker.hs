@@ -10,6 +10,10 @@ import Javawlp.Engine.Types
 import Javawlp.Engine.HelperFunctions
 import Javawlp.Engine.Verifier
 
+import LogicIR.Expr
+import LogicIR.Frontend.Java
+import LogicIR.Backend.Z3
+
 import Debug.Trace
 
 {-

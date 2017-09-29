@@ -85,6 +85,11 @@ syntactical constraints; so some pre-processing is required before a source file
 to javawlp.
 
 - Reference to an instance member x should be explicitly written as this.x
-- Binary subexpressions should be explicitly parathesized since our parser does not take
-  Java's built in operators priority into account. So, instead of `x==y && x+z>0` write
-  `(x==y) && ((x+z)>0)`
+
+### IMPRESS EDSL
+
+TODO: Write more information.
+
+#### LogicIR
+
+![](https://i.imgur.com/fBUDkGY.png)
