@@ -2,6 +2,18 @@ module LogicIR.Expr where
 
 -- Based on my (Duncan's) previous work: https://github.com/mrexodia/wp/blob/master/Wp.hs
 
+data Primitive = PBool
+               | PInt
+               deriving (Show, Eq, Read)
+
+data Type = TPrim Primitive
+          | TArray Type
+          deriving (Show, Eq, Read)
+
+-- Typed + named variable
+data Var = Var Type String
+         deriving (Show, Eq, Read)
+
 -- Numeral unary operators
 data NUnop = NNeg
            | NNot
@@ -22,10 +34,10 @@ data NBinop = NAdd
 
 -- Numeral expressions
 data NExpr = NConst Int -- Integer constant
-           | NVar String -- Named integer variable
+           | NVar Var -- Variable
            | NUnop NUnop NExpr -- Unary operator
            | NBinop NExpr NBinop NExpr -- Binary operators
-           | NArray String NExpr -- Integer array access
+           | NArray Var NExpr -- Integer array access
            deriving (Show, Eq, Read)
 
 -- Reference: https://en.wikipedia.org/wiki/First-order_logic#Logical_symbols
@@ -51,10 +63,10 @@ data COp = CEqual
 
 -- Logical expressions
 data LExpr = LConst Bool -- True/False
-           | LVar String -- Named boolean variable
+           | LVar Var -- Variable
            | LNot LExpr -- Logical negation/not
            | LBinop LExpr LBinop LExpr -- Logical operator
            | LComp NExpr COp NExpr -- Integer comparison
-           | LQuant QOp [String] LExpr -- Logical quantifier
-           | LArray String NExpr -- Logical array access (TODO: remove?)
+           | LQuant QOp [Var] LExpr -- Logical quantifier
+           | LArray Var NExpr -- Logical array access (TODO: remove?)
            deriving (Show, Eq, Read)

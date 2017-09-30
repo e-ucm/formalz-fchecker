@@ -4,10 +4,10 @@ import LogicIR.Expr
 
 -- Fold algrbra for numeral expressions
 type NExprAlgebra r = (Int -> r, -- NConst
-                       String -> r, -- NVar
+                       Var -> r, -- NVar
                        NUnop -> r -> r, -- NUnop
                        r -> NBinop -> r -> r, -- NBinop
-                       String -> r -> r -- NArray
+                       Var -> r -> r -- NArray
                       )
 
 -- Fold for numeral expressions
@@ -22,12 +22,12 @@ foldNExpr (fConst, fVar, fUnop, fBinop, fArray) = fold where
 
 -- Fold algebra for logical expressions
 type LExprAlgebra r = (Bool -> r, -- LConst
-                       String -> r, -- LVar
+                       Var -> r, -- LVar
                        r -> r, -- LNot
                        r -> LBinop -> r -> r, -- LBinop
                        NExpr -> COp -> NExpr -> r, -- LComp
-                       QOp -> [String] -> r -> r, -- LQuant
-                       String -> NExpr -> r -- LArray
+                       QOp -> [Var] -> r -> r, -- LQuant
+                       Var -> NExpr -> r -- LArray
                       )
 
 -- Fold for logical expressions
