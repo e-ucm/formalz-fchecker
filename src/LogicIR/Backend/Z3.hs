@@ -5,26 +5,20 @@ import Z3.Monad
 import LogicIR.Expr
 import LogicIR.Fold
 
-nExprToZ3Ast :: NExpr -> Z3 AST
-nExprToZ3Ast = foldNExpr nExprToZ3AstAlgebra
-
-nExprToZ3AstAlgebra :: NExprAlgebra (Z3 AST)
-nExprToZ3AstAlgebra = (fConst, fVar, fUnop, fBinop, fArray) where
-    fConst = undefined
-    fVar = undefined
-    fUnop = undefined
-    fBinop = undefined
-    fArray = undefined
-
 lExprToZ3Ast :: LExpr -> Z3 AST
 lExprToZ3Ast = foldLExpr lExprToZ3AstAlgebra
 
 lExprToZ3AstAlgebra :: LExprAlgebra (Z3 AST)
-lExprToZ3AstAlgebra = (fConst, fVar, fNot, fBinop, fComp, fQuant, fArray) where
-    fConst = undefined
-    fVar = undefined
-    fNot = undefined
-    fBinop = undefined
-    fComp = undefined
-    fQuant = undefined
-    fArray = undefined
+lExprToZ3AstAlgebra = (flConst, flVar, flNot, flBinop, flComp, flQuant, flArray, fnConst, fnVar, fnUnop, fnBinop, fnArray) where
+    flConst = undefined
+    flVar = undefined
+    flNot = undefined
+    flBinop = undefined
+    flComp = undefined
+    flQuant = undefined
+    flArray = undefined
+    fnConst = undefined
+    fnVar = undefined
+    fnUnop = undefined
+    fnBinop = undefined
+    fnArray = undefined

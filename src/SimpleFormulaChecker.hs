@@ -111,6 +111,7 @@ determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
     -- get preconditions
     let (e1, e2) = (extractCond m1 name, extractCond m2 name)
     putStrLn $ "e1:\n" ++ prettyPrint e1 ++ "\n\ne2:\n" ++ prettyPrint e2 ++ "\n"
+    putStrLn $ show $ javaExpToLExpr e1 env1 decls1
     {--- get postconditions
     let (post1, post2) = (extractCond m1 "post", extractCond m2 "post")
     putStrLn $ "post1:\n" ++ prettyPrint post1 ++ "\npost2:\n" ++ prettyPrint post2 ++ "\n"-}
@@ -145,3 +146,5 @@ compareSpec method1 method2 = do
 edslSrc = "javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
 testEq = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec1")
 testNeq = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec2")
+
+blub = compareSpec (edslSrc, "simple1") (edslSrc, "simple1")

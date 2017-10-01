@@ -79,6 +79,22 @@ public class Main {
         a[j] = temp;
     }
 
+    public static void simple1(int[] a, int i, int j) {
+        pre(i >= 0 && j >= 0);
+        // introducing vars to remember old values
+        int oldai = a[i], oldaj = a[j];
+        swap(a, i, j);
+        post(a[j] == oldai && a[i] == oldaj);
+    }
+
+    public static void simple2(int[] a, int i, int j) {
+        pre(a.length > 0 && i >= 0 && j >= 0);
+        // introducing vars to remember old values
+        int oldai = a[i], oldaj = a[j];
+        swap(a, i, j);
+        post(a[j] == oldai && a[i] == oldaj);
+    }
+
     public static void swap_spec1(int[] a, int i, int j) {
         pre(a != null);
         pre(a.length > 0);
