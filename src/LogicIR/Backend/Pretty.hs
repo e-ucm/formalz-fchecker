@@ -24,8 +24,8 @@ prettyCOp CGeq = ">="
 prettyLBinop :: LBinop -> String
 prettyLBinop LAnd = "&&"
 prettyLBinop LOr = "||"
-prettyLBinop LImpl = "=>"
-prettyLBinop LBicond = "<=>"
+prettyLBinop LImpl = "->"
+prettyLBinop LBicond = "<->"
 
 prettyNBinop :: NBinop -> String
 prettyNBinop NAdd = "+"
@@ -52,7 +52,7 @@ prettyLExprAlgebra = (flConst, prettyVar, flNot, flBinop, flComp, flQuant, flArr
     flNot a = '!' : a
     flBinop a o b = a ++ " " ++ prettyLBinop o ++ " " ++ b
     flComp a o b = a ++ " " ++ prettyCOp o ++ " " ++ b
-    flQuant o vs a = '(' : show o ++ intercalate "," (map prettyVar vs) ++ ": " ++ a ++ ")"
+    flQuant o v a = '(' : show o ++ " " ++ prettyVar v ++ " . " ++ a ++ ")"
     flArray v [a] = prettyVar v ++ "[" ++ (foldLExpr prettyLExprAlgebra a) ++ "]"
     flNil = "nil"
     fnConst n = show n

@@ -63,7 +63,7 @@ data LExpr = LConst Bool -- True/False
            | LNot LExpr -- Logical negation/not
            | LBinop LExpr LBinop LExpr -- Logical operator
            | LComp NExpr COp NExpr -- Integer comparison
-           | LQuant QOp [Var] LExpr -- Logical quantifier
+           | LQuant QOp Var LExpr -- Logical quantifier
            | LArray Var [NExpr] -- Logical array access
            | LNil -- Nil constant
 

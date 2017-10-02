@@ -14,9 +14,17 @@ import Data.Typeable
 javaExpToLExpr :: Exp -> TypeEnv -> [TypeDecl] -> LExpr
 javaExpToLExpr = foldExp javaExpToLExprAlgebra
 
+nameToVar :: Name -> TypeEnv -> [TypeDecl] -> Var
+nameToVar name env decls = let (arrayType, symbol) = (lookupType decls env name, prettyPrint name) in
+    case arrayType of
+        PrimType BooleanT -> Var (TPrim PBool) symbol
+        PrimType IntT -> Var (TPrim PInt) symbol
+        RefType (ArrayType (PrimType IntT)) -> Var (TArray (TPrim PInt)) symbol
+        _ -> error $ "Unimplemented nameToVar for " ++ show (name, arrayType)
+
 javaExpToLExprAlgebra :: ExpAlgebra (TypeEnv -> [TypeDecl] -> LExpr)
 javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualInstanceCreation, fArrayCreate, fArrayCreateInit, fFieldAccess, fMethodInv, fArrayAccess, fExpName, fPostIncrement, fPostDecrement, fPreIncrement, fPreDecrement, fPrePlus, fPreMinus, fPreBitCompl, fPreNot, fCast, fBinOp, fInstanceOf, fCond, fAssign, fLambda, fMethodRef) where
-    fLit lit _ _ = case lit of -- TODO: support more type literals
+    fLit lit _ _ = case lit of -- TODO: support more type literals?
                     Boolean b -> LConst b
                     Int n -> NConst (fromIntegral n)
                     Null -> LNil
@@ -29,28 +37,23 @@ javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, 
     fArrayCreate = undefined
     fArrayCreateInit = undefined
     fFieldAccess = undefined
-    fMethodInv = undefined
-    fArrayAccess arrayIndex env decls = case arrayIndex of -- TODO: better type checking + multiple dimension arrays + better abstractions
-                                             ArrayIndex (ExpName name) [ExpName index] ->
-                                                let (arrayType, indexType) = (lookupType decls env name, lookupType decls env index) in
-                                                    case arrayType of
-                                                         RefType (ArrayType (PrimType IntT)) ->
-                                                            case indexType of
-                                                                 PrimType IntT -> LArray (Var (TArray (TPrim PInt)) (prettyPrint name)) [LVar (Var (TPrim PInt) (prettyPrint index))]
-                                                                 _ -> error $ show (arrayIndex, indexType)
-                                                         _ -> error $ show (arrayIndex, arrayType)
-    fExpName name env decls = case name of -- TODO: better type checking + multiple dimension arrays + better abstractions
-                                   Name [Ident a, Ident "length"] -> let arrayType = lookupType decls env (Name [Ident a]) in
-                                                                     case arrayType of
-                                                                          RefType (ArrayType (PrimType IntT)) -> NLen (Var (TArray (TPrim PInt)) a)
-                                                                          _ -> error $ show (name, arrayType)
-                                   _ -> let symbol = prettyPrint name in let t = lookupType decls env name in
-                                        -- If we're not dealing with library methods, we should be able to get the type from the type environment
-                                        case t of
-                                             PrimType BooleanT -> LVar (Var (TPrim PBool) symbol)
-                                             PrimType IntT -> LVar (Var (TPrim PInt) symbol)
-                                             RefType (ArrayType (PrimType IntT)) -> LVar (Var (TArray (TPrim PInt)) symbol)
-                                             t -> error ("Verifier: Type of " ++ prettyPrint name ++ " unknown or not implemented: " ++ show t)
+    fMethodInv inv env decls = case inv of -- TODO: currently very hardcoded
+                                    MethodCall (Name [Ident "forall"]) [ExpName name, Lambda (LambdaSingleParam (Ident bound)) (LambdaExpression expr)]
+                                        -> let (i, arr) = (Var (TPrim PInt) bound, nameToVar name env decls) in
+                                            LQuant QAll i (LBinop (LBinop (LComp (LVar i) CGeq (NConst 0)) LAnd (LComp (LVar i) CLess (NLen arr))) LImpl (foldExp javaExpToLExprAlgebra expr env decls))
+                                    MethodCall (Name [Ident "exists"]) [ExpName name, Lambda (LambdaSingleParam (Ident bound)) (LambdaExpression expr)]
+                                        -> let (i, arr) = (Var (TPrim PInt) bound, nameToVar name env decls) in
+                                            LQuant QAny i (LBinop (LBinop (LComp (LVar i) CGeq (NConst 0)) LAnd (LComp (LVar i) CLess (NLen arr))) LAnd (foldExp javaExpToLExprAlgebra expr env decls))
+                                    _
+                                        -> error $ "Unimplemented fMethodInv: " ++ show inv
+    fArrayAccess arrayIndex env decls = case arrayIndex of -- TODO: type checking
+                                             ArrayIndex (ExpName name) [ExpName index]
+                                                -> LArray (nameToVar name env decls) [LVar (nameToVar index env decls)]
+                                             _
+                                                -> error $ "Multidimensional arrays are not supported: " ++ show (arrayIndex)
+    fExpName name env decls = case name of -- TODO: type checking
+                                   Name [Ident a, Ident "length"] -> NLen $ nameToVar (Name [Ident a]) env decls
+                                   _ -> LVar $ nameToVar name env decls
     fPostIncrement = error "fPostIncrement has side effects..."
     fPostDecrement = error "fPostDecrement has side effects..."
     fPreIncrement = error "fPreIncrement has side effects..."

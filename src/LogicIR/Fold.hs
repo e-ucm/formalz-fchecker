@@ -8,7 +8,7 @@ type LExprAlgebra r = (Bool -> r, -- LConst
                        r -> r, -- LNot
                        r -> LBinop -> r -> r, -- LBinop
                        r -> COp -> r -> r, -- LComp
-                       QOp -> [Var] -> r -> r, -- LQuant
+                       QOp -> Var -> r -> r, -- LQuant
                        Var -> [NExpr] -> r, -- LArray
                        r, -- LNil
                        Int -> r, -- NConst
@@ -27,7 +27,7 @@ foldLExpr (flConst, flVar, flNot, flBinop, flComp, flQuant, flArray, flNil, fnCo
                   LNot e -> flNot (fold e)
                   LBinop a o b -> flBinop (fold a) o (fold b)
                   LComp a o b -> flComp (fold a) o (fold b)
-                  LQuant o vs e -> flQuant o vs (fold e)
+                  LQuant o v e -> flQuant o v (fold e)
                   LArray n e -> flArray n e
                   LNil -> flNil
                   NConst n -> fnConst n
