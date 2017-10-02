@@ -13,6 +13,7 @@ import Javawlp.Engine.Verifier
 import LogicIR.Expr
 import LogicIR.Frontend.Java
 import LogicIR.Backend.Z3
+import LogicIR.Backend.Pretty
 
 import Debug.Trace
 
@@ -111,7 +112,8 @@ determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
     -- get preconditions
     let (e1, e2) = (extractCond m1 name, extractCond m2 name)
     putStrLn $ "e1:\n" ++ prettyPrint e1 ++ "\n\ne2:\n" ++ prettyPrint e2 ++ "\n"
-    putStrLn $ show $ javaExpToLExpr e1 env1 decls1
+    let lexpr = javaExpToLExpr e1 env1 decls1
+    putStrLn $ show lexpr ++ "\n\n" ++ prettyLExpr lexpr
     {--- get postconditions
     let (post1, post2) = (extractCond m1 "post", extractCond m2 "post")
     putStrLn $ "post1:\n" ++ prettyPrint post1 ++ "\npost2:\n" ++ prettyPrint post2 ++ "\n"-}
