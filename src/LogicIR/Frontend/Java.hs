@@ -36,7 +36,7 @@ javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, 
                                                     case arrayType of
                                                          (RefType (ArrayType (PrimType IntT))) ->
                                                             case indexType of
-                                                                 PrimType IntT -> NArray (Var (TPrim PInt) (prettyPrint name)) [NVar (Var (TPrim PInt) (prettyPrint index))]
+                                                                 PrimType IntT -> NArray (Var (TArray (TPrim PInt)) (prettyPrint name)) [NVar (Var (TPrim PInt) (prettyPrint index))]
                                                                  _ -> error $ show (arrayIndex, indexType)
                                                          _ -> error $ show (arrayIndex, arrayType)
     fExpName name env decls = let symbol = prettyPrint name in let t = lookupType decls env name in
