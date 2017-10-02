@@ -9,7 +9,7 @@ lExprToZ3Ast :: LExpr -> Z3 AST
 lExprToZ3Ast = foldLExpr lExprToZ3AstAlgebra
 
 lExprToZ3AstAlgebra :: LExprAlgebra (Z3 AST)
-lExprToZ3AstAlgebra = (flConst, flVar, flNot, flBinop, flComp, flQuant, flArray, fnConst, fnVar, fnUnop, fnBinop, fnArray) where
+lExprToZ3AstAlgebra = (flConst, flVar, flNot, flBinop, flComp, flQuant, flArray, fnConst, fnVar, fnUnop, fnBinop, fnArray, fnIf) where
     flConst = undefined
     flVar = undefined
     flNot = undefined
@@ -22,3 +22,4 @@ lExprToZ3AstAlgebra = (flConst, flVar, flNot, flBinop, flComp, flQuant, flArray,
     fnUnop = undefined
     fnBinop = undefined
     fnArray = undefined
+    fnIf = undefined

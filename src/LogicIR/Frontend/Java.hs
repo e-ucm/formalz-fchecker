@@ -16,20 +16,21 @@ javaExpToLExpr = foldExp javaExpToLExprAlgebra
 
 javaExpToLExprAlgebra :: ExpAlgebra (TypeEnv -> [TypeDecl] -> LExpr)
 javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualInstanceCreation, fArrayCreate, fArrayCreateInit, fFieldAccess, fMethodInv, fArrayAccess, fExpName, fPostIncrement, fPostDecrement, fPreIncrement, fPreDecrement, fPrePlus, fPreMinus, fPreBitCompl, fPreNot, fCast, fBinOp, fInstanceOf, fCond, fAssign, fLambda, fMethodRef) where
-    fLit lit _ _ = case lit of
+    fLit lit _ _ = case lit of -- TODO: support more type literals
                     Boolean b -> LConst b
                     Int n -> NConst (fromIntegral n) -- TODO: use Integer in LExpr?
+                    Null -> undefined -- TODO: null support
                     _ -> error $ show $ lit
-    fClassLit = undefined
-    fThis = undefined
-    fThisClass = undefined
-    fInstanceCreation = undefined
-    fQualInstanceCreation = undefined
+    fClassLit = error "fClassLit not supported..."
+    fThis = error "fThis not supported..."
+    fThisClass = error "fThisClass not supported..."
+    fInstanceCreation = error "fInstanceCreation not supported..."
+    fQualInstanceCreation = error "fQualInstanceCreation not supported..."
     fArrayCreate = undefined
     fArrayCreateInit = undefined
     fFieldAccess = undefined
     fMethodInv = undefined
-    fArrayAccess arrayIndex env decls = case arrayIndex of -- TODO: better type checking + multiple dimension arrays
+    fArrayAccess arrayIndex env decls = case arrayIndex of -- TODO: better type checking + multiple dimension arrays + better abstractions
                                              ArrayIndex (ExpName name) [ExpName index] ->
                                                 let (arrayType, indexType) = (lookupType decls env name, lookupType decls env index) in
                                                     case arrayType of
@@ -44,16 +45,16 @@ javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, 
                                         PrimType BooleanT    -> LVar (Var (TPrim PBool) symbol)
                                         PrimType IntT        -> NVar (Var (TPrim PInt) symbol)
                                         t                    -> error ("Verifier: Type of " ++ prettyPrint name ++ " unknown or not implemented: " ++ show t)
-    fPostIncrement = undefined
-    fPostDecrement = undefined
-    fPreIncrement = undefined
-    fPreDecrement = undefined
+    fPostIncrement = error "fPostIncrement has side effects..."
+    fPostDecrement = error "fPostDecrement has side effects..."
+    fPreIncrement = error "fPreIncrement has side effects..."
+    fPreDecrement = error "fPreDecrement has side effects..."
     fPrePlus e env decls = e env decls
     fPreMinus e env decls = NUnop NNeg (e env decls)
-    fPreBitCompl = undefined
-    fPreNot = undefined
-    fCast = undefined
-    fBinOp e1 op e2 env decls = let (a, b) = (e1 env decls, e2 env decls) in -- TODO: type checking
+    fPreBitCompl e env decls = NUnop NNot (e env decls)
+    fPreNot e env decls = LNot (e env decls)
+    fCast = undefined -- TODO: perhaps support cast for some types?
+    fBinOp e1 op e2 env decls = let (a, b) = (e1 env decls, e2 env decls) in -- TODO: type checking?
                                 case op of
                                      -- Integer
                                      Mult -> NBinop a NMul b
@@ -78,7 +79,7 @@ javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, 
                                      Equal -> LComp a CEqual b
                                      NotEq -> LComp a CNEqual b
     fInstanceOf = undefined
-    fCond = undefined
-    fAssign = undefined
-    fLambda = undefined
+    fCond c a b env decls = NIf (c env decls) (a env decls) (b env decls)
+    fAssign = error "fAssign has side effects..."
+    fLambda = undefined -- TODO: see if this should be ignored and handled in function call instead...
     fMethodRef = undefined

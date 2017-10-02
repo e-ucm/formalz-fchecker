@@ -16,21 +16,21 @@ data Var = Var Type String
          deriving (Show, Eq, Read)
 
 -- Numeral unary operators
-data NUnop = NNeg
-           | NNot
+data NUnop = NNeg -- -n (negation)
+           | NNot -- ~n (binary not)
            deriving (Show, Eq, Read)
 
 -- Numeral binary operators
-data NBinop = NAdd
-            | NSub
-            | NMul
-            | NDiv
-            | NRem
-            | NShl
-            | NShr
-            | NAnd
-            | NOr
-            | NXor
+data NBinop = NAdd -- a + b
+            | NSub -- a - b
+            | NMul -- a * b
+            | NDiv -- a / b
+            | NRem -- a % b
+            | NShl -- a >> b
+            | NShr -- a << b
+            | NAnd -- a & b
+            | NOr -- a | b
+            | NXor -- a ^ b
             deriving (Show, Eq, Read)
 
 -- Reference: https://en.wikipedia.org/wiki/First-order_logic#Logical_symbols
@@ -71,4 +71,5 @@ data LExpr = LConst Bool -- True/False
            | NUnop NUnop NExpr -- Unary operator
            | NBinop NExpr NBinop NExpr -- Binary operators
            | NArray Var [NExpr] -- Integer array access
+           | NIf LExpr NExpr NExpr -- if c then a else b
            deriving (Show, Eq, Read)
