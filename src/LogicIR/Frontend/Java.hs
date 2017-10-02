@@ -39,12 +39,17 @@ javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, 
                                                                  PrimType IntT -> NArray (Var (TArray (TPrim PInt)) (prettyPrint name)) [NVar (Var (TPrim PInt) (prettyPrint index))]
                                                                  _ -> error $ show (arrayIndex, indexType)
                                                          _ -> error $ show (arrayIndex, arrayType)
-    fExpName name env decls = let symbol = prettyPrint name in let t = lookupType decls env name in
-                                    -- If we're not dealing with library methods, we should be able to get the type from the type environment
-                                    case t of
-                                        PrimType BooleanT    -> LVar (Var (TPrim PBool) symbol)
-                                        PrimType IntT        -> NVar (Var (TPrim PInt) symbol)
-                                        t                    -> error ("Verifier: Type of " ++ prettyPrint name ++ " unknown or not implemented: " ++ show t)
+    fExpName name env decls = case name of -- TODO: better type checking + multiple dimension arrays + better abstractions
+                                   Name [Ident a, Ident "length"] -> let arrayType = lookupType decls env (Name [Ident a]) in
+                                                                     case arrayType of
+                                                                          (RefType (ArrayType (PrimType IntT))) -> NLen (Var (TArray (TPrim PInt)) a)
+                                                                          _ -> error $ show (name, arrayType)
+                                   _ -> let symbol = prettyPrint name in let t = lookupType decls env name in
+                                        -- If we're not dealing with library methods, we should be able to get the type from the type environment
+                                        case t of
+                                             PrimType BooleanT    -> LVar (Var (TPrim PBool) symbol)
+                                             PrimType IntT        -> NVar (Var (TPrim PInt) symbol)
+                                             t                    -> error ("Verifier: Type of " ++ prettyPrint name ++ " unknown or not implemented: " ++ show t)
     fPostIncrement = error "fPostIncrement has side effects..."
     fPostDecrement = error "fPostDecrement has side effects..."
     fPreIncrement = error "fPreIncrement has side effects..."

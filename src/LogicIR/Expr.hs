@@ -57,7 +57,7 @@ data COp = CEqual -- a == b
 
 type NExpr = LExpr
 
--- Logical expressions
+-- Logical expressions (TODO: clean up duplicates)
 data LExpr = LConst Bool -- True/False
            | LVar Var -- Variable
            | LNot LExpr -- Logical negation/not
@@ -72,4 +72,5 @@ data LExpr = LConst Bool -- True/False
            | NBinop NExpr NBinop NExpr -- Binary operators
            | NArray Var [NExpr] -- Integer array access
            | NIf LExpr NExpr NExpr -- if c then a else b
+           | NLen Var -- len(array)
            deriving (Show, Eq, Read)

@@ -149,4 +149,4 @@ edslSrc = "javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
 testEq = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec1")
 testNeq = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec2")
 
-blub = compareSpec (edslSrc, "simple1") (edslSrc, "simple1")
+blub = compareSpec (edslSrc, "simple2") (edslSrc, "simple2")

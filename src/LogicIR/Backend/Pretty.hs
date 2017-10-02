@@ -44,10 +44,10 @@ prettyNUnop NNeg = "-"
 prettyNUnop NNot = "~"
 
 prettyVar :: Var -> String
-prettyVar (Var t n) = '(' : prettyType t ++ ")" ++ n
+prettyVar (Var t n) = prettyType t ++ ":" ++ n
 
 prettyLExprAlgebra :: LExprAlgebra String
-prettyLExprAlgebra = (flConst, prettyVar, flNot, flBinop, flComp, flQuant, flArray, fnConst, prettyVar, fnUnop, fnBinop, fnArray, fnIf) where
+prettyLExprAlgebra = (flConst, prettyVar, flNot, flBinop, flComp, flQuant, flArray, fnConst, prettyVar, fnUnop, fnBinop, fnArray, fnIf, fnLen) where
     flConst b = if b then "true" else "false"
     flNot a = '!' : a
     flBinop a o b = a ++ " " ++ prettyLBinop o ++ " " ++ b
@@ -59,3 +59,4 @@ prettyLExprAlgebra = (flConst, prettyVar, flNot, flBinop, flComp, flQuant, flArr
     fnBinop a o b = a ++ " " ++ prettyNBinop o ++ " " ++ b
     fnArray = flArray
     fnIf c a b = "(" ++ c ++ ") ? (" ++ a ++ ") : (" ++ b ++ ")"
+    fnLen v = "len(" ++ prettyVar v ++ ")"
