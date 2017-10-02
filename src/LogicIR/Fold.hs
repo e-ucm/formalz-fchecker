@@ -10,18 +10,17 @@ type LExprAlgebra r = (Bool -> r, -- LConst
                        r -> COp -> r -> r, -- LComp
                        QOp -> [Var] -> r -> r, -- LQuant
                        Var -> [NExpr] -> r, -- LArray
+                       r, -- LNil
                        Int -> r, -- NConst
-                       Var -> r, -- NVar
                        NUnop -> r -> r, -- NUnop
                        r -> NBinop -> r -> r, -- NBinop
-                       Var -> [NExpr] -> r, -- NArray
                        r -> r -> r -> r, -- NIf
                        Var -> r -- NLen
                       )
 
 -- Fold for logical expressions
 foldLExpr :: LExprAlgebra r -> LExpr -> r
-foldLExpr (flConst, flVar, flNot, flBinop, flComp, flQuant, flArray, fnConst, fnVar, fnUnop, fnBinop, fnArray, fnIf, fnLen) = fold where
+foldLExpr (flConst, flVar, flNot, flBinop, flComp, flQuant, flArray, flNil, fnConst, fnUnop, fnBinop, fnIf, fnLen) = fold where
     fold e = case e of
                   LConst c -> flConst c
                   LVar n -> flVar n
@@ -30,10 +29,9 @@ foldLExpr (flConst, flVar, flNot, flBinop, flComp, flQuant, flArray, fnConst, fn
                   LComp a o b -> flComp (fold a) o (fold b)
                   LQuant o vs e -> flQuant o vs (fold e)
                   LArray n e -> flArray n e
+                  LNil -> flNil
                   NConst n -> fnConst n
-                  NVar n -> fnVar n
                   NUnop o e -> fnUnop o (fold e)
                   NBinop a o b -> fnBinop (fold a) o (fold b)
-                  NArray n e -> fnArray n e
                   NIf c a b -> fnIf (fold c) (fold a) (fold b)
                   NLen v -> fnLen v

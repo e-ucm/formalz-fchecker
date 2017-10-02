@@ -18,8 +18,8 @@ javaExpToLExprAlgebra :: ExpAlgebra (TypeEnv -> [TypeDecl] -> LExpr)
 javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualInstanceCreation, fArrayCreate, fArrayCreateInit, fFieldAccess, fMethodInv, fArrayAccess, fExpName, fPostIncrement, fPostDecrement, fPreIncrement, fPreDecrement, fPrePlus, fPreMinus, fPreBitCompl, fPreNot, fCast, fBinOp, fInstanceOf, fCond, fAssign, fLambda, fMethodRef) where
     fLit lit _ _ = case lit of -- TODO: support more type literals
                     Boolean b -> LConst b
-                    Int n -> NConst (fromIntegral n) -- TODO: use Integer in LExpr?
-                    Null -> undefined -- TODO: null support
+                    Int n -> NConst (fromIntegral n)
+                    Null -> LNil
                     _ -> error $ show $ lit
     fClassLit = error "fClassLit not supported..."
     fThis = error "fThis not supported..."
@@ -34,22 +34,23 @@ javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, 
                                              ArrayIndex (ExpName name) [ExpName index] ->
                                                 let (arrayType, indexType) = (lookupType decls env name, lookupType decls env index) in
                                                     case arrayType of
-                                                         (RefType (ArrayType (PrimType IntT))) ->
+                                                         RefType (ArrayType (PrimType IntT)) ->
                                                             case indexType of
-                                                                 PrimType IntT -> NArray (Var (TArray (TPrim PInt)) (prettyPrint name)) [NVar (Var (TPrim PInt) (prettyPrint index))]
+                                                                 PrimType IntT -> LArray (Var (TArray (TPrim PInt)) (prettyPrint name)) [LVar (Var (TPrim PInt) (prettyPrint index))]
                                                                  _ -> error $ show (arrayIndex, indexType)
                                                          _ -> error $ show (arrayIndex, arrayType)
     fExpName name env decls = case name of -- TODO: better type checking + multiple dimension arrays + better abstractions
                                    Name [Ident a, Ident "length"] -> let arrayType = lookupType decls env (Name [Ident a]) in
                                                                      case arrayType of
-                                                                          (RefType (ArrayType (PrimType IntT))) -> NLen (Var (TArray (TPrim PInt)) a)
+                                                                          RefType (ArrayType (PrimType IntT)) -> NLen (Var (TArray (TPrim PInt)) a)
                                                                           _ -> error $ show (name, arrayType)
                                    _ -> let symbol = prettyPrint name in let t = lookupType decls env name in
                                         -- If we're not dealing with library methods, we should be able to get the type from the type environment
                                         case t of
-                                             PrimType BooleanT    -> LVar (Var (TPrim PBool) symbol)
-                                             PrimType IntT        -> NVar (Var (TPrim PInt) symbol)
-                                             t                    -> error ("Verifier: Type of " ++ prettyPrint name ++ " unknown or not implemented: " ++ show t)
+                                             PrimType BooleanT -> LVar (Var (TPrim PBool) symbol)
+                                             PrimType IntT -> LVar (Var (TPrim PInt) symbol)
+                                             RefType (ArrayType (PrimType IntT)) -> LVar (Var (TArray (TPrim PInt)) symbol)
+                                             t -> error ("Verifier: Type of " ++ prettyPrint name ++ " unknown or not implemented: " ++ show t)
     fPostIncrement = error "fPostIncrement has side effects..."
     fPostDecrement = error "fPostDecrement has side effects..."
     fPreIncrement = error "fPreIncrement has side effects..."

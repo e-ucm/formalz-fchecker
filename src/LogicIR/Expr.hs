@@ -64,13 +64,12 @@ data LExpr = LConst Bool -- True/False
            | LBinop LExpr LBinop LExpr -- Logical operator
            | LComp NExpr COp NExpr -- Integer comparison
            | LQuant QOp [Var] LExpr -- Logical quantifier
-           | LArray Var [NExpr] -- Logical array access (TODO: remove?)
+           | LArray Var [NExpr] -- Logical array access
+           | LNil -- Nil constant
 
-           | NConst Int -- Integer constant
-           | NVar Var -- Variable
+           | NConst Int -- Integer constant (TODO: use Integer instead of Int?)
            | NUnop NUnop NExpr -- Unary operator
            | NBinop NExpr NBinop NExpr -- Binary operators
-           | NArray Var [NExpr] -- Integer array access
            | NIf LExpr NExpr NExpr -- if c then a else b
            | NLen Var -- len(array)
            deriving (Show, Eq, Read)

@@ -47,16 +47,16 @@ prettyVar :: Var -> String
 prettyVar (Var t n) = prettyType t ++ ":" ++ n
 
 prettyLExprAlgebra :: LExprAlgebra String
-prettyLExprAlgebra = (flConst, prettyVar, flNot, flBinop, flComp, flQuant, flArray, fnConst, prettyVar, fnUnop, fnBinop, fnArray, fnIf, fnLen) where
+prettyLExprAlgebra = (flConst, prettyVar, flNot, flBinop, flComp, flQuant, flArray, flNil, fnConst, fnUnop, fnBinop, fnIf, fnLen) where
     flConst b = if b then "true" else "false"
     flNot a = '!' : a
     flBinop a o b = a ++ " " ++ prettyLBinop o ++ " " ++ b
     flComp a o b = a ++ " " ++ prettyCOp o ++ " " ++ b
     flQuant o vs a = '(' : show o ++ intercalate "," (map prettyVar vs) ++ ": " ++ a ++ ")"
     flArray v [a] = prettyVar v ++ "[" ++ (foldLExpr prettyLExprAlgebra a) ++ "]"
+    flNil = "nil"
     fnConst n = show n
     fnUnop o a = prettyNUnop o ++ a
     fnBinop a o b = a ++ " " ++ prettyNBinop o ++ " " ++ b
-    fnArray = flArray
     fnIf c a b = "(" ++ c ++ ") ? (" ++ a ++ ") : (" ++ b ++ ")"
     fnLen v = "len(" ++ prettyVar v ++ ")"
