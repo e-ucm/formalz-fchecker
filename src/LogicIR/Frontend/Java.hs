@@ -37,7 +37,7 @@ javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, 
     fArrayCreate = undefined
     fArrayCreateInit = undefined
     fFieldAccess = undefined
-    fMethodInv inv env decls = case inv of -- TODO: currently very hardcoded
+    fMethodInv inv env decls = case inv of -- TODO: very hardcoded EDSL + lambdas cannot be { return expr; }
                                     MethodCall (Name [Ident "forall"]) [ExpName name, Lambda (LambdaSingleParam (Ident bound)) (LambdaExpression expr)]
                                         -> let (i, arr) = (Var (TPrim PInt) bound, nameToVar name env decls) in
                                             LQuant QAll i (LBinop (LBinop (LComp (LVar i) CGeq (NConst 0)) LAnd (LComp (LVar i) CLess (NLen arr))) LImpl (foldExp javaExpToLExprAlgebra expr env decls))
@@ -90,5 +90,5 @@ javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, 
     fInstanceOf = undefined
     fCond c a b env decls = NIf (c env decls) (a env decls) (b env decls)
     fAssign = error "fAssign has side effects..."
-    fLambda = undefined -- TODO: see if this should be ignored and handled in function call instead...
+    fLambda = error "fLambda should be handled by fMethodInv..."
     fMethodRef = undefined
