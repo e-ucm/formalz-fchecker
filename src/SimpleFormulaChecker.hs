@@ -109,24 +109,40 @@ orExprs = combineExprs COr
 extractExpr :: Op -> [MethodInvocation] -> Exp
 extractExpr op call = combineExprs op $ map (\(MethodCall (Name [Ident _]) [a]) -> a) call
 
+-- | Check if two formulas are equivalent
+isEquivalent :: Z3 AST -> Z3 AST -> IO (Result, Maybe Model)
+isEquivalent ast1' ast2' = evalZ3 z3
+    where
+    z3 = do
+         ast1 <- ast1'
+         ast2 <- ast2'
+         astEq <- mkEq ast1 ast2
+         astNeq <- mkNot astEq -- negate the question to get a model
+         assert astNeq
+         r <- solverCheckAndGetModel -- check in documentatie
+         solverReset
+         return r
+
+showZ3AST :: Z3 AST -> IO String
+showZ3AST ast' = evalZ3 $ ast' >>= astToString
+
 determineFormulaEq :: MethodDef -> MethodDef -> String -> IO ()
 determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
     -- get preconditions
     let (e1, e2) = (extractCond m1 name, extractCond m2 name)
+    let (lexpr1, lexpr2) = (javaExpToLExpr e1 env1 decls1, javaExpToLExpr e2 env2 decls2)
+    let (ast1, ast2) = (lExprToZ3Ast lexpr1, lExprToZ3Ast lexpr2)
     putStrLn $ "e1:\n" ++ prettyPrint e1 ++ "\n\ne2:\n" ++ prettyPrint e2 ++ "\n"
-    let lexpr = javaExpToLExpr e1 env1 decls1
-    putStrLn $ "LogicIR.Expr:\n" ++ show lexpr ++ "\n\nLogicIR.Pretty:\n" ++ prettyLExpr lexpr
-    putStrLn "\nZ3 AST:"
-    evalZ3 $ do asd <- lExprToZ3Ast lexpr
-                zprint astToString asd
-                return asd
-    putStrLn "\nZ3 Result:"
-    {--- get postconditions
-    let (post1, post2) = (extractCond m1 "post", extractCond m2 "post")
-    putStrLn $ "post1:\n" ++ prettyPrint post1 ++ "\npost2:\n" ++ prettyPrint post2 ++ "\n"-}
+    putStrLn $ "LogicIR.Expr 1:\n" ++ show lexpr1 ++ "\n\nLogicIR.Expr 2:\n" ++ show lexpr2 ++ "\n"
+    putStrLn $ "LogicIR.Pretty 1:\n" ++ prettyLExpr lexpr1 ++ "\n\nLogicIR.Pretty 2:\n" ++ prettyLExpr lexpr2 ++ "\n"
+    ast1s <- showZ3AST ast1
+    putStrLn $ "Z3 AST 1:\n" ++ ast1s ++ "\n"
+    ast2s <- showZ3AST ast2
+    putStrLn $ "Z3 AST 2:\n" ++ ast2s ++ "\n"
+    putStrLn "Z3 Result:"
     -- Check if the formula is satisfiable. If it is, print the instantiation of its free
     -- variables that would make it true:
-    (result,model) <- isEquivalent (env1, decls1, e1) (env2, decls2, e2)
+    (result, model) <- isEquivalent ast1 ast2
     case result of
        Unsat -> putStrLn "formulas are equivalent!"
        Undef -> putStrLn "unable to decide the satisfiablity (TODO: use QuickCheck)"
@@ -141,13 +157,13 @@ determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
         extractCond m n = extractExpr CAnd (getMethodCalls m n)
 
 compareSpec :: (FilePath, String) -> (FilePath, String) -> IO ()
-compareSpec method1 method2 = do
+compareSpec method1@(_, name1) method2@(_, name2) = do
     -- load the methods
     m1@(decls1, mbody1, env1) <- parseMethod method1
     m2@(decls2, mbody2, env2) <- parseMethod method2
     if env1 /= env2 then fail "inconsistent method parameters" else return ()
     if decls1 /= decls2 then fail "inconsistent class declarations (TODO)" else return ()
-    putStrLn "----PRE----"
+    putStrLn $ "----PRE---- (" ++ name1 ++ " vs " ++ name2 ++ ")"
     determineFormulaEq m1 m2 "pre"
     putStrLn "\n----POST---"
     determineFormulaEq m1 m2 "post"
@@ -155,5 +171,4 @@ compareSpec method1 method2 = do
 edslSrc = "javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
 testEq = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec1")
 testNeq = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec2")
-
-blub = compareSpec (edslSrc, "simple1") (edslSrc, "simple1")
+blub = compareSpec (edslSrc, "getMax_spec1") (edslSrc, "getMax_spec2")

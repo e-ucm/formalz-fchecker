@@ -18,8 +18,8 @@ nameToVar :: Name -> TypeEnv -> [TypeDecl] -> Var
 nameToVar name env decls = let (arrayType, symbol) = (lookupType decls env name, prettyPrint name) in
     case arrayType of
         PrimType BooleanT -> Var (TPrim PBool) symbol
-        PrimType IntT -> Var (TPrim PInt) symbol
-        RefType (ArrayType (PrimType IntT)) -> Var (TArray (TPrim PInt)) symbol
+        PrimType IntT -> Var (TPrim PInt32) symbol
+        RefType (ArrayType (PrimType IntT)) -> Var (TArray (TPrim PInt32)) symbol
         _ -> error $ "Unimplemented nameToVar for " ++ show (name, arrayType)
 
 javaExpToLExprAlgebra :: ExpAlgebra (TypeEnv -> [TypeDecl] -> LExpr)
@@ -39,16 +39,16 @@ javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, 
     fFieldAccess = undefined
     fMethodInv inv env decls = case inv of -- TODO: very hardcoded EDSL + lambdas cannot be { return expr; }
                                     MethodCall (Name [Ident "forall"]) [ExpName name, Lambda (LambdaSingleParam (Ident bound)) (LambdaExpression expr)]
-                                        -> let (i, arr) = (Var (TPrim PInt) bound, nameToVar name env decls) in
+                                        -> let (i, arr) = (Var (TPrim PInt32) bound, nameToVar name env decls) in
                                             LQuant QAll i (LBinop (LBinop (LComp (LVar i) CGeq (NConst 0)) LAnd (LComp (LVar i) CLess (NLen arr))) LImpl (foldExp javaExpToLExprAlgebra expr env decls))
                                     MethodCall (Name [Ident "exists"]) [ExpName name, Lambda (LambdaSingleParam (Ident bound)) (LambdaExpression expr)]
-                                        -> let (i, arr) = (Var (TPrim PInt) bound, nameToVar name env decls) in
+                                        -> let (i, arr) = (Var (TPrim PInt32) bound, nameToVar name env decls) in
                                             LQuant QAny i (LBinop (LBinop (LComp (LVar i) CGeq (NConst 0)) LAnd (LComp (LVar i) CLess (NLen arr))) LAnd (foldExp javaExpToLExprAlgebra expr env decls))
                                     _
                                         -> error $ "Unimplemented fMethodInv: " ++ show inv
     fArrayAccess arrayIndex env decls = case arrayIndex of -- TODO: type checking
                                              ArrayIndex (ExpName name) [ExpName index]
-                                                -> LArray (nameToVar name env decls) [LVar (nameToVar index env decls)]
+                                                -> LArray (nameToVar name env decls) (LVar (nameToVar index env decls))
                                              _
                                                 -> error $ "Multidimensional arrays are not supported: " ++ show (arrayIndex)
     fExpName name env decls = case name of -- TODO: type checking

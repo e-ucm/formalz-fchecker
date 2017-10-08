@@ -4,7 +4,7 @@ module LogicIR.Expr where
 -- Based on my (Duncan's) previous work: https://github.com/mrexodia/wp/blob/master/Wp.hs
 
 data Primitive = PBool
-               | PInt
+               | PInt32
                deriving (Show, Eq, Read)
 
 data Type = TPrim Primitive
@@ -39,7 +39,6 @@ data NBinop = NAdd -- a + b
 data LBinop = LAnd -- Conjunction
             | LOr -- Disjunction
             | LImpl -- Implication
-            | LBicond -- Biconditional (TODO: remove?)
             deriving (Show, Eq, Read)
 
 -- Quantifier operators
@@ -64,7 +63,7 @@ data LExpr = LConst Bool -- True/False
            | LBinop LExpr LBinop LExpr -- Logical operator
            | LComp NExpr COp NExpr -- Integer comparison
            | LQuant QOp Var LExpr -- Logical quantifier
-           | LArray Var [NExpr] -- Logical array access
+           | LArray Var NExpr -- Logical array access
            | LNil -- Nil constant
 
            | NConst Int -- Integer constant (TODO: use Integer instead of Int?)

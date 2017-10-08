@@ -9,7 +9,7 @@ prettyLExpr :: LExpr -> String
 prettyLExpr = foldLExpr prettyLExprAlgebra
 
 prettyType :: Type -> String
-prettyType (TPrim PInt) = "int"
+prettyType (TPrim PInt32) = "int"
 prettyType (TPrim PBool) = "bool"
 prettyType (TArray t) = prettyType t ++ "[]"
 
@@ -25,7 +25,6 @@ prettyLBinop :: LBinop -> String
 prettyLBinop LAnd = "&&"
 prettyLBinop LOr = "||"
 prettyLBinop LImpl = "->"
-prettyLBinop LBicond = "<->"
 
 prettyNBinop :: NBinop -> String
 prettyNBinop NAdd = "+"
@@ -53,7 +52,7 @@ prettyLExprAlgebra = (flConst, prettyVar, flNot, flBinop, flComp, flQuant, flArr
     flBinop a o b = a ++ " " ++ prettyLBinop o ++ " " ++ b
     flComp a o b = a ++ " " ++ prettyCOp o ++ " " ++ b
     flQuant o v a = '(' : show o ++ " " ++ prettyVar v ++ " . " ++ a ++ ")"
-    flArray v [a] = prettyVar v ++ "[" ++ (foldLExpr prettyLExprAlgebra a) ++ "]"
+    flArray v a = prettyVar v ++ "[" ++ a ++ "]"
     flNil = "nil"
     fnConst n = show n
     fnUnop o a = prettyNUnop o ++ a

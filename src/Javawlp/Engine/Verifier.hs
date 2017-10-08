@@ -32,20 +32,6 @@ isFalse env decls e =
             Unsat -> return True
             _     -> return False
 
--- | Check if two formulas are equivalent
-isEquivalent :: (TypeEnv, [TypeDecl], Exp) -> (TypeEnv, [TypeDecl], Exp) -> IO (Result, Maybe Model)
-isEquivalent (env1, decls1, e1) (env2, decls2, e2) = evalZ3 z3
-    where
-    z3 = do
-         ast1 <- foldExp expAssertAlgebra e1 env1 decls1
-         ast2 <- foldExp expAssertAlgebra e2 env2 decls2
-         astEq <- mkEq ast1 ast2
-         blub <- mkNot astEq -- negate the question to get a model
-         assert blub
-         r <- solverCheckAndGetModel -- check in documentatie
-         solverReset
-         return r
-
 zprint :: MonadZ3 z3 => (a -> z3 String) -> a -> z3 ()
 zprint mshowx x = mshowx x >>= liftIO . putStrLn
 
@@ -86,7 +72,7 @@ testForall = evalZ3 $
     where int x = mkStringSymbol x >>= mkIntVar
           printFunc x = zprint funcDeclToString x
           printAst x = zprint astToString x
-          
+
 
 -- | Check if a formula is satisfiable, and if so, return the model for it as well.
 -- The result is a pair (r,m) where r is either Sat, Unsat, or Undef. If r is Sat,
