@@ -15,6 +15,8 @@ import LogicIR.Frontend.Java
 import LogicIR.Backend.Z3
 import LogicIR.Backend.Pretty
 
+import Control.Monad.Trans (liftIO)
+
 import Debug.Trace
 
 {-
@@ -113,7 +115,12 @@ determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
     let (e1, e2) = (extractCond m1 name, extractCond m2 name)
     putStrLn $ "e1:\n" ++ prettyPrint e1 ++ "\n\ne2:\n" ++ prettyPrint e2 ++ "\n"
     let lexpr = javaExpToLExpr e1 env1 decls1
-    putStrLn $ show lexpr ++ "\n\n" ++ prettyLExpr lexpr
+    putStrLn $ "LogicIR.Expr:\n" ++ show lexpr ++ "\n\nLogicIR.Pretty:\n" ++ prettyLExpr lexpr
+    putStrLn "\nZ3 AST:"
+    evalZ3 $ do asd <- lExprToZ3Ast lexpr
+                zprint astToString asd
+                return asd
+    putStrLn "\nZ3 Result:"
     {--- get postconditions
     let (post1, post2) = (extractCond m1 "post", extractCond m2 "post")
     putStrLn $ "post1:\n" ++ prettyPrint post1 ++ "\npost2:\n" ++ prettyPrint post2 ++ "\n"-}
@@ -149,4 +156,4 @@ edslSrc = "javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
 testEq = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec1")
 testNeq = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec2")
 
-blub = compareSpec (edslSrc, "getMax_spec1") (edslSrc, "getMax_spec1")
+blub = compareSpec (edslSrc, "simple1") (edslSrc, "simple1")

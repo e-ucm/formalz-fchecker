@@ -55,6 +55,7 @@ def neq_forall2():
 	solve(ast)
 
 def neq_forall3():
+	return
 	print "3"
 	x = Int('x')
 	ast1 = ForAll(x, x*x>=x, patterns = [x])
@@ -66,6 +67,22 @@ def neq_forall3():
 # A <=> B means A => B and B => A, so if we prove (A & ~B), A => B doesn't hold so A != B
 # - joao
 
+def python_is_super_hot():
+	print "SUPER HOT"
+	IntArray = ArraySort(IntSort(), IntSort())
+	ArrayRef = Datatype('ArrayRef')
+	ArrayRef.declare('NotNull', ('Value', IntArray))
+	ArrayRef.declare('Null')
+	ArrayRef = ArrayRef.create()
+
+	print ArrayRef.Null
+	print ArrayRef.NotNull
+	nullArr = Array('null', IntSort(), IntSort())
+	arr = Array('a', IntSort(), IntSort())
+	solve (arr == nullArr)
+
+help_simplify()
+
 eq()
 print ""
 neq()
@@ -75,3 +92,5 @@ print ""
 neq_forall2()
 print ""
 neq_forall3()
+print ""
+python_is_super_hot()
