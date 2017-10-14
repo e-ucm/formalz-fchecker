@@ -107,7 +107,21 @@ public class Main {
         post(a[i] == oldaj);
     }
 
+    public static void test1(int[] a)
+    {
+        pre(exists(a, i -> a[i+1] > a[i]));
+        post(true);
+    }
+
+    public static void test2(int[] a)
+    {
+        pre(false);
+        //pre(exists(a, i -> a[i+1] >= a[i]));
+        post(true);
+    }
+
     public static void swap_spec2(int[] a, int i, int j) {
+        pre(a != null && a[0] == 0);
         pre(a != null && a.length > 0 && i >= 0 && j > 0);
         // introducing vars to remember old values
         int oldai = a[i], oldaj = a[j];

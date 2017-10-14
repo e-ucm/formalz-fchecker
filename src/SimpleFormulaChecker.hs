@@ -172,3 +172,4 @@ edslSrc = "javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
 testEq = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec1")
 testNeq = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec2")
 blub = compareSpec (edslSrc, "getMax_spec1") (edslSrc, "getMax_spec2")
+blub2 = compareSpec (edslSrc, "test1") (edslSrc, "test2")

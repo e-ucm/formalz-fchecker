@@ -47,8 +47,8 @@ javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, 
                                     _
                                         -> error $ "Unimplemented fMethodInv: " ++ show inv
     fArrayAccess arrayIndex env decls = case arrayIndex of -- TODO: type checking
-                                             ArrayIndex (ExpName name) [ExpName index]
-                                                -> LArray (nameToVar name env decls) (LVar (nameToVar index env decls))
+                                             ArrayIndex (ExpName name) [expr]
+                                                -> LArray (nameToVar name env decls) (javaExpToLExpr expr env decls) -- (LVar (nameToVar index env decls))
                                              _
                                                 -> error $ "Multidimensional arrays are not supported: " ++ show (arrayIndex)
     fExpName name env decls = case name of -- TODO: type checking
