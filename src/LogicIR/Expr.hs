@@ -1,12 +1,13 @@
 module LogicIR.Expr where
 
--- TODO: pretty printer
--- Based on my (Duncan's) previous work: https://github.com/mrexodia/wp/blob/master/Wp.hs
+-- Based on previous work: https://github.com/mrexodia/wp/blob/master/Wp.hs
 
+-- The primitive types are bool and int32.
 data Primitive = PBool
                | PInt32
                deriving (Show, Eq, Read)
 
+-- A Type can either be a primitive or an array of Type
 data Type = TPrim Primitive
           | TArray Type
           deriving (Show, Eq, Read)
@@ -54,9 +55,10 @@ data COp = CEqual -- a == b
          | CGeq -- a >= b
          deriving (Show, Eq, Read)
 
+-- Logical and numeral expressions are the same type, but an alias is added for clarity.
 type NExpr = LExpr
 
--- Logical expressions (TODO: clean up duplicates)
+-- Logical expressions
 data LExpr = LConst Bool -- True/False
            | LVar Var -- Variable
            | LNot LExpr -- Logical negation/not

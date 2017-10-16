@@ -1,3 +1,5 @@
+-- Very crude pretty printer for debugging, should not be used in production!
+
 module LogicIR.Backend.Pretty (prettyLExpr) where
 
 import Data.List

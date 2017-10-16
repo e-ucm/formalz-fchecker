@@ -14,6 +14,7 @@ import Data.Typeable
 javaExpToLExpr :: Exp -> TypeEnv -> [TypeDecl] -> LExpr
 javaExpToLExpr = foldExp javaExpToLExprAlgebra
 
+-- Converts a name to a LogicIR.Var, it queries the type environment to find the correct type.
 nameToVar :: Name -> TypeEnv -> [TypeDecl] -> Var
 nameToVar name env decls = let (arrayType, symbol) = (lookupType decls env name, prettyPrint name) in
     case arrayType of
@@ -34,13 +35,20 @@ javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, 
     fThisClass = error "fThisClass not supported..."
     fInstanceCreation = error "fInstanceCreation not supported..."
     fQualInstanceCreation = error "fQualInstanceCreation not supported..."
-    fArrayCreate = undefined
-    fArrayCreateInit = undefined
-    fFieldAccess = undefined
-    fMethodInv inv env decls = case inv of -- TODO: very hardcoded EDSL + lambdas cannot be { return expr; }
+    fArrayCreate = error "fArrayCreate not supported..."
+    fArrayCreateInit = error "fArrayCreateInit not supported..."
+    fFieldAccess = undefined {-case fieldAccess of -- TODO: implement field accesses
+                        PrimaryFieldAccess e id         -> case e of
+                                                                InstanceCreation _ t args _ -> undefined
+                                                                _ -> undefined
+                        SuperFieldAccess id             -> mkStringSymbol (prettyPrint (Name [id])) >>= mkIntVar
+                        ClassFieldAccess (Name name) id -> mkStringSymbol (prettyPrint (Name (name ++ [id]))) >>= mkIntVar -}
+    fMethodInv inv env decls = case inv of -- TODO: very hardcoded EDSL + lambdas cannot be { return expr; } + ranged 
+                                    -- Java: forall(name, bound -> expr);
                                     MethodCall (Name [Ident "forall"]) [ExpName name, Lambda (LambdaSingleParam (Ident bound)) (LambdaExpression expr)]
                                         -> let (i, arr) = (Var (TPrim PInt32) bound, nameToVar name env decls) in
                                             LQuant QAll i (LBinop (LBinop (LComp (LVar i) CGeq (NConst 0)) LAnd (LComp (LVar i) CLess (NLen arr))) LImpl (foldExp javaExpToLExprAlgebra expr env decls))
+                                    -- Java: exists(name, bound -> expr);
                                     MethodCall (Name [Ident "exists"]) [ExpName name, Lambda (LambdaSingleParam (Ident bound)) (LambdaExpression expr)]
                                         -> let (i, arr) = (Var (TPrim PInt32) bound, nameToVar name env decls) in
                                             LQuant QAny i (LBinop (LBinop (LComp (LVar i) CGeq (NConst 0)) LAnd (LComp (LVar i) CLess (NLen arr))) LAnd (foldExp javaExpToLExprAlgebra expr env decls))
@@ -48,10 +56,10 @@ javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, 
                                         -> error $ "Unimplemented fMethodInv: " ++ show inv
     fArrayAccess arrayIndex env decls = case arrayIndex of -- TODO: type checking
                                              ArrayIndex (ExpName name) [expr]
-                                                -> LArray (nameToVar name env decls) (javaExpToLExpr expr env decls) -- (LVar (nameToVar index env decls))
+                                                -> LArray (nameToVar name env decls) (javaExpToLExpr expr env decls)
                                              _
                                                 -> error $ "Multidimensional arrays are not supported: " ++ show (arrayIndex)
-    fExpName name env decls = case name of -- TODO: type checking
+    fExpName name env decls = case name of -- TODO: type checking + check implicit `this.name`
                                    Name [Ident a, Ident "length"] -> NLen $ nameToVar (Name [Ident a]) env decls
                                    _ -> LVar $ nameToVar name env decls
     fPostIncrement = error "fPostIncrement has side effects..."
@@ -62,7 +70,7 @@ javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, 
     fPreMinus e env decls = NUnop NNeg (e env decls)
     fPreBitCompl e env decls = NUnop NNot (e env decls)
     fPreNot e env decls = LNot (e env decls)
-    fCast = undefined -- TODO: perhaps support cast for some types?
+    fCast = error "fCast is not supported..." -- TODO: perhaps support cast for some types?
     fBinOp e1 op e2 env decls = let (a, b) = (e1 env decls, e2 env decls) in -- TODO: type checking?
                                 case op of
                                      -- Integer
@@ -87,7 +95,7 @@ javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, 
                                      GThanE -> LComp a CGeq b
                                      Equal -> LComp a CEqual b
                                      NotEq -> LComp a CNEqual b
-    fInstanceOf = undefined
+    fInstanceOf = error "fInstanceOf is not supported..."
     fCond c a b env decls = NIf (c env decls) (a env decls) (b env decls)
     fAssign = error "fAssign has side effects..."
     fLambda = error "fLambda should be handled by fMethodInv..."

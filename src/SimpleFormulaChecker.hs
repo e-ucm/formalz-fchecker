@@ -4,6 +4,7 @@ import Language.Java.Syntax
 import Language.Java.Parser
 import Language.Java.Pretty
 import Z3.Monad
+import Z3.Opts
 import Data.Maybe
 
 import Javawlp.Engine.Types
@@ -19,47 +20,7 @@ import Control.Monad.Trans (liftIO)
 
 import Debug.Trace
 
-{-
-
-Hi Duncan, I have written this simple Haskell program that shows you how to use some parts of this
-Javawlp library for your purpose. The function "checkformula" below can be used to parse
-a Java class of the form:
-
-    class C {
-       boolean f1(x,y,z) { return e1 ; }
-       boolean f2(...  ) { return e2 ; }
-       ...
-    }
-
-There is an example of such a class in "examples/DuncanExample.java". For e demo, call:
-
-     checkformula "../examples/DuncanExample.java" "f1"
-     checkformula "../examples/DuncanExample.java" "f2"
-     checkformula "../examples/DuncanExample.java" "f3"
-
-Each time, it will grab the formula in "return e" of the specified method, and will pass it to
-Z3 to be checked if the formula is satisfiable. If it is, satisfying instances of the formula's free
-variables will be printed.
-
-The starting point to see of to ask Z3 to check Java's formula is the fuunction "unsafeIsSatisfiable"
-in the module Verifier. This in turn calls "foldExp expAssertAlgebra expr" to translate expr to
-an representation for Z3.
-
-Some notes on the demo:
-
-  ** To simplify the demo, the method-names must uniquely identify them.
-
-  ** The used Java-parser library is a 3rd party. Unfortunately it is not that sophisticated.
-     It seems to be blind to Java's operators' priorities.
-     To parse e.g. x<0 || x>0 we have to explicityly brackets the sub-expressions: (x<0) || (x>0).
-
-
-Dependencies:
-
-   * Haskell package: language-java
-   * Haskell package: z3, which then also need z3 binary/lib
-
--}
+-- See README.md for more details.
 
 type MethodDef = ([TypeDecl], Stmt, TypeEnv)
 
@@ -89,6 +50,7 @@ parseMethod (src, name) = do
             Left parseError -> error (show parseError)
             Right compUnit  -> return compUnit
 
+-- Get a list of all calls to a method of a specific name from a method definition.
 getMethodCalls :: MethodDef -> String -> [MethodInvocation]
 getMethodCalls (_, StmtBlock (Block bs), _) name = catMaybes (map extractMethodInv bs)
     where
@@ -96,20 +58,14 @@ getMethodCalls (_, StmtBlock (Block bs), _) name = catMaybes (map extractMethodI
         extractMethodInv (BlockStmt (ExpStmt (MethodInv i@(MethodCall (Name [Ident n]) _)))) = if n == name then Just i else Nothing
         extractMethodInv _ = Nothing
 
-combineExprs :: Op -> [Exp] -> Exp
-combineExprs o (e:[]) = e
-combineExprs o (e:es) = BinOp e o (combineExprs o es)
+-- [pre(a), pre(b), pre(c)] -> (a AND b AND c)
+extractExpr :: [MethodInvocation] -> Exp
+extractExpr call = combineExprs $ map (\(MethodCall (Name [Ident _]) [a]) -> a) call
+    where combineExprs :: [Exp] -> Exp
+          combineExprs (e:[]) = e
+          combineExprs (e:es) = BinOp e CAnd (combineExprs es)
 
-andExprs :: [Exp] -> Exp
-andExprs = combineExprs CAnd
-
-orExprs :: [Exp] -> Exp
-orExprs = combineExprs COr
-
-extractExpr :: Op -> [MethodInvocation] -> Exp
-extractExpr op call = combineExprs op $ map (\(MethodCall (Name [Ident _]) [a]) -> a) call
-
--- | Check if two formulas are equivalent
+-- Check if two Z3 AST's are equivalent
 isEquivalent :: Z3 AST -> Z3 AST -> IO (Result, Maybe Model)
 isEquivalent ast1' ast2' = evalZ3 z3
     where
@@ -123,12 +79,10 @@ isEquivalent ast1' ast2' = evalZ3 z3
          solverReset
          return r
 
-showZ3AST :: Z3 AST -> IO String
-showZ3AST ast' = evalZ3 $ ast' >>= astToString
-
+-- Determine the equality of two method's pre/post conditions.
 determineFormulaEq :: MethodDef -> MethodDef -> String -> IO ()
 determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
-    -- get preconditions
+    -- get pre/post condition
     let (e1, e2) = (extractCond m1 name, extractCond m2 name)
     let (lexpr1, lexpr2) = (javaExpToLExpr e1 env1 decls1, javaExpToLExpr e2 env2 decls2)
     let (ast1, ast2) = (lExprToZ3Ast lexpr1, lExprToZ3Ast lexpr2)
@@ -146,16 +100,21 @@ determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
     case result of
        Unsat -> putStrLn "formulas are equivalent!"
        Undef -> putStrLn "unable to decide the satisfiablity (TODO: use QuickCheck)"
-       _     -> do
+       Sat   -> do
                 putStrLn "formulas are NOT equivalent, model:"
                 case model of
-                  Just m -> do s <- evalZ3 (modelToString m)
+                  Just m -> do env <- newItpEnv Nothing (Z3.Opts.opt ":pp.bv-literals" False)
+                               s <- evalZ3WithEnv (modelToString m) env 
                                putStr s
                   _      -> return ()
     where
         extractCond :: MethodDef -> String -> Exp
-        extractCond m n = extractExpr CAnd (getMethodCalls m n)
+        extractCond m n = extractExpr (getMethodCalls m n)
+        showZ3AST :: Z3 AST -> IO String
+        showZ3AST ast' = evalZ3 $ ast' >>= astToString
 
+-- Function that compares both the pre and the post condition for two methods.
+-- It is assumed that both methods have the same environment (parameter names, class member names, etc).
 compareSpec :: (FilePath, String) -> (FilePath, String) -> IO ()
 compareSpec method1@(_, name1) method2@(_, name2) = do
     -- load the methods

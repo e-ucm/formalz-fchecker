@@ -22,7 +22,7 @@ lExprToZ3AstAlgebra = (flConst, flVar, flNot, flBinop, flComp, flQuant, flArray,
                               TArray (TPrim PBool) -> do intSort <- mkBvSort 32
                                                          arraySort <- mkBoolSort >>= mkArraySort intSort
                                                          mkVar symbol arraySort
-                              _ -> error $ show n
+                              _ -> error $ "unsupported type: " ++ show n
     flNot a = a >>= mkNot
     flBinop a' o b' = do a <- a'
                          b <- b'
@@ -45,12 +45,12 @@ lExprToZ3AstAlgebra = (flConst, flVar, flNot, flBinop, flComp, flQuant, flArray,
                                                           case o of
                                                                QAll -> mkForallConst [] [vApp] a
                                                                QAny -> mkExistsConst [] [vApp] a
-                                       _ -> error $ show (o, v)
+                                       _ -> error $ "unsupported quantifier domain type: " show (o, v)
     flArray v a' = do v <- flVar v
                       a <- a'
                       mkSelect v a
     flNil = do intSort <- mkBvSort 32
-               zero <- mkBitvector 32 0 -- (isNull, data, length) TODO
+               zero <- mkBitvector 32 0 -- (isNull, data, length) TODO: support proper null types
                mkConstArray intSort zero
     fnConst n = mkBitvector 32 (fromIntegral n)
     fnUnop o a' = do a <- a'
@@ -74,4 +74,4 @@ lExprToZ3AstAlgebra = (flConst, flVar, flNot, flBinop, flComp, flQuant, flArray,
                        a <- a'
                        b <- b'
                        mkIte c a b
-    fnLen (Var (TArray (TPrim _)) n) = mkStringSymbol (n ++ ".length") >>= flip mkBvVar 32
+    fnLen (Var (TArray (TPrim _)) n) = mkStringSymbol (n ++ ".length") >>= flip mkBvVar 32 -- TODO: support proper array lengths
