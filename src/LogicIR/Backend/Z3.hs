@@ -45,7 +45,7 @@ lExprToZ3AstAlgebra = (flConst, flVar, flNot, flBinop, flComp, flQuant, flArray,
                                                           case o of
                                                                QAll -> mkForallConst [] [vApp] a
                                                                QAny -> mkExistsConst [] [vApp] a
-                                       _ -> error $ "unsupported quantifier domain type: " show (o, v)
+                                       _ -> error $ "unsupported quantifier domain type: " ++ show (o, v)
     flArray v a' = do v <- flVar v
                       a <- a'
                       mkSelect v a
