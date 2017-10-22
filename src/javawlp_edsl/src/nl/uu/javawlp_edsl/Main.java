@@ -107,6 +107,12 @@ public class Main {
         post(a[i] == oldaj);
     }
 
+    public static void blob1(int[] a)
+    {
+        pre(forall(a, i -> { return a[i] == 0; }));
+        post(true);
+    }
+
     public static void test1(int[] a)
     {
         pre(exists(a, i -> a[i+1] > a[i]));
