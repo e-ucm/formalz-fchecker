@@ -50,7 +50,7 @@ lExprToZ3AstAlgebra = (flConst, flVar, flNot, flBinop, flComp, flQuant, flArray,
                       a <- a'
                       mkSelect v a
     flNil = do intSort <- mkBvSort 32
-               zero <- mkBitvector 32 0 -- (isNull, data, length) TODO: support proper null types
+               zero <- mkBitvector 32 0x1337 -- (isNull, data, length) TODO: support proper null types
                mkConstArray intSort zero
     fnConst n = mkBitvector 32 (fromIntegral n)
     fnUnop o a' = do a <- a'

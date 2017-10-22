@@ -40,7 +40,7 @@ parseMethod (src, name) = do
     -- return the relevant data
     return (decls, mbody, env)
     where
-    -- | Parse a Java source file, and extracts the necessary information from the compilation unit
+    -- parse a Java source file, and extracts the necessary information from the compilation unit
     parseJava :: FilePath -> IO CompilationUnit
     parseJava s = do
         -- Get the source code
@@ -103,8 +103,7 @@ determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
        Sat   -> do
                 putStrLn "formulas are NOT equivalent, model:"
                 case model of
-                  Just m -> do env <- newItpEnv Nothing (Z3.Opts.opt ":pp.bv-literals" False)
-                               s <- evalZ3WithEnv (modelToString m) env 
+                  Just m -> do s <- evalZ3 (modelToString m)
                                putStr s
                   _      -> return ()
     where
@@ -133,3 +132,4 @@ testNeq = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec2")
 blub = compareSpec (edslSrc, "getMax_spec1") (edslSrc, "getMax_spec2")
 blub2 = compareSpec (edslSrc, "test1") (edslSrc, "test2")
 blob = compareSpec (edslSrc, "blob1") (edslSrc, "blob1")
+nullTest = compareSpec (edslSrc, "null1") (edslSrc, "null2")

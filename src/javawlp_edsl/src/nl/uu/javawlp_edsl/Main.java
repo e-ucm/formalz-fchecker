@@ -107,20 +107,27 @@ public class Main {
         post(a[i] == oldaj);
     }
 
-    public static void blob1(int[] a)
-    {
+    public static void null1(int[] a, int x) {
+        pre(a != null);
+        post(true);
+    }
+
+    public static void null2(int[] a, int x) {
+        pre(exists(a, i -> a[i] != 0x1337));
+        post(true);
+    }
+
+    public static void blob1(int[] a)  {
         pre(forall(a, i -> { return a[i] == 0; }));
         post(true);
     }
 
-    public static void test1(int[] a)
-    {
+    public static void test1(int[] a)  {
         pre(exists(a, i -> a[i+1] > a[i]));
         post(true);
     }
 
-    public static void test2(int[] a)
-    {
+    public static void test2(int[] a)  {
         pre(false);
         //pre(exists(a, i -> a[i+1] >= a[i]));
         post(true);
