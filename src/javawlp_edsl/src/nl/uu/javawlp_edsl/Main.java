@@ -127,6 +127,11 @@ public class Main {
         post(true);
     }
 
+     public static void test1_(int[] a)  {
+        pre(exists(a, i -> a[i+1] > a[i] && (a.length > i+1)));
+        post(true);
+    }
+
     public static void test2(int[] a)  {
         pre(false);
         //pre(exists(a, i -> a[i+1] >= a[i]));
