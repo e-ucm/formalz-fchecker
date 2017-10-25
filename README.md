@@ -61,11 +61,11 @@ This example uses the EDSL quantifier functions `exists` and `forall`. In additi
 
 Postcondition A will be mapped to:
 
-![Postcondition B](https://i.imgur.com/uhDMunu.png)
+![Postcondition A](https://i.imgur.com/YBZ178V.png)
 
 Postcondition B will be mapped to:
 
-![Postcondition A](https://i.imgur.com/SddZgYZ.png)
+![Postcondition B](https://i.imgur.com/JZDVSvy.png)
 
 ### Notes
 
