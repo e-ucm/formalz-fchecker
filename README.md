@@ -77,7 +77,10 @@ Postcondition B will be mapped to:
 
 To facilitate further development, it was decided to use an intermediate representation for logical expressions. The frontend converts the Java EDSL to the IR and the backend uses IR to implement the comparison of two expressions.
 
-You can find the source code in `src/LogicIR/Expr.hs` TODO
+You can find the source code in `src/LogicIR/Expr.hs` TODO N is numeric
+
+TODO: future work, sets, types
+TODO: parse logicir from file
 
 ### LogicIR.Frontend
 
@@ -87,10 +90,13 @@ Currently there is only one frontend for the Java EDSL, but this could quite eas
 
 One of the implemented backends is for the [Z3 Theorem Prover](https://github.com/Z3Prover/z3). The `LogicIR.Expr` is converted to a `Z3 AST`.
 
+TODO: valid (invalid), satisfiable (unsatisfiable)
+TODO: 
+
 To determine if two expressions (`P` and `Q`) are equal, we ask Z3 to prove `P != Q`. There are three possible results:
 
-1. `Sat` -> Z3 proved `P != Q`, which means the two formulas are *not* equivalent. The Z3 model contains the counter example to provide to the student.
-2. `Unsat` -> Z3 proved that `P != Q` does not hold, which means the two formulas are equivalent.
+1. `Sat` -> Z3 proved `P != Q` is satisfiable, which means the two formulas are *not* equivalent. The Z3 model contains the counter example to provide to the student.
+2. `Unsat` -> Z3 proved that `P != Q` is not satisfiable, which means the two formulas are equivalent.
 3. `Undef` -> Z3 was unable to decide the satisfiablity of `P != Q`. In this case we have to resort to other methods like QuickCheck to determine if the two formulas are equivalent or not.
 
 #### Notes
