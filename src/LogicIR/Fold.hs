@@ -3,35 +3,27 @@ module LogicIR.Fold where
 import LogicIR.Expr
 
 -- Fold algebra for logical expressions
-type LExprAlgebra r = (Bool -> r, -- LConst
+type LExprAlgebra r = (LConst -> r, -- LConst
                        Var -> r, -- LVar
-                       r -> r, -- LNot
+                       LUnop -> r -> r, -- LUnop
                        r -> LBinop -> r -> r, -- LBinop
-                       r -> COp -> r -> r, -- LComp
-                       QOp -> Var -> r -> r, -- LQuant
+                       r -> r -> r -> r, -- LIf
+                       QOp -> Var -> r -> r -> r, -- LQuant
                        Var -> r -> r, -- LArray
-                       r, -- LNil
-                       Int -> r, -- NConst
-                       NUnop -> r -> r, -- NUnop
-                       r -> NBinop -> r -> r, -- NBinop
-                       r -> r -> r -> r, -- NIf
-                       Var -> r -- NLen
+                       Var -> r, -- LIsnull
+                       Var -> r -- LLen
                       )
 
 -- Fold for logical expressions
 foldLExpr :: LExprAlgebra r -> LExpr -> r
-foldLExpr (flConst, flVar, flNot, flBinop, flComp, flQuant, flArray, flNil, fnConst, fnUnop, fnBinop, fnIf, fnLen) = fold where
+foldLExpr (fConst, fVar, fUnop, fBinop, fIf, fQuant, fArray, fIsnull, fLen) = fold where
     fold e = case e of
-                  LConst c -> flConst c
-                  LVar v -> flVar v
-                  LNot e -> flNot (fold e)
-                  LBinop a o b -> flBinop (fold a) o (fold b)
-                  LComp a o b -> flComp (fold a) o (fold b)
-                  LQuant o v e -> flQuant o v (fold e)
-                  LArray v e -> flArray v (fold e)
-                  LNil -> flNil
-                  NConst n -> fnConst n
-                  NUnop o e -> fnUnop o (fold e)
-                  NBinop a o b -> fnBinop (fold a) o (fold b)
-                  NIf c a b -> fnIf (fold c) (fold a) (fold b)
-                  NLen v -> fnLen v
+                  LConst c -> fConst c
+                  LVar v -> fVar v
+                  LUnop o a -> fUnop o (fold a)
+                  LBinop a o b -> fBinop (fold a) o (fold b)
+                  LIf c a b -> fIf (fold c) (fold a) (fold b)
+                  LQuant o b d a -> fQuant o b (fold d) (fold a)
+                  LArray v a -> fArray v (fold a)
+                  LIsnull v -> fIsnull v
+                  LLen v -> fLen v

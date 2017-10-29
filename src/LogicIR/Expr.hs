@@ -1,6 +1,7 @@
 module LogicIR.Expr where
 
 -- Based on previous work: https://github.com/mrexodia/wp/blob/master/Wp.hs
+-- Reference: https://en.wikipedia.org/wiki/First-order_logic#Logical_symbols
 
 -- The primitive types are bool and int32.
 data Primitive = PBool
@@ -16,13 +17,14 @@ data Type = TPrim Primitive
 data Var = Var Type String
          deriving (Show, Eq, Read)
 
--- Numeral unary operators
-data NUnop = NNeg -- -n (negation)
+-- Unary operators
+data LUnop = NNeg -- -n (negation)
            | NNot -- ~n (binary not)
+           | LNot -- !n (logical not)
            deriving (Show, Eq, Read)
 
--- Numeral binary operators
-data NBinop = NAdd -- a + b
+-- Binary operators
+data LBinop = NAdd -- a + b
             | NSub -- a - b
             | NMul -- a * b
             | NDiv -- a / b
@@ -32,45 +34,36 @@ data NBinop = NAdd -- a + b
             | NAnd -- a & b
             | NOr -- a | b
             | NXor -- a ^ b
-            deriving (Show, Eq, Read)
 
--- Reference: https://en.wikipedia.org/wiki/First-order_logic#Logical_symbols
+            | LAnd -- a && b
+            | LOr -- a || b
+            | LImpl -- a => b
 
--- Logical operators
-data LBinop = LAnd -- Conjunction
-            | LOr -- Disjunction
-            | LImpl -- Implication
+            | CEqual -- a == b
+            | CNEqual -- a != b
+            | CLess -- a < b
+            | CGreater -- a > b
+            | CLeq -- a <= b
+            | CGeq -- a >= b
             deriving (Show, Eq, Read)
 
 -- Quantifier operators
 data QOp = QAll | QAny
          deriving (Show, Eq, Read)
 
--- Comparison operators
-data COp = CEqual -- a == b
-         | CNEqual -- a != b
-         | CLess -- a < b
-         | CGreater -- a > b
-         | CLeq -- a <= b
-         | CGeq -- a >= b
-         deriving (Show, Eq, Read)
-
--- Logical and numeral expressions are the same type, but an alias is added for clarity.
-type NExpr = LExpr
+data LConst = CBool Bool
+            | CInt Int
+            | CNil
+            deriving (Show, Eq, Read)
 
 -- Logical expressions
-data LExpr = LConst Bool -- True/False
-           | LVar Var -- Variable
-           | LNot LExpr -- Logical negation/not
-           | LBinop LExpr LBinop LExpr -- Logical operator
-           | LComp NExpr COp NExpr -- Integer comparison
-           | LQuant QOp Var LExpr -- Logical quantifier
-           | LArray Var NExpr -- Logical array access
-           | LNil -- Nil constant
-
-           | NConst Int -- Integer constant (TODO: use Integer instead of Int?)
-           | NUnop NUnop NExpr -- Unary operator
-           | NBinop NExpr NBinop NExpr -- Binary operators
-           | NIf LExpr NExpr NExpr -- if c then a else b
-           | NLen Var -- len(array)
+data LExpr = LConst LConst -- constant
+           | LVar Var -- variable
+           | LUnop LUnop LExpr -- unary operator
+           | LBinop LExpr LBinop LExpr -- binary operator
+           | LIf LExpr LExpr LExpr -- if c then a else b (ternary operator)
+           | LQuant QOp Var LExpr LExpr -- quantifier (op bound domain expr)
+           | LArray Var LExpr -- array access
+           | LIsnull Var -- var == null
+           | LLen Var -- len(array)
            deriving (Show, Eq, Read)

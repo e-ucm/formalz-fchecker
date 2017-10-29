@@ -15,49 +15,45 @@ prettyType (TPrim PInt32) = "int"
 prettyType (TPrim PBool) = "bool"
 prettyType (TArray t) = prettyType t ++ "[]"
 
-prettyCOp :: COp -> String
-prettyCOp CEqual = "=="
-prettyCOp CNEqual = "!="
-prettyCOp CLess = "<"
-prettyCOp CGreater = ">"
-prettyCOp CLeq = "<="
-prettyCOp CGeq = ">="
-
 prettyLBinop :: LBinop -> String
+prettyLBinop NAdd = "+"
+prettyLBinop NSub = "-"
+prettyLBinop NMul = "*"
+prettyLBinop NDiv = "/"
+prettyLBinop NRem = "%"
+prettyLBinop NShl = ">>"
+prettyLBinop NShr = "<<"
+prettyLBinop NAnd = "&"
+prettyLBinop NOr = "|"
+prettyLBinop NXor = "^"
 prettyLBinop LAnd = "&&"
 prettyLBinop LOr = "||"
 prettyLBinop LImpl = "->"
+prettyLBinop CEqual = "=="
+prettyLBinop CNEqual = "!="
+prettyLBinop CLess = "<"
+prettyLBinop CGreater = ">"
+prettyLBinop CLeq = "<="
+prettyLBinop CGeq = ">="
 
-prettyNBinop :: NBinop -> String
-prettyNBinop NAdd = "+"
-prettyNBinop NSub = "-"
-prettyNBinop NMul = "*"
-prettyNBinop NDiv = "/"
-prettyNBinop NRem = "%"
-prettyNBinop NShl = ">>"
-prettyNBinop NShr = "<<"
-prettyNBinop NAnd = "&"
-prettyNBinop NOr = "|"
-prettyNBinop NXor = "^"
-
-prettyNUnop :: NUnop -> String
+prettyNUnop :: LUnop -> String
 prettyNUnop NNeg = "-"
 prettyNUnop NNot = "~"
+prettyNUnop LNot = "!"
 
 prettyVar :: Var -> String
 prettyVar (Var t n) = prettyType t ++ ":" ++ n
 
 prettyLExprAlgebra :: LExprAlgebra String
-prettyLExprAlgebra = (flConst, prettyVar, flNot, flBinop, flComp, flQuant, flArray, flNil, fnConst, fnUnop, fnBinop, fnIf, fnLen) where
-    flConst b = if b then "true" else "false"
-    flNot a = '!' : a
-    flBinop a o b = a ++ " " ++ prettyLBinop o ++ " " ++ b
-    flComp a o b = a ++ " " ++ prettyCOp o ++ " " ++ b
-    flQuant o v a = '(' : show o ++ " " ++ prettyVar v ++ " . " ++ a ++ ")"
-    flArray v a = prettyVar v ++ "[" ++ a ++ "]"
-    flNil = "nil"
-    fnConst n = show n
-    fnUnop o a = prettyNUnop o ++ a
-    fnBinop a o b = a ++ " " ++ prettyNBinop o ++ " " ++ b
-    fnIf c a b = "(" ++ c ++ ") ? (" ++ a ++ ") : (" ++ b ++ ")"
-    fnLen v = "len(" ++ prettyVar v ++ ")"
+prettyLExprAlgebra = (fConst, prettyVar, fUnop, fBinop, fIf, fQuant, fArray, fIsnull, fLen) where
+    fConst c = case c of
+                    CBool b -> if b then "true" else "false"
+                    CInt n -> show n
+                    CNil -> "nil"
+    fUnop o a = prettyNUnop o ++ a
+    fBinop a o b = a ++ " " ++ prettyLBinop o ++ " " ++ b
+    fIf c a b = "(" ++ c ++ ") ? (" ++ a ++ ") : (" ++ b ++ ")"
+    fQuant o v d a = '(' : show o ++ " " ++ prettyVar v ++ ": " ++ d ++ ": " ++ a ++ ")"
+    fArray v a = prettyVar v ++ "[" ++ a ++ "]"
+    fIsnull v = prettyVar v ++ " == null"
+    fLen v = "len(" ++ prettyVar v ++ ")"

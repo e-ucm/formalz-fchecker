@@ -26,9 +26,9 @@ nameToVar name env decls = let (arrayType, symbol) = (lookupType decls env name,
 javaExpToLExprAlgebra :: ExpAlgebra (TypeEnv -> [TypeDecl] -> LExpr)
 javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualInstanceCreation, fArrayCreate, fArrayCreateInit, fFieldAccess, fMethodInv, fArrayAccess, fExpName, fPostIncrement, fPostDecrement, fPreIncrement, fPreDecrement, fPrePlus, fPreMinus, fPreBitCompl, fPreNot, fCast, fBinOp, fInstanceOf, fCond, fAssign, fLambda, fMethodRef) where
     fLit lit _ _ = case lit of -- TODO: support more type literals?
-                    Boolean b -> LConst b
-                    Int n -> NConst (fromIntegral n)
-                    Null -> LNil
+                    Boolean b -> LConst (CBool b)
+                    Int n -> LConst (CInt (fromIntegral n))
+                    Null -> LConst CNil
                     _ -> error $ show $ lit
     fClassLit = error "fClassLit not supported..."
     fThis = error "fThis not supported..."
@@ -60,52 +60,52 @@ javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, 
                                         -> error $ "Unimplemented fMethodInv: " ++ show inv
 
                                     where forall name bound expr = let (i, arr) = (Var (TPrim PInt32) bound, nameToVar name env decls) in
-                                                                                  LQuant QAll i (LBinop (LBinop (LComp (LVar i) CGeq (NConst 0)) LAnd (LComp (LVar i) CLess (NLen arr))) LImpl (foldExp javaExpToLExprAlgebra expr env decls))
+                                                                                  LQuant QAll i (LBinop (LBinop (LVar i) CGeq (LConst (CInt 0))) LAnd (LBinop (LVar i) CLess (LLen arr))) (foldExp javaExpToLExprAlgebra expr env decls)
                                           exists name bound expr = let (i, arr) = (Var (TPrim PInt32) bound, nameToVar name env decls) in
-                                                                                  LQuant QAny i (LBinop (LBinop (LComp (LVar i) CGeq (NConst 0)) LAnd (LComp (LVar i) CLess (NLen arr))) LAnd (foldExp javaExpToLExprAlgebra expr env decls))
+                                                                                  LQuant QAny i (LBinop (LBinop (LVar i) CGeq (LConst (CInt 0))) LAnd (LBinop (LVar i) CLess (LLen arr))) (foldExp javaExpToLExprAlgebra expr env decls)
     fArrayAccess arrayIndex env decls = case arrayIndex of -- TODO: type checking
                                              ArrayIndex (ExpName name) [expr]
                                                 -> LArray (nameToVar name env decls) (javaExpToLExpr expr env decls)
                                              _
                                                 -> error $ "Multidimensional arrays are not supported: " ++ show (arrayIndex)
     fExpName name env decls = case name of -- TODO: type checking + check implicit `this.name`
-                                   Name [Ident a, Ident "length"] -> NLen $ nameToVar (Name [Ident a]) env decls
+                                   Name [Ident a, Ident "length"] -> LLen $ nameToVar (Name [Ident a]) env decls
                                    _ -> LVar $ nameToVar name env decls
     fPostIncrement = error "fPostIncrement has side effects..."
     fPostDecrement = error "fPostDecrement has side effects..."
     fPreIncrement = error "fPreIncrement has side effects..."
     fPreDecrement = error "fPreDecrement has side effects..."
     fPrePlus e env decls = e env decls
-    fPreMinus e env decls = NUnop NNeg (e env decls)
-    fPreBitCompl e env decls = NUnop NNot (e env decls)
-    fPreNot e env decls = LNot (e env decls)
+    fPreMinus e env decls = LUnop NNeg (e env decls)
+    fPreBitCompl e env decls = LUnop NNot (e env decls)
+    fPreNot e env decls = LUnop LNot (e env decls)
     fCast = error "fCast is not supported..." -- TODO: perhaps support cast for some types?
     fBinOp e1 op e2 env decls = let (a, b) = (e1 env decls, e2 env decls) in -- TODO: type checking?
                                 case op of
                                      -- Integer
-                                     Mult -> NBinop a NMul b
-                                     Div -> NBinop a NDiv b
-                                     Rem -> NBinop a NRem b
-                                     Add -> NBinop a NAdd b
-                                     Sub  -> NBinop a NSub b
-                                     LShift -> NBinop a NShl b
-                                     RShift -> NBinop a NShr b
+                                     Mult -> LBinop a NMul b
+                                     Div -> LBinop a NDiv b
+                                     Rem -> LBinop a NRem b
+                                     Add -> LBinop a NAdd b
+                                     Sub  -> LBinop a NSub b
+                                     LShift -> LBinop a NShl b
+                                     RShift -> LBinop a NShr b
                                      RRShift -> undefined
-                                     And -> NBinop a NAnd b
-                                     Or -> NBinop a NOr b
-                                     Xor -> NBinop a NXor b
+                                     And -> LBinop a NAnd b
+                                     Or -> LBinop a NOr b
+                                     Xor -> LBinop a NXor b
                                      -- Logical
                                      CAnd -> LBinop a LAnd b
                                      COr -> LBinop a LOr b
                                      -- Comparisons
-                                     LThan -> LComp a CLess b
-                                     GThan -> LComp a CGreater b
-                                     LThanE -> LComp a CLeq b
-                                     GThanE -> LComp a CGeq b
-                                     Equal -> LComp a CEqual b
-                                     NotEq -> LComp a CNEqual b
+                                     LThan -> LBinop a CLess b
+                                     GThan -> LBinop a CGreater b
+                                     LThanE -> LBinop a CLeq b
+                                     GThanE -> LBinop a CGeq b
+                                     Equal -> LBinop a CEqual b
+                                     NotEq -> LBinop a CNEqual b
     fInstanceOf = error "fInstanceOf is not supported..."
-    fCond c a b env decls = NIf (c env decls) (a env decls) (b env decls)
+    fCond c a b env decls = LIf (c env decls) (a env decls) (b env decls)
     fAssign = error "fAssign has side effects..."
     fLambda = error "fLambda should be handled by fMethodInv..."
     fMethodRef = undefined
