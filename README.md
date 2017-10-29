@@ -90,13 +90,10 @@ Currently there is only one frontend for the Java EDSL, but this could quite eas
 
 One of the implemented backends is for the [Z3 Theorem Prover](https://github.com/Z3Prover/z3). The `LogicIR.Expr` is converted to a `Z3 AST`.
 
-TODO: valid (invalid), satisfiable (unsatisfiable)
-TODO: 
+To determine if the expression `P == Q` is valid, we ask Z3 to prove that `P != Q` is unsatisfiable. There are three possible results:
 
-To determine if two expressions (`P` and `Q`) are equal, we ask Z3 to prove `P != Q`. There are three possible results:
-
-1. `Sat` -> Z3 proved `P != Q` is satisfiable, which means the two formulas are *not* equivalent. The Z3 model contains the counter example to provide to the student.
-2. `Unsat` -> Z3 proved that `P != Q` is not satisfiable, which means the two formulas are equivalent.
+1. `Sat` -> Z3 proved `P != Q` is satisfiable, which means that the formula `P == Q` is invalid. The Z3 model contains the counter example to provide to the student.
+2. `Unsat` -> Z3 proved that `P != Q` is not satisfiable, which means that the formula `P == Q` is valid.
 3. `Undef` -> Z3 was unable to decide the satisfiablity of `P != Q`. In this case we have to resort to other methods like QuickCheck to determine if the two formulas are equivalent or not.
 
 #### Notes
