@@ -15,6 +15,7 @@ import LogicIR.Expr
 import LogicIR.Frontend.Java
 import LogicIR.Backend.Z3
 import LogicIR.Backend.Pretty
+import LogicIR.Backend.Null
 
 import Control.Monad.Trans (liftIO)
 
@@ -84,7 +85,9 @@ determineFormulaEq :: MethodDef -> MethodDef -> String -> IO ()
 determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
     -- get pre/post condition
     let (e1, e2) = (extractCond m1 name, extractCond m2 name)
-    let (lexpr1, lexpr2) = (javaExpToLExpr e1 env1 decls1, javaExpToLExpr e2 env2 decls2)
+    let (lexpr1', lexpr2') = (javaExpToLExpr e1 env1 decls1, javaExpToLExpr e2 env2 decls2)
+    -- preprocess "a == null" to "isNull(a)"
+    let (lexpr1, lexpr2) = (lExprPreprocessNull lexpr1', lExprPreprocessNull lexpr2')
     let (ast1, ast2) = (lExprToZ3Ast lexpr1, lExprToZ3Ast lexpr2)
     putStrLn $ "e1:\n" ++ prettyPrint e1 ++ "\n\ne2:\n" ++ prettyPrint e2 ++ "\n"
     putStrLn $ "LogicIR.Expr 1:\n" ++ show lexpr1 ++ "\n\nLogicIR.Expr 2:\n" ++ show lexpr2 ++ "\n"
@@ -133,4 +136,6 @@ blub = compareSpec (edslSrc, "getMax_spec1") (edslSrc, "getMax_spec2")
 blub2 = compareSpec (edslSrc, "test1") (edslSrc, "test2")
 blub2_ = compareSpec (edslSrc, "test1_") (edslSrc, "test2")
 blob = compareSpec (edslSrc, "blob1") (edslSrc, "blob1")
-nullTest = compareSpec (edslSrc, "null1") (edslSrc, "null2")
+nullTest1 = compareSpec (edslSrc, "null1") (edslSrc, "null2")
+nullTest2 = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec3")
+nullTest3 = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec4")

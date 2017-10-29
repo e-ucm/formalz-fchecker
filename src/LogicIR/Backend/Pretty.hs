@@ -55,5 +55,5 @@ prettyLExprAlgebra = (fConst, prettyVar, fUnop, fBinop, fIf, fQuant, fArray, fIs
     fIf c a b = "(" ++ c ++ ") ? (" ++ a ++ ") : (" ++ b ++ ")"
     fQuant o v d a = '(' : show o ++ " " ++ prettyVar v ++ ": " ++ d ++ ": " ++ a ++ ")"
     fArray v a = prettyVar v ++ "[" ++ a ++ "]"
-    fIsnull v = prettyVar v ++ " == null"
+    fIsnull v = "isNull(" ++ prettyVar v ++ ")"
     fLen v = "len(" ++ prettyVar v ++ ")"

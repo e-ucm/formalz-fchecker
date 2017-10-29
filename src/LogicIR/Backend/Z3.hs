@@ -14,9 +14,7 @@ lExprToZ3AstAlgebra = (fConst, fVar, fUnop, fBinop, fIf, fQuant, fArray, fIsnull
     fConst c = case c of
                     CBool b -> mkBool b
                     CInt n -> mkBitvector 32 (fromIntegral n)
-                    CNil -> do intSort <- mkBvSort 32
-                               zero <- mkBitvector 32 0x1337 -- (isNull, data, length) TODO: support proper null types
-                               mkConstArray intSort zero
+                    CNil -> error "null constants cannot be used directly with Z3 (use LogicIR.Backend.Null)"
     fVar (Var t n) = do symbol <- mkStringSymbol n
                         case t of
                              TPrim PInt32 -> mkBvVar symbol 32
@@ -75,5 +73,5 @@ lExprToZ3AstAlgebra = (fConst, fVar, fUnop, fBinop, fIf, fQuant, fArray, fIsnull
     fArray v a' = do v <- fVar v
                      a <- a'
                      mkSelect v a
-    fIsnull v = undefined    
-    fLen (Var (TArray (TPrim _)) n) = mkStringSymbol (n ++ ".length") >>= flip mkBvVar 32 -- TODO: support proper array lengths
+    fIsnull (Var (TArray _) n) = mkStringSymbol (n ++ ".null") >>= mkBoolVar
+    fLen (Var (TArray _) n) = mkStringSymbol (n ++ ".length") >>= flip mkBvVar 32 -- TODO: support proper array lengths

@@ -107,37 +107,6 @@ public class Main {
         post(a[i] == oldaj);
     }
 
-    public static void null1(int[] a, int x) {
-        pre(a != null);
-        post(true);
-    }
-
-    public static void null2(int[] a, int x) {
-        pre(exists(a, i -> a[i] != 0x1337));
-        post(true);
-    }
-
-    public static void blob1(int[] a)  {
-        pre(forall(a, i -> { return a[i] == 0; }));
-        post(true);
-    }
-
-    public static void test1(int[] a)  {
-        pre(exists(a, i -> a[i+1] > a[i]));
-        post(true);
-    }
-
-     public static void test1_(int[] a)  {
-        pre(exists(a, i -> a[i+1] > a[i] && (a.length > i+1)));
-        post(true);
-    }
-
-    public static void test2(int[] a)  {
-        pre(false);
-        //pre(exists(a, i -> a[i+1] >= a[i]));
-        post(true);
-    }
-
     public static void swap_spec2(int[] a, int i, int j) {
         pre(a != null && a[0] == 0);
         pre(a != null && a.length > 0 && i >= 0 && j > 0);
@@ -145,6 +114,29 @@ public class Main {
         int oldai = a[i], oldaj = a[j];
         swap(a, i, j);
         post(a[j] == oldai && a[i] == oldaj);
+    }
+
+    public static void swap_spec3(int[] a, int i, int j) {
+        pre(a == null);
+        pre(a.length > 0);
+        pre(i >= 0);
+        pre(j >= 0);
+        // introducing vars to remember old values
+        int oldai = a[i], oldaj = a[j];
+        swap(a, i, j);
+        post(a[j] == oldai);
+        post(a[i] == oldaj);
+    }
+
+    public static void swap_spec4(int[] a, int i, int j) {
+        pre(a.length > 0);
+        pre(i >= 0);
+        pre(j >= 0);
+        // introducing vars to remember old values
+        int oldai = a[i], oldaj = a[j];
+        swap(a, i, j);
+        post(a[j] == oldai);
+        post(a[i] == oldaj);
     }
 
     public static int getMax(int[] a) {
@@ -166,6 +158,37 @@ public class Main {
         pre(a != null && a.length > 0);
         int retval = getMax(a);
         post(exists(a, i -> a[i] == retval) && forall(a, i -> a[i] < retval));
+    }
+
+    public static void null1(int[] a, int x) {
+        pre(a != null);
+        post(true);
+    }
+
+    public static void null2(int[] a, int x) {
+        pre(exists(a, i -> a[i] != 0x1337));
+        post(true);
+    }
+
+    public static void blob1(int[] a)  {
+        pre(forall(a, i -> { return a[i] == 0; }));
+        post(true);
+    }
+
+    public static void test1(int[] a)  {
+        pre(exists(a, i -> a[i+1] > a[i]));
+        post(true);
+    }
+
+    public static void test1_(int[] a)  {
+        pre(exists(a, i -> a[i+1] > a[i] && (a.length > i+1)));
+        post(true);
+    }
+
+    public static void test2(int[] a)  {
+        pre(false);
+        //pre(exists(a, i -> a[i+1] >= a[i]));
+        post(true);
     }
 
     public static void main(String[] args) {
