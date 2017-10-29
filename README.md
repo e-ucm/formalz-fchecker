@@ -81,6 +81,8 @@ You can find the source code in `src/LogicIR/Expr.hs` TODO N is numeric
 
 TODO: future work, sets, types
 TODO: parse logicir from file
+TODO: separate edsl in java
+TODO: implication, stronger, weaker
 
 ### LogicIR.Frontend
 
