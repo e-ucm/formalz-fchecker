@@ -43,26 +43,35 @@ javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, 
                                                                 _ -> undefined
                         SuperFieldAccess id             -> mkStringSymbol (prettyPrint (Name [id])) >>= mkIntVar
                         ClassFieldAccess (Name name) id -> mkStringSymbol (prettyPrint (Name (name ++ [id]))) >>= mkIntVar -}
-    fMethodInv inv env decls = case inv of -- TODO: very hardcoded EDSL + lambdas cannot be { return expr; } + ranged 
-                                    -- Java: forall(name, bound -> expr);
-                                    MethodCall (Name [Ident "forall"]) [ExpName name, Lambda (LambdaSingleParam (Ident bound)) (LambdaExpression expr)]
-                                        -> forall name bound expr
-                                    -- Java: exists(name, bound -> expr);
-                                    MethodCall (Name [Ident "exists"]) [ExpName name, Lambda (LambdaSingleParam (Ident bound)) (LambdaExpression expr)]
-                                        -> exists name bound expr
-                                    -- Java: forall(name, bound -> { return expr; });
-                                    MethodCall (Name [Ident "forall"]) [ExpName name ,Lambda (LambdaSingleParam (Ident bound)) (LambdaBlock (Block [BlockStmt (Return (Just expr))]))]
-                                        -> forall name bound expr
-                                    -- Java: exists(name, bound -> { return expr; });
-                                    MethodCall (Name [Ident "exists"]) [ExpName name ,Lambda (LambdaSingleParam (Ident bound)) (LambdaBlock (Block [BlockStmt (Return (Just expr))]))]
-                                        -> exists name bound expr
+    fMethodInv inv env decls = case inv of -- TODO: very hardcoded EDSL + lambdas cannot be { return expr; } + ranged
+                                    -- Java: method(name, bound -> expr);
+                                    MethodCall (Name [Ident method]) [ExpName name, Lambda (LambdaSingleParam (Ident bound)) (LambdaExpression expr)]
+                                        -> quant method name bound expr
+                                    -- Java: method(name, bound -> { return expr; });
+                                    MethodCall (Name [Ident method]) [ExpName name, Lambda (LambdaSingleParam (Ident bound)) (LambdaBlock (Block [BlockStmt (Return (Just expr))]))]
+                                        -> quant method name bound expr
+                                    -- Java: method(name, rbegin, rend, bound -> expr);
+                                    MethodCall (Name [Ident method]) [ExpName name, rbegin, rend, Lambda (LambdaSingleParam (Ident bound)) (LambdaExpression expr)]
+                                        -> quantr method name rbegin rend bound expr
+                                    -- Java: method(name, rbegin, rend, bound -> { return expr; });
+                                    MethodCall (Name [Ident method]) [ExpName name, rbegin, rend, Lambda (LambdaSingleParam (Ident bound)) (LambdaBlock (Block [BlockStmt (Return (Just expr))]))]
+                                        -> quantr method name rbegin rend bound expr
                                     _
                                         -> error $ "Unimplemented fMethodInv: " ++ show inv
-
-                                    where forall name bound expr = let (i, arr) = (Var (TPrim PInt32) bound, nameToVar name env decls) in
-                                                                                  LQuant QAll i (LBinop (LBinop (LVar i) CGeq (LConst (CInt 0))) LAnd (LBinop (LVar i) CLess (LLen arr))) (foldExp javaExpToLExprAlgebra expr env decls)
-                                          exists name bound expr = let (i, arr) = (Var (TPrim PInt32) bound, nameToVar name env decls) in
-                                                                                  LQuant QAny i (LBinop (LBinop (LVar i) CGeq (LConst (CInt 0))) LAnd (LBinop (LVar i) CLess (LLen arr))) (foldExp javaExpToLExprAlgebra expr env decls)
+                                    where quant method name bound expr = let (i) = (Var (TPrim PInt32) bound) in
+                                                                         let (zero, len) = (LConst (CInt 0), LLen (nameToVar name env decls)) in
+                                                                         case method of
+                                                                              "forall" -> lquantr QAll i zero len expr
+                                                                              "exists" -> lquantr QAny i zero len expr
+                                                                              _ -> error $ "Unimplemented fMethodInv: " ++ show inv
+                                          quantr method name rbegin rend bound expr = let (begin, end) = (refold rbegin, refold rend) in
+                                                                                      let (i, arr) = (Var (TPrim PInt32) bound, nameToVar name env decls) in
+                                                                                      case method of
+                                                                                           "forallr" -> lquantr QAll i begin end expr
+                                                                                           "existsr" -> lquantr QAny i begin end expr
+                                                                                           _ -> error $ "Unimplemented fMethodInv: " ++ show inv
+                                          lquantr op i begin end expr = LQuant op i (LBinop (LBinop (LVar i) CGeq begin) LAnd (LBinop (LVar i) CLess end)) (refold expr)
+                                          refold expr = foldExp javaExpToLExprAlgebra expr env decls
     fArrayAccess arrayIndex env decls = case arrayIndex of -- TODO: type checking
                                              ArrayIndex (ExpName name) [expr]
                                                 -> LArray (nameToVar name env decls) (javaExpToLExpr expr env decls)
