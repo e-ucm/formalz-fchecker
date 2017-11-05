@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="impress:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/impress_jar</output-path>
+    <root id="archive" name="impress.jar">
+      <element id="module-output" name="impress" />
+    </root>
+  </artifact>
+</component>

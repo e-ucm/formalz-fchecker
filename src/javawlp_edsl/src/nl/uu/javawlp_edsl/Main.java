@@ -1,70 +1,9 @@
 package nl.uu.javawlp_edsl;
 
-import com.sun.javaws.exceptions.InvalidArgumentException;
-
-import java.io.Console;
+//Importing the EDSL like this is required for the parser!
+import static nl.uu.impress.EDSL.*;
 
 public class Main {
-
-    public interface IntPred {
-        boolean invoke(int n);
-    }
-
-    public static boolean g_forall(int aLength, int rBegin, int rEnd, IntPred pred) {
-        for (int index = rBegin; index < rEnd; index++) {
-            //TODO: determine if pred should be called with indices outside of the array range
-            //NOTE: only relevant for the runtime implementation
-            if (index < 0 || index >= aLength)
-                continue; //assert false;
-            if (!pred.invoke(index))
-                return false;
-        }
-        return true;
-    }
-
-    public static boolean g_exists(int aLength, int rBegin, int rEnd, IntPred pred) {
-        for (int index = rBegin; index < rEnd; index++) {
-            //TODO: determine if pred should be called with indices outside of the array range
-            //NOTE: only relevant for the runtime implementation
-            if (index < 0 || index >= aLength)
-                continue; //assert false;
-            if (pred.invoke(index))
-                return true;
-        }
-        return false;
-    }
-
-    public static boolean forall(Object[] array, IntPred pred) {
-        return g_forall(array.length, 0, array.length, pred);
-    }
-
-    public static boolean forall(int[] array, IntPred pred) {
-        return g_forall(array.length, 0, array.length, pred);
-    }
-
-    public static boolean forallr(Object[] array, int rBegin, int rEnd, IntPred pred) {
-        return g_forall(array.length, rBegin, rEnd, pred);
-    }
-
-    public static boolean exists(Object[] array, IntPred pred) {
-        return g_exists(array.length, 0, array.length, pred);
-    }
-
-    public static boolean exists(int[] array, IntPred pred) {
-        return g_exists(array.length, 0, array.length, pred);
-    }
-
-    public static boolean existsr(Object[] array, int rBegin, int rEnd, IntPred pred) {
-        return g_exists(array.length, rBegin, rEnd, pred);
-    }
-
-    public static void pre(boolean pre) {
-        assert pre;
-    }
-
-    public static void post(boolean post) {
-        assert post;
-    }
 
     public static int mymin(int[] a, int b) {
         assert forall(a, i -> {
@@ -170,33 +109,35 @@ public class Main {
         post(true);
     }
 
-    public static void blob1(int[] a)  {
-        pre(forall(a, i -> { return a[i] == 0; }));
+    public static void blob1(int[] a) {
+        pre(forall(a, i -> {
+            return a[i] == 0;
+        }));
         post(true);
     }
 
-    public static void test1(int[] a)  {
-        pre(exists(a, i -> a[i+1] > a[i]));
+    public static void test1(int[] a) {
+        pre(exists(a, i -> a[i + 1] > a[i]));
         post(true);
     }
 
-    public static void test1_(int[] a)  {
-        pre(exists(a, i -> a[i+1] > a[i] && (a.length > i+1)));
+    public static void test1_(int[] a) {
+        pre(exists(a, i -> a[i + 1] > a[i] && (a.length > i + 1)));
         post(true);
     }
 
-    public static void test2(int[] a)  {
+    public static void test2(int[] a) {
         pre(false);
         //pre(exists(a, i -> a[i+1] >= a[i]));
         post(true);
     }
 
     public static void main(String[] args) {
-        assert forall(args, i -> args[i].toLowerCase().equals(args[i]));
-        assert forallr(args, 1, 3, i -> args[i].contains("x"));
+//        assert forall(args, i -> args[i].toLowerCase().equals(args[i]));
+//        assert forallr(args, 1, 3, i -> args[i].contains("x"));
 
-        assert !exists(args, i -> !args[i].toLowerCase().equals(args[i]));
-        assert !existsr(args, 1, 3, i -> !args[i].contains("x"));
+//        assert !exists(args, i -> !args[i].toLowerCase().equals(args[i]));
+//        assert !existsr(args, 1, 3, i -> !args[i].contains("x"));
 
         System.out.println("Hello, world!");
     }
