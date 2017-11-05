@@ -1,7 +1,8 @@
 {
-module ModelParser.Parser where
+module ModelParser.Parser (parseModel) where
 
 import ModelParser.Lexer
+import ModelParser.Model
 }
 
 %name happyParseTokens
@@ -46,22 +47,11 @@ FuncEntry : value "->" value { InstInt $1 $3 }
           | value { InstElse $1 }
 
 {
-data FuncInst = InstInt Int Int
-              | InstElse Int
-              deriving (Show, Read, Eq)
-
-data ModelVal = BoolVal Bool
-              | IntVal Int
-              | ArrayRef String -- TODO: immediately forward to ArrayFunc?
-              | ArrayAsConst Int -- TODO: parse to InstElse?
-              | ArrayFunc [FuncInst]
-              deriving (Show, Read, Eq)
-
-type Z3Model = [(String, ModelVal)]
 
 parseError :: [Token] -> a
-parseError t = error $ "Parse error" ++ show t
+parseError t = error $ "Model parse error " ++ show t
 
 parseModel :: String -> Z3Model
 parseModel = happyParseTokens . alexScanTokens
+
 }

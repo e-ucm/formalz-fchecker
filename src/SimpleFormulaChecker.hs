@@ -18,6 +18,7 @@ import LogicIR.Backend.Pretty
 import LogicIR.Backend.Null
 
 import ModelParser.Parser
+import ModelParser.Model
 
 import Control.Monad.Trans (liftIO)
 
