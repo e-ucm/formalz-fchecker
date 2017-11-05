@@ -6,7 +6,7 @@ import Numeric
  
 %wrapper "basic"
  
-$ident = [0-9a-zA-Z!\._]
+$ident = [0-9a-zA-Z!\._\?]
 $num = [0-9]
 $value = [0-9a-f]
  

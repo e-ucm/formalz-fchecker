@@ -3,9 +3,9 @@ module Javawlp.SimpleFormulaChecker where
 import Language.Java.Syntax
 import Language.Java.Parser
 import Language.Java.Pretty
+
 import Z3.Monad
 import Z3.Opts
-import Data.Maybe
 
 import Javawlp.Engine.Types
 import Javawlp.Engine.HelperFunctions
@@ -21,8 +21,11 @@ import ModelParser.Parser
 import ModelParser.Model
 
 import Control.Monad.Trans (liftIO)
-
+import Data.Maybe
+import Data.List
 import Debug.Trace
+import Data.Int
+import qualified Data.Map as M
 
 -- See README.md for a high-level description of this project.
 
@@ -85,7 +88,55 @@ isEquivalent ast1' ast2' = evalZ3 z3
 
 -- Function that shows a human-readable model and also highlights potential inconsistencies.
 showRelevantModel :: Z3Model -> IO ()
-showRelevantModel model = return ()
+showRelevantModel model = do
+  putStrLn $ show $ M.toList modelClean
+  mapM_ (putStrLn . prettyModelVal) $ fromKeys (consts ++ arrays)
+  where modelMap = M.fromList model
+        modelClean = M.filterWithKey (\k _ -> all (\e -> e /= '!') k) $ M.map modelCleanFunc modelMap
+        fromKeys = map (\k -> let Just v = M.lookup k modelClean in (k, v))
+        -- Pretty print the model value
+        prettyModelVal :: (String, ModelVal) -> String
+        prettyModelVal (k, BoolVal b) = k ++ " = " ++ if b then "true" else "false"
+        prettyModelVal (k, IntVal n) = k ++ " = " ++ show n
+        prettyModelVal (k, ArrayFunc a) = k ++ " = " ++ show n -- TODO: lookup (k ++ "?length") and (k ++ "?null") and handle all cases
+            where n = a -- TODO: properly try to convert to a list
+        prettyModelVal (k, v) = error $ k ++ " = UNIMPLEMENTED " ++ show v        
+        -- Remove all occurrences of ArrayRef and ArrayAsConst for easier processing later, also does type casting
+        modelCleanFunc :: ModelVal -> ModelVal
+        modelCleanFunc (BoolVal b) = BoolVal b
+        modelCleanFunc (IntVal n) = IntVal (cropInt32 n)
+        modelCleanFunc (ArrayRef s) = let Just v = M.lookup s modelMap in v
+        modelCleanFunc (ArrayAsConst n) = ArrayFunc [InstElse (cropInt32 n)]
+        modelCleanFunc (ArrayFunc v) = ArrayFunc (map funcInstClean v)
+        funcInstClean :: FuncInst -> FuncInst
+        funcInstClean (InstInt k v) = InstInt (cropInt32 k) (cropInt32 v)
+        funcInstClean (InstElse v) = InstElse (cropInt32 v)
+        -- Crop an Integer to an Int32
+        cropInt32 :: Int -> Int
+        cropInt32 n = fromIntegral (fromIntegral n :: Int32) :: Int
+        -- Names of the array variables
+        arrays :: [String]
+        arrays = nub $ M.keys (M.filter isArray modelClean) ++ catMaybes (map arrayName (M.keys modelClean))
+        -- Names of the constant variables
+        consts :: [String]
+        consts = filter (\v -> not (isSuffixOf "?length" v || isSuffixOf "?null" v)) $ M.keys (M.filter isConst modelClean)
+        -- Returns Just "a" for "a?length" and "a?null"
+        arrayName :: String -> Maybe String
+        arrayName s
+            | isSuffixOf "?length" s = Just $ take (length s - 7) s
+            | isSuffixOf "?null" s = Just $ take (length s - 5) s
+            | otherwise = Nothing
+        -- Whether a ModelVal is an array
+        isArray :: ModelVal -> Bool
+        isArray (ArrayFunc _) = True
+        isArray _ = False
+        -- Whether a ModelVal is a constant
+        isConst :: ModelVal -> Bool
+        isConst v = case v of
+                         BoolVal _ -> True
+                         IntVal _ -> True
+                         _ -> False
+
 
 -- Determine the equality of two method's pre/post conditions.
 determineFormulaEq :: MethodDef -> MethodDef -> String -> IO ()

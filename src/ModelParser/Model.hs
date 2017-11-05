@@ -6,8 +6,8 @@ data FuncInst = InstInt Int Int
 
 data ModelVal = BoolVal Bool
               | IntVal Int
-              | ArrayRef String -- TODO: immediately forward to ArrayFunc?
-              | ArrayAsConst Int -- TODO: parse to InstElse?
+              | ArrayRef String
+              | ArrayAsConst Int
               | ArrayFunc [FuncInst]
               deriving (Show, Read, Eq)
 

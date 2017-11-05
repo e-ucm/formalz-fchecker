@@ -73,5 +73,5 @@ lExprToZ3AstAlgebra = (fConst, fVar, fUnop, fBinop, fIf, fQuant, fArray, fIsnull
     fArray v a' = do v <- fVar v
                      a <- a'
                      mkSelect v a
-    fIsnull (Var (TArray _) n) = mkStringSymbol (n ++ ".null") >>= mkBoolVar
-    fLen (Var (TArray _) n) = mkStringSymbol (n ++ ".length") >>= flip mkBvVar 32 -- TODO: support proper array lengths
+    fIsnull (Var (TArray _) n) = mkStringSymbol (n ++ "?null") >>= mkBoolVar
+    fLen (Var (TArray _) n) = mkStringSymbol (n ++ "?length") >>= flip mkBvVar 32 -- TODO: support proper array lengths
