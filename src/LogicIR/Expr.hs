@@ -18,13 +18,15 @@ data Var = Var Type String
          deriving (Show, Eq, Read)
 
 -- Unary operators
-data LUnop = NNeg -- -n (negation)
-           | NNot -- ~n (binary not)
+data LUnop = NNeg -- -n (numeric negation)
+           | NNot -- ~n (numeric binary not)
            | LNot -- !n (logical not)
            deriving (Show, Eq, Read)
 
 -- Binary operators
-data LBinop = NAdd -- a + b
+data LBinop =
+            -- numeric operators
+              NAdd -- a + b
             | NSub -- a - b
             | NMul -- a * b
             | NDiv -- a / b
@@ -34,11 +36,11 @@ data LBinop = NAdd -- a + b
             | NAnd -- a & b
             | NOr -- a | b
             | NXor -- a ^ b
-
+            -- logical operators
             | LAnd -- a && b
             | LOr -- a || b
             | LImpl -- a => b
-
+            -- comparisons
             | CEqual -- a == b
             | CNEqual -- a != b
             | CLess -- a < b
@@ -51,6 +53,7 @@ data LBinop = NAdd -- a + b
 data QOp = QAll | QAny
          deriving (Show, Eq, Read)
 
+-- Constants
 data LConst = CBool Bool
             | CInt Int
             | CNil

@@ -24,7 +24,7 @@ import Control.Monad.Trans (liftIO)
 
 import Debug.Trace
 
--- See README.md for more details.
+-- See README.md for a high-level description of this project.
 
 type MethodDef = ([TypeDecl], Stmt, TypeEnv)
 
@@ -83,6 +83,7 @@ isEquivalent ast1' ast2' = evalZ3 z3
          solverReset
          return r
 
+-- Function that shows a human-readable model and also highlights potential inconsistencies.
 showRelevantModel :: Z3Model -> IO ()
 showRelevantModel model = return ()
 
@@ -136,6 +137,7 @@ compareSpec method1@(_, name1) method2@(_, name2) = do
     putStrLn "\n----POST---"
     determineFormulaEq m1 m2 "post"
 
+-- Examples, call these from GHCi to see the output.
 edslSrc = "javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
 testEq = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec1")
 testNeq = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec2")
@@ -146,3 +148,4 @@ blob = compareSpec (edslSrc, "blob1") (edslSrc, "blob1")
 nullTest1 = compareSpec (edslSrc, "null1") (edslSrc, "null2")
 nullTest2 = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec3")
 nullTest3 = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec4")
+nullTest4 = compareSpec (edslSrc, "null3") (edslSrc, "test2")

@@ -1,10 +1,12 @@
 # IMPRESS EDSL
 
-**This document still needs reviewing!**
+**This document still needs reviewing and might not reflect the current state of the project properly!**
 
 We want to help students learn about formal program verification. One aspect of this is writing pre and post conditions for their programs. To help the students learn this we developed a tool that can compare two program specifications and can come up with a counter example if the two specifications don't match.
 
 One use case could be to integrate our tool in a submission system like [DOMjudge](https://www.domjudge.org). We then allow students to submit their programs and they get instant feedback on their work.
+
+A proof of concept can be found in `src/SimpleFormulaChecker.hs`, the "main" function is `compareSpec`.
 
 ## Java EDSL
 
@@ -15,6 +17,15 @@ To get started we designed a simple embedded DSL that encapsulates all the expre
 - Relational operators (bigger, smaller, equal, etc.)
 - Quantifications over integer domains
 - Array access
+
+To import the EDSL in a Java project, we use:
+
+```java
+//Importing the EDSL like this is required for the parser!
+import static nl.uu.impress.EDSL.*;
+```
+
+An example Java project can be found in `src/javawlp_edsl`, the EDSL implementation is in `src/impress`.
 
 ### Example 1
 
@@ -69,7 +80,7 @@ Postcondition B will be mapped to:
 
 ### Notes
 
-- Logical implication is currently not supported, but should be easy to add in the DSL is required.
+- Logical implication is currently not supported, but should be easy to add in the EDSL is required.
 
 ## LogicIR
 
@@ -77,11 +88,10 @@ Postcondition B will be mapped to:
 
 To facilitate further development, it was decided to use an intermediate representation for logical expressions. The frontend converts the Java EDSL to the IR and the backend uses IR to implement the comparison of two expressions.
 
-You can find the source code in `src/LogicIR/Expr.hs` TODO N is numeric
+You can find the data types in `src/LogicIR/Expr.hs`. 
 
 TODO: future work, sets, types
 TODO: parse logicir from file
-TODO: separate edsl in java
 TODO: implication, stronger, weaker
 
 ### LogicIR.Frontend
@@ -106,11 +116,69 @@ Something to be wary of when reasoning about this is that we are not trying to p
 
 #### Null arrays
 
-Currently the expression `a != null` is not really supported because Z3 does not have the concept of null arrays. As a workaround, `null` is represented as an infinite array that maps every index to a constant value that is very unlikely to occur in real code. (TODO: write a counter example). A proposed idea is to represent arrays as a tuple `(IsNull, ArrayData)`, but this requires more semantic analysis of the actual expression to be used. (TODO: give an example, note: usually expressions involving null are short-circuit, unsure...).
+An expression like `a != null` cannot be supported by Z3 directly, because it does not have the concept of null arrays. As a workaround, `a == null` is represented as a free variable `a.null`, so an array essentially becomes a tuple `(a, a.null)`. To achieve this an additional preprocessing step `lExprPreprocessNull` is done after extracting the LogicIR expression.
+
+Because `a` and `a.null` are not bound together by Z3 (accessing a null-array in Java will cause an exception), comparing two methods like this give curious results:
+
+```
+public static void null3(int[] a) {
+    pre(a == null && a[0] > a[1]);
+    post(true);
+}
+
+public static void test2(int[] a) {
+	pre(false);
+    post(true);
+}
+```
+
+The resulting (raw) model:
+
+```
+a -> (_ as-array k!0)
+a.null -> true
+k!0 -> {
+  #x00000000 -> #x00000001
+  #x00000001 -> #x00000000
+  else -> #x00000001
+}
+```
+
+Essentially this model tells us that the two preconditions are not equivalent with an `a` that is both `null` and `[1, 0]`. A postprocessing step should be added to handle these cases properly (TODO).
 
 #### Array length
 
-Similar to null arrays, Z3 does not (appear to) have the concept of an array length. Currently we use a free variable `a.length` that should represent the array length, but constraints should be added on every `a[E]` in the form of `E >= 0 && E < a.length` to make sure Z3 outputs the `a.length` that corresponds to the array it modeled.
+Similar to null arrays, Z3 does not have the concept of an array length. Currently we use a free variable `a.length` that should represent the array length. So the full representation of an array becomes `(a, a.null, a.length)`.
+
+Similarly to null arrays you can get interesting results:
+
+```java
+public static void test1(int[] a) {
+    pre(exists(a, i -> a[i + 1] > a[i]));
+	post(true);
+}
+
+public static void test2(int[] a) {
+	pre(false);
+    //pre(exists(a, i -> a[i+1] >= a[i]));
+    post(true);
+}
+```
+
+The resulting (raw) model:
+
+```
+a.length -> #x00000001
+i!0 -> #x00000000
+a -> (_ as-array k!1)
+k!1 -> {
+  #x00000000 -> #x00000000
+  #x00000001 -> #x00000001
+  else -> #x00000000
+}
+```
+
+This model tells us that `a.length == 1` and that `a == [0, 1]` which is contradictory. A postprocessing step should be added to handle these cases properly (TODO).
 
 #### Bit vectors
 
@@ -124,9 +192,12 @@ To implement the semantics of Java (and C#, C++, etc) we use Z3 bit vectors to r
 
 Currently the implementation only supports the following types:
 
-`int`, `bool`, `int[]`, `bool[]`
+- `int`
+- `bool`
+- `int[]`
+- `bool[]`
 
-Adding additional types (like various integer sizes, `float`) would require some kind of type analysis, which is possible, but would take a considerable amount of time to implement
+Adding additional types (like various integer sizes, `float`) would require some kind of type analysis, which is possible, but would take a considerable amount of time to implement. It would also require the model parser to be updated to support the constructs.
 
 #### Z3 model parsing
 
@@ -162,7 +233,7 @@ a: [0]
 retval: 0
 ```
 
-This is currently a work in progress. TODO
+A crude parser has been implemented with [alex and happy](https://leanpub.com/alexandhappy/read). It handles only the observed model cases since no documentation appears to exist on what exactly a Z3 model is. The model data structure is rather simple and can be found in `src/ModelParser/Model.hs`.
 
 #### Side effects
 

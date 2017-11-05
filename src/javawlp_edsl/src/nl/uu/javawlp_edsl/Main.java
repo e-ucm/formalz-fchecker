@@ -109,6 +109,11 @@ public class Main {
         post(true);
     }
 
+    public static void null3(int[] a) {
+        pre(a == null && a[0] > a[1]);
+        post(true);
+    }
+
     public static void blob1(int[] a) {
         pre(forall(a, i -> {
             return a[i] == 0;
