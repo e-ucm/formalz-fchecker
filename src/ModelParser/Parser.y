@@ -57,11 +57,11 @@ data ModelVal = BoolVal Bool
               | ArrayFunc [FuncInst]
               deriving (Show, Read, Eq)
 
-type Model = [(String, ModelVal)]
+type Z3Model = [(String, ModelVal)]
 
 parseError :: [Token] -> a
 parseError t = error $ "Parse error" ++ show t
 
-parseModel :: String -> Model
+parseModel :: String -> Z3Model
 parseModel = happyParseTokens . alexScanTokens
 }

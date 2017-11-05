@@ -17,6 +17,8 @@ import LogicIR.Backend.Z3
 import LogicIR.Backend.Pretty
 import LogicIR.Backend.Null
 
+import ModelParser.Parser
+
 import Control.Monad.Trans (liftIO)
 
 import Debug.Trace
@@ -80,6 +82,9 @@ isEquivalent ast1' ast2' = evalZ3 z3
          solverReset
          return r
 
+showRelevantModel :: Z3Model -> IO ()
+showRelevantModel model = return ()
+
 -- Determine the equality of two method's pre/post conditions.
 determineFormulaEq :: MethodDef -> MethodDef -> String -> IO ()
 determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
@@ -107,7 +112,8 @@ determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
                 putStrLn "formulas are NOT equivalent, model:"
                 case model of
                   Just m -> do s <- evalZ3 (modelToString m)
-                               putStr s
+                               putStrLn $ "Raw model:\n" ++ s
+                               showRelevantModel $ parseModel s
                   _      -> return ()
     where
         extractCond :: MethodDef -> String -> Exp
