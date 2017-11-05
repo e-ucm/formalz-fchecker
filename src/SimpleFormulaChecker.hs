@@ -98,9 +98,33 @@ showRelevantModel model = do
         prettyModelVal :: (String, ModelVal) -> String
         prettyModelVal (k, BoolVal b) = k ++ " = " ++ if b then "true" else "false"
         prettyModelVal (k, IntVal n) = k ++ " = " ++ show n
-        prettyModelVal (k, ArrayFunc a) = k ++ " = " ++ show n -- TODO: lookup (k ++ "?length") and (k ++ "?null") and handle all cases
-            where n = a -- TODO: properly try to convert to a list
-        prettyModelVal (k, v) = error $ k ++ " = UNIMPLEMENTED " ++ show v        
+        prettyModelVal (k, ArrayFunc a) = k ++ " = " ++ final ++ "       " ++ show (aNull, aLength, arrKv, validArr, elseVal)
+            where (BoolVal aNull) = M.findWithDefault (BoolVal False) (k ++ "?null") modelClean
+                  (IntVal aLength) = M.findWithDefault (IntVal (-1)) (k ++ "?length") modelClean
+                  [InstElse elseVal] = filter (not . isInst) a
+                  arrKv = sort (map (\(InstInt k v) -> (k, v)) (filter isInst a))
+                  isInst (InstInt _ _) = True
+                  isInst _ = False
+                  validArr = isValidArray 0 arrKv
+                  -- TODO: this does not appear to be correct yet
+                  final = if aNull
+                             then if (aLength /= -1) || (length arrKv /= 0)
+                                     then "1: INVALID"
+                                     else "2: null"
+                             else if validArr
+                                     then if length arrKv == aLength
+                                             then "3: " ++ show (map snd arrKv)
+                                             else "4: INVALID"
+                                     else if aLength /= -1
+                                             then "5: " ++ show (take aLength (repeat elseVal))
+                                             else "6: INVALID"
+
+                  isValidArray :: Int -> [(Int, Int)] -> Bool
+                  isValidArray n [] = False
+                  isValidArray n ((i, _) : xs) = if n == i
+                                                    then isValidArray (n + 1) xs
+                                                    else False
+        prettyModelVal (k, v) = error $ k ++ " = UNIMPLEMENTED " ++ show v
         -- Remove all occurrences of ArrayRef and ArrayAsConst for easier processing later, also does type casting
         modelCleanFunc :: ModelVal -> ModelVal
         modelCleanFunc (BoolVal b) = BoolVal b
@@ -136,7 +160,6 @@ showRelevantModel model = do
                          BoolVal _ -> True
                          IntVal _ -> True
                          _ -> False
-
 
 -- Determine the equality of two method's pre/post conditions.
 determineFormulaEq :: MethodDef -> MethodDef -> String -> IO ()

@@ -28,7 +28,7 @@ tokens :-
     "false"     { \s -> Tbool False }
     "#x"$value+ { \s -> Tvalue (parseHex s) }
     $num+       { \s -> Tvalue (parseDec s) }
-    $ident+     { \s -> Tident s }    
+    $ident+     { \s -> Tident s }
 {
 
 data Token = Tarrow
