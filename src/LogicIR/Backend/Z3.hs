@@ -59,7 +59,6 @@ lExprToZ3AstAlgebra = (fConst, fVar, fUnop, fBinop, fIf, fQuant, fArray, fIsnull
                       a <- a'
                       b <- b'
                       mkIte c a b
-                            
     fQuant o v@(Var t n) d' a' = do a <- a'
                                     d <- d'
                                     case t of
