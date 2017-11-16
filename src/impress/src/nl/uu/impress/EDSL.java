@@ -41,6 +41,10 @@ public class EDSL {
         return g_forall(array.length, rBegin, rEnd, pred);
     }
 
+    public static boolean forallr(int[] array, int rBegin, int rEnd, IntPred pred) {
+        return g_forall(array.length, rBegin, rEnd, pred);
+    }
+
     public static boolean exists(Object[] array, IntPred pred) {
         return g_exists(array.length, 0, array.length, pred);
     }
@@ -50,6 +54,10 @@ public class EDSL {
     }
 
     public static boolean existsr(Object[] array, int rBegin, int rEnd, IntPred pred) {
+        return g_exists(array.length, rBegin, rEnd, pred);
+    }
+
+    public static boolean existsr(int[] array, int rBegin, int rEnd, IntPred pred) {
         return g_exists(array.length, rBegin, rEnd, pred);
     }
 

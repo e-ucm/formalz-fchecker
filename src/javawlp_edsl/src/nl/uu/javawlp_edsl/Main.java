@@ -137,13 +137,28 @@ public class Main {
         post(true);
     }
 
+    //http://www.cs.uu.nl/docs/vakken/pc/1617/supplements/proofasg_1617.pdf
+    public static void sorted1(int[] a) {
+        pre(forall(a, i -> forallr(a, i, a.length, j -> a[i] <= a[j])));
+        post(true);
+    }
+
+    public static void sorted2(int[] a) {
+        pre(forall(a, i -> forallr(a, i, a.length, j -> a[i] < a[j])));
+        post(true);
+    }
+
+    public static void sorted3(int[] a) {
+        pre(forall(a, i -> forallr(a, i + 1, a.length, j -> a[i] < a[j])));
+        post(true);
+    }
+
+    public static void sorted4(int[] a) {
+        pre(forall(a, i -> forallr(a, i + 1, a.length, j -> a[i] <= a[j])));
+        post(true);
+    }
+
     public static void main(String[] args) {
-//        assert forall(args, i -> args[i].toLowerCase().equals(args[i]));
-//        assert forallr(args, 1, 3, i -> args[i].contains("x"));
-
-//        assert !exists(args, i -> !args[i].toLowerCase().equals(args[i]));
-//        assert !existsr(args, 1, 3, i -> !args[i].contains("x"));
-
         System.out.println("Hello, world!");
     }
 }
