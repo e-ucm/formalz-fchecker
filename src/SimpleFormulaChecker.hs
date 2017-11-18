@@ -93,37 +93,35 @@ showRelevantModel model = do
   mapM_ (putStrLn . prettyModelVal) $ fromKeys (consts ++ arrays)
   where modelMap = M.fromList model
         modelClean = M.filterWithKey (\k _ -> all (\e -> e /= '!') k) $ M.map modelCleanFunc modelMap
-        fromKeys = map (\k -> let Just v = M.lookup k modelClean in (k, v))
+        fromKeys = map (\k -> let v = M.findWithDefault defaultArray k modelClean in (k, v))
+        defaultArray = ArrayFunc [InstElse (-1000000000000000)] -- nullTest2
         -- Pretty print the model value
         prettyModelVal :: (String, ModelVal) -> String
         prettyModelVal (k, BoolVal b) = k ++ " = " ++ if b then "true" else "false"
         prettyModelVal (k, IntVal n) = k ++ " = " ++ show n
-        prettyModelVal (k, ArrayFunc a) = k ++ " = " ++ final ++ "       " ++ show (aNull, aLength, arrKv, validArr, elseVal)
+        prettyModelVal (k, ArrayFunc a) = k ++ " = " ++ final ++ "       " -- ++ show (aNull, aLength, a, arrKv, elseVal, length (buildArray 0))
             where (BoolVal aNull) = M.findWithDefault (BoolVal False) (k ++ "?null") modelClean
                   (IntVal aLength) = M.findWithDefault (IntVal (-1)) (k ++ "?length") modelClean
                   [InstElse elseVal] = filter (not . isInst) a
-                  arrKv = sort (map (\(InstInt k v) -> (k, v)) (filter isInst a))
-                  isInst (InstInt _ _) = True
+                  arrKv = filter (\(k, v) -> v /= elseVal) (sort (map (\(InstInt k v) -> (k, v)) (filter isInst a)))
+                  isInst (InstInt _ v) = True
                   isInst _ = False
-                  validArr = isValidArray 0 arrKv
+                  isValidArray :: Bool
+                  isValidArray = length arrKv == 0 || (minIndex >= 0 && maxIndex < aLength)
+                      where minIndex = minimum indices
+                            maxIndex = maximum indices
+                            indices  = map fst arrKv
                   -- TODO: this does not appear to be correct yet
+                  asdf = M.fromList arrKv
+                  buildArray :: Int -> [Int]
+                  buildArray i = if aLength == 0 then [] else (M.findWithDefault elseVal i asdf : if i + 1 == aLength || i + 1 > 100 then [] else buildArray (i + 1))
                   final = if aNull
                              then if (aLength /= -1) || (length arrKv /= 0)
-                                     then "1: INVALID"
+                                     then "1: INVALID" -- nullTest1, nullTest3, nullTest4
                                      else "2: null"
-                             else if validArr
-                                     then if length arrKv == aLength
-                                             then "3: " ++ show (map snd arrKv)
-                                             else "4: INVALID"
-                                     else if aLength /= -1
-                                             then "5: " ++ show (take aLength (repeat elseVal))
-                                             else "6: INVALID"
-
-                  isValidArray :: Int -> [(Int, Int)] -> Bool
-                  isValidArray n [] = False
-                  isValidArray n ((i, _) : xs) = if n == i
-                                                    then isValidArray (n + 1) xs
-                                                    else False
+                             else if isValidArray
+                                     then show (buildArray 0) ++ if aLength > 100 then " (TRUNCATED, length: " ++ show aLength ++ ")" else "" --let xs = buildArray 0 in if length xs > 100 then show (take 100 xs) ++ " (TRUNCATED)" else show xs
+                                     else "3: INVALID"
         prettyModelVal (k, v) = error $ k ++ " = UNIMPLEMENTED " ++ show v
         -- Remove all occurrences of ArrayRef and ArrayAsConst for easier processing later, also does type casting
         modelCleanFunc :: ModelVal -> ModelVal
