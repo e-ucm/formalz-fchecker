@@ -187,7 +187,7 @@ determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
        Sat   -> do
                 putStrLn "formulas are NOT equivalent, model:"
                 case model of
-                  Just m -> do s <- evalZ3 (modelToString m)
+                  Just m -> do s <- evalZ3With Nothing (Z3.Opts.opt "timeout" (1000 :: Int)) (modelToString m) -- TODO: the option is set, but does not actually work :(
                                putStrLn $ "Raw model:\n" ++ s
                                showRelevantModel $ parseModel s
                   _      -> return ()
