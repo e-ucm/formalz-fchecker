@@ -1,12 +1,25 @@
 # IMPRESS EDSL
 
-**This document still needs reviewing and might not reflect the current state of the project properly!**
-
 We want to help students learn about formal program verification. One aspect of this is writing pre and post conditions for their programs. To help the students learn this we developed a tool that can compare two program specifications and can come up with a counter example if the two specifications don't match.
 
 One use case could be to integrate our tool in a submission system like [DOMjudge](https://www.domjudge.org). We then allow students to submit their programs and they get instant feedback on their work.
 
 A proof of concept can be found in `src/SimpleFormulaChecker.hs`, the "main" function is `compareSpec`.
+
+To compile the project you need to install following packages:
+
+- [z3](https://hackage.haskell.org/package/z3) (see the [repository wiki](https://git.science.uu.nl/d.h.ogilvie2/javawlp/wikis/Installing-z3-haskell) for installation instructions)
+- [alex](https://hackage.haskell.org/package/alex)
+- [happy](https://hackage.haskell.org/package/happy)
+
+Once you have the packages, run the following commands from the repository root to generate the lexer and parser for the models:
+
+```
+alex src/ModelParser/Lexer.x
+happy src/ModelParser/Parser.y
+```
+
+You can now run GHCi from the `src` directory to run the examples.
 
 ## Java EDSL
 
@@ -90,9 +103,9 @@ To facilitate further development, it was decided to use an intermediate represe
 
 You can find the data types in `src/LogicIR/Expr.hs`. 
 
-TODO: future work, sets, types
-TODO: parse logicir from file
-TODO: implication, stronger, weaker
+- TODO: future work, sets, types
+- TODO: parse logicir from file
+- TODO: implication, stronger, weaker
 
 ### LogicIR.Frontend
 
@@ -254,6 +267,6 @@ Expressions like `i++ > 0 && i > 1` are not supported because they are considere
 
 ## TODO
 
-TODO: document usage of haskell code
-TODO: document haskell code itself better
-TODO: latex (https://www.overleaf.com/11599874kpwfhwctdqkr#/43883318/)
+- TODO: document usage of haskell code
+- TODO: document haskell code itself better
+- TODO: latex (https://www.overleaf.com/11599874kpwfhwctdqkr#/43883318/)
