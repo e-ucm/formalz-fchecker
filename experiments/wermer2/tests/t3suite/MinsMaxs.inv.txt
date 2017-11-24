@@ -1,55 +1,0 @@
-Daikon version 5.2.4, released May 1, 2015; http://plse.cs.washington.edu/daikon.
-Reading declaration files [1:45:15 PM]:                                                                                                                                                                                                                                Processing trace data; reading 1 dtrace file:
-[1:45:15 PM]: Finished reading /Users/iswbprasetya/workshop/projects/koenwlp/re
-                                                                               The --output_num_samples debugging flag is on.
-Some of the debugging output may only make sense to Daikon programmers.
-===========================================================================
-getMinsMaxs(double[][]):::ENTER  1000 samples
-    Variables: arg0[] size(arg0[]) size(arg0[])-1
-arg0[] elements != null		(1000 samples)
-size(arg0[]) one of { 0, 1, 2 }		(1000 samples)
-===========================================================================
-getMinsMaxs(double[][]):::EXIT  1000 samples
-    Variables: arg0[] exception return[] orig(arg0[]) size(arg0[]) size(arg0[])-1 size(return[]) size(return[])-1 orig(size(arg0[])) orig(size(arg0[]))-1
-      Unmodified variables: arg0[] size(arg0[])
-arg0[] == orig(arg0[])		(1000 samples)
-arg0[] elements != null		(1000 samples)
-exception one of { "", "java.lang.IllegalArgumentException", "java.lang.NullPointerException" }		(1000 samples)
-return[] elements != null		(1000 samples)
-size(arg0[]) one of { 0, 1, 2 }		(1000 samples)
-size(return[]) one of { 0, 2 }		(1000 samples)
-size(return[])-1 != 0		(1000 samples)
-size(arg0[]) % size(return[])-1 == 0		(1000 samples)
-size(arg0[]) >= size(return[])-1		(1000 samples)
-size(arg0[])-1 != size(return[])		(1000 samples)
-size(arg0[])-1 % size(return[])-1 == 0		(1000 samples)
-===========================================================================
-Variables:
-  non_canonical_variables = 0
-  can_be_missing_variables = 0
-  canonical_variables = 0
-  total variables = 0
-Derivation:
-  derived_variables = 8
-  suppressed derived variables = 0
-    nonsensical_suppressed_derived_variables = 0
-    tautological_suppressed_derived_variables = 0
-Inference:
-Non-instantiated: 0
-  true = 0
-    implied_noninstantiated_invariants = 0
-    subexact_noninstantiated_invariants = 0
-  false = 0
-    implied_false_noninstantiated_invariants = 0
-    partially_implied_invariants = 0
-Instantiated: 275 = 212
-  falsified_invariants = 126
-  non_falsified_invariants = 86 = 14
-    unjustified = 0
-      too_few_samples_invariants = 0
-      unjustified_invariants = 0
-    implied = 0
-      non_canonical_invariants = 0
-      obvious_invariants = 0
-    reported_invariants = 14
-Exiting Daikon.

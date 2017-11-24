@@ -9,7 +9,6 @@ import Z3.Opts
 
 import Javawlp.Engine.Types
 import Javawlp.Engine.HelperFunctions
-import Javawlp.Engine.Verifier
 
 import LogicIR.Expr
 import LogicIR.Frontend.Java
@@ -90,7 +89,7 @@ isEquivalent ast1' ast2' = evalZ3 z3
 -- Sorry for the code, it is quite awful...
 showRelevantModel :: Z3Model -> IO ()
 showRelevantModel model = do
-  putStrLn $ show $ M.toList modelClean
+  putStrLn "Pretty model:"
   mapM_ (putStrLn . prettyModelVal) $ fromKeys (consts ++ arrays)
   where modelMap :: M.Map String ModelVal
         modelMap = M.fromList model
@@ -124,13 +123,10 @@ showRelevantModel model = do
                   buildArray i = if aLength == 0 then [] else (M.findWithDefault elseVal i arrMap : if i + 1 == aLength || i + 1 > 100 then [] else buildArray (i + 1))
                   final :: String
                   final = if aNull
-                             then if (aLength /= -1) || (length arrKv /= 0)
-                                     then "1: INVALID" -- nullTest1, nullTest3, nullTest4
-                                     else "2: null"
+                             then "null"
                              else if isValidArray
                                      then show (buildArray 0) ++ if aLength > 100 then " (TRUNCATED, length: " ++ show aLength ++ ")" else "" --let xs = buildArray 0 in if length xs > 100 then show (take 100 xs) ++ " (TRUNCATED)" else show xs
-                                     else "3: INVALID"
-        prettyModelVal (k, v) = error $ k ++ " = UNIMPLEMENTED " ++ show v
+                                     else "inconsistent array representation" -- blub2
         -- Remove all occurrences of ArrayRef and ArrayAsConst for easier processing later, also does type casting
         modelCleanFunc :: ModelVal -> ModelVal
         modelCleanFunc (BoolVal b) = BoolVal b
@@ -194,7 +190,7 @@ determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
                 putStrLn "formulas are NOT equivalent, model:"
                 case model of
                   Just m -> do s <- evalZ3With Nothing (Z3.Opts.opt "timeout" (1000 :: Int)) (modelToString m) -- TODO: the option is set, but does not actually work :(
-                               putStrLn $ "Raw model:\n" ++ s
+                               putStrLn s
                                showRelevantModel $ parseModel s
                   _      -> return ()
     where
@@ -218,7 +214,7 @@ compareSpec method1@(_, name1) method2@(_, name2) = do
     determineFormulaEq m1 m2 "post"
 
 -- Examples, call these from GHCi to see the output.
-edslSrc = "javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
+edslSrc = "../examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
 testEq = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec1")
 testNeq = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec2")
 blub = compareSpec (edslSrc, "getMax_spec1") (edslSrc, "getMax_spec2")

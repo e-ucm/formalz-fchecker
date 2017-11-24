@@ -25,7 +25,7 @@ To import the EDSL in a Java project, we use:
 import static nl.uu.impress.EDSL.*;
 ```
 
-An example Java project can be found in `src/javawlp_edsl`, the EDSL implementation is in `src/impress`.
+An example Java project can be found in `examples/javawlp_edsl`, the EDSL implementation is in `impress_edsl/`.
 
 ### Example 1
 
@@ -144,7 +144,11 @@ k!0 -> {
 }
 ```
 
-Essentially this model tells us that the two preconditions are not equivalent with an `a` that is both `null` and `[1, 0]`. A postprocessing step should be added to handle these cases properly (TODO).
+Essentially this model tells us that the two preconditions are not equivalent with an `a` that is both `null` and `[1, 0]`. A postprocessing step has been added to pretty print the model and it shows:
+
+```
+a = null
+```
 
 #### Array length
 
@@ -178,7 +182,11 @@ k!1 -> {
 }
 ```
 
-This model tells us that `a.length == 1` and that `a == [0, 1]` which is contradictory. A postprocessing step should be added to handle these cases properly (TODO).
+This model tells us that `a.length == 1` and that `a == [0, 1]` which is contradictory. A postprocessing step has been added to pretty print the model. And the result will instead show:
+
+```
+a = inconsistent array representation
+```
 
 #### Bit vectors
 

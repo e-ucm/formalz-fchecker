@@ -1,9 +1,0 @@
-False positives test
-postCondVoid: true
-postCondRefType: true
-postCondPrimType: returnValueVar == returnValue
-ignoreLibMethods: False
-ignoreMainMethod: False
-nrOfUnroll: 1
-False positives found in:
-Total number of false positives: 0
