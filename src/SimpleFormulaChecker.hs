@@ -1,4 +1,4 @@
-module Javawlp.SimpleFormulaChecker where
+module SimpleFormulaChecker where
 
 import Language.Java.Syntax
 import Language.Java.Parser
@@ -19,6 +19,7 @@ import LogicIR.Backend.Null
 import ModelParser.Parser
 import ModelParser.Model
 
+import Control.Monad (when)
 import Control.Monad.Trans (liftIO)
 import Data.Maybe
 import Data.List
@@ -164,7 +165,7 @@ showRelevantModel model = do
                          _ -> False
 
 -- Determine the equality of two method's pre/post conditions.
-determineFormulaEq :: MethodDef -> MethodDef -> String -> IO ()
+determineFormulaEq :: MethodDef -> MethodDef -> String -> IO Bool
 determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
     -- get pre/post condition
     let (e1, e2) = (extractCond m1 name, extractCond m2 name)
@@ -184,15 +185,20 @@ determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
     -- variables that would make it true:
     (result, model) <- isEquivalent ast1 ast2
     case result of
-       Unsat -> putStrLn "formulas are equivalent!"
-       Undef -> putStrLn "unable to decide the satisfiablity (TODO: use QuickCheck)" -- this should happen on timeout, but the Z3 library does not function properly...
+       Unsat -> do
+         putStrLn "formulas are equivalent!"
+         return True
+       Undef -> do
+         putStrLn "unable to decide the satisfiablity (TODO: use QuickCheck)" -- this should happen on timeout, but the Z3 library does not function properly...
+         return False
        Sat   -> do
                 putStrLn "formulas are NOT equivalent, model:"
                 case model of
                   Just m -> do s <- evalZ3With Nothing (Z3.Opts.opt "timeout" (1000 :: Int)) (modelToString m) -- TODO: the option is set, but does not actually work :(
                                putStrLn s
                                showRelevantModel $ parseModel s
-                  _      -> return ()
+                               return False
+                  _      -> return False
     where
         extractCond :: MethodDef -> String -> Exp
         extractCond m n = extractExpr (getMethodCalls m n)
@@ -201,33 +207,15 @@ determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
 
 -- Function that compares both the pre and the post condition for two methods.
 -- It is assumed that both methods have the same environment (parameter names, class member names, etc).
-compareSpec :: (FilePath, String) -> (FilePath, String) -> IO ()
+compareSpec :: (FilePath, String) -> (FilePath, String) -> IO Bool
 compareSpec method1@(_, name1) method2@(_, name2) = do
     -- load the methods
     m1@(decls1, mbody1, env1) <- parseMethod method1
     m2@(decls2, mbody2, env2) <- parseMethod method2
-    if env1 /= env2 then fail "inconsistent method parameters" else return ()
-    if decls1 /= decls2 then fail "inconsistent class declarations (TODO)" else return ()
+    when (env1 /= env2) $ fail "inconsistent method parameters"
+    when (decls1 /= decls2) $ fail "inconsistent class declarations (TODO)"
     putStrLn $ "----PRE---- (" ++ name1 ++ " vs " ++ name2 ++ ")"
-    determineFormulaEq m1 m2 "pre"
+    preAns <- determineFormulaEq m1 m2 "pre"
     putStrLn "\n----POST---"
-    determineFormulaEq m1 m2 "post"
-
--- Examples, call these from GHCi to see the output.
-edslSrc = "../examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
-testEq = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec1")
-testNeq = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec2")
-blub = compareSpec (edslSrc, "getMax_spec1") (edslSrc, "getMax_spec2")
-blub2 = compareSpec (edslSrc, "test1") (edslSrc, "test2")
-blub2_ = compareSpec (edslSrc, "test1_") (edslSrc, "test2")
-blob = compareSpec (edslSrc, "blob1") (edslSrc, "blob1")
-nullTest1 = compareSpec (edslSrc, "null1") (edslSrc, "null2")
-nullTest2 = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec3")
-nullTest3 = compareSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec4")
-nullTest4 = compareSpec (edslSrc, "null3") (edslSrc, "test2")
-sort1 = compareSpec (edslSrc, "sorted1") (edslSrc, "test2")
-sort2 = compareSpec (edslSrc, "sorted1") (edslSrc, "sorted2")
-sort3 = compareSpec (edslSrc, "sorted1") (edslSrc, "sorted3")
-sort4 = compareSpec (edslSrc, "test2") (edslSrc, "sorted3")
-sort5 = compareSpec (edslSrc, "sorted3") (edslSrc, "sorted4")
-sort6 = compareSpec (edslSrc, "sorted1") (edslSrc, "sorted4") -- does not terminate (TODO: should time out, but this does not work)
+    postAns <- determineFormulaEq m1 m2 "post"
+    return $ preAns && postAns
