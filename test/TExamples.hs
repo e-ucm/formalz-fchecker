@@ -1,6 +1,7 @@
 module TExamples where
 
 import System.IO.Unsafe (unsafePerformIO)
+import System.IO.Silently (silence)
 import Test.HUnit
 
 import SimpleFormulaChecker
@@ -9,7 +10,7 @@ edslSrc = "examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
 
 testEquiv :: Bool -> String -> String -> Assertion
 testEquiv b s s' =
-  unsafePerformIO (compareSpec (edslSrc, s) (edslSrc, s')) @?= b
+  unsafePerformIO (silence $ compareSpec (edslSrc, s) (edslSrc, s')) @?= b
 (.==) = testEquiv True
 (.!=) = testEquiv False
 

@@ -2,10 +2,12 @@ import Test.Framework (defaultMain, testGroup)
 import Test.Framework.Providers.HUnit
 
 import TExamples
+import TIRParser
 
 main = defaultMain
   [ constructTestSuite testName testSuite
   | (testName, testSuite) <- [ ("EXAMPLES", equivalenceTests)
+                             , ("LIR_PARSER", parserTests)
                              ]
   ]
 

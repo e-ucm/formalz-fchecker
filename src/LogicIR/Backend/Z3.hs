@@ -34,27 +34,24 @@ lExprToZ3AstAlgebra = (fConst, fVar, fUnop, fBinop, fIf, fQuant, fArray, fIsnull
     fBinop a' o b' = do a <- a'
                         b <- b'
                         case o of
-                             NAdd -> mkBvadd a b
-                             NSub -> mkBvsub a b
-                             NMul -> mkBvmul a b
-                             NDiv -> mkBvsdiv a b -- NOTE: signed division
-                             NRem -> mkBvsrem a b -- TODO: check if the correct remainder is taken
-                             NShl -> mkBvshl a b
-                             NShr -> mkBvashr a b -- NOTE: signed shift right will keep the sign
-                             NAnd -> mkBvand a b
-                             NOr -> mkBvor a b
-                             NXor -> mkBvxor a b
+                             NAdd     -> mkBvadd a b
+                             NSub     -> mkBvsub a b
+                             NMul     -> mkBvmul a b
+                             NDiv     -> mkBvsdiv a b -- NOTE: signed division
+                             NRem     -> mkBvsrem a b -- TODO: check if the correct remainder is taken
+                             NShl     -> mkBvshl a b
+                             NShr     -> mkBvashr a b -- NOTE: signed shift right will keep the sign
+                             NAnd     -> mkBvand a b
+                             NOr      -> mkBvor a b
+                             NXor     -> mkBvxor a b
 
-                             LAnd -> mkAnd [a, b]
-                             LOr -> mkOr [a, b]
-                             LImpl -> mkImplies a b
+                             LAnd     -> mkAnd [a, b]
+                             LOr      -> mkOr [a, b]
+                             LImpl    -> mkImplies a b
 
-                             CEqual -> mkEq a b
-                             CNEqual -> mkEq a b >>= mkNot
-                             CLess -> mkBvslt a b
+                             CEqual   -> mkEq a b
+                             CLess    -> mkBvslt a b
                              CGreater -> mkBvsgt a b
-                             CLeq -> mkBvsle a b
-                             CGeq -> mkBvsge a b
     fIf c' a' b' = do c <- c'
                       a <- a'
                       b <- b'
