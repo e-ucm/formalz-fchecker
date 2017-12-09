@@ -4,3 +4,4 @@ tests/org/
 .DS_Store
 /src/ModelParser/Lexer.hs
 /src/ModelParser/Parser.hs
+.stack-work/

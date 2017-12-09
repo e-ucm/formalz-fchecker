@@ -1,0 +1,54 @@
+name:                javawlp
+version:             0.1.0.0
+-- synopsis: description: author: maintainer:
+homepage:            https://git.science.uu.nl/impresshs/javawlp
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     Javawlp.Engine.Types
+                     , Javawlp.Engine.HelperFunctions
+                     , Javawlp.Engine.Folds
+                     , LogicIR.Expr
+                     , LogicIR.Frontend.Java
+                     , LogicIR.Backend.Z3
+                     , LogicIR.Backend.Pretty
+                     , LogicIR.Backend.Null
+                     , LogicIR.Fold
+                     , ModelParser.Lexer
+                     , ModelParser.Parser
+                     , ModelParser.Model
+                     , Language.Java.Lexer
+                     , Language.Java.Parser
+                     , Language.Java.Pretty
+                     , Language.Java.Syntax
+                     , Language.Java.Syntax.Exp
+                     , Language.Java.Syntax.Types
+                     , SimpleFormulaChecker                     
+  build-depends:       base >= 4.7 && < 5
+                     , parsec
+                     , z3
+                     , language-java
+                     , array
+                     , pretty
+                     , mtl
+                     , containers
+  default-language:    Haskell2010
+
+-- executable javawlp
+--   hs-source-dirs:      app
+--   main-is:             SimpleFormulaChecker.hs
+--   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+--   build-depends:       base
+--                      , javawlp
+--                      , z3
+--                      , language-java
+--                      , mtl
+--                      , containers
+--   default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://git.science.uu.nl/impresshs/javawlp
