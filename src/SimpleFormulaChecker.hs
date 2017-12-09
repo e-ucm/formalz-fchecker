@@ -59,7 +59,7 @@ parseMethod (src, name) = do
 
 -- Get a list of all calls to a method of a specific name from a method definition.
 getMethodCalls :: MethodDef -> String -> [MethodInvocation]
-getMethodCalls (_, StmtBlock (Block bs), _) name = catMaybes (map extractMethodInv bs)
+getMethodCalls (_, StmtBlock (Block bs), _) name = mapMaybe extractMethodInv bs
     where
         extractMethodInv :: BlockStmt -> Maybe MethodInvocation
         extractMethodInv (BlockStmt (ExpStmt (MethodInv i@(MethodCall (Name [Ident n]) _)))) = if n == name then Just i else Nothing
@@ -69,7 +69,7 @@ getMethodCalls (_, StmtBlock (Block bs), _) name = catMaybes (map extractMethodI
 extractExpr :: [MethodInvocation] -> Exp
 extractExpr call = combineExprs $ map (\(MethodCall (Name [Ident _]) [a]) -> a) call
     where combineExprs :: [Exp] -> Exp
-          combineExprs (e:[]) = e
+          combineExprs [e] = e
           combineExprs (e:es) = BinOp e CAnd (combineExprs es)
 
 -- Check if two Z3 AST's are equivalent
@@ -95,7 +95,7 @@ showRelevantModel model = do
   where modelMap :: M.Map String ModelVal
         modelMap = M.fromList model
         modelClean :: M.Map String ModelVal
-        modelClean = M.filterWithKey (\k _ -> all (\e -> e /= '!') k) $ M.map modelCleanFunc modelMap
+        modelClean = M.filterWithKey (\k _ -> '!' `notElem` k) $ M.map modelCleanFunc modelMap
         fromKeys :: [String] -> [(String, ModelVal)]
         fromKeys = map (\k -> let v = M.findWithDefault defaultArray k modelClean in (k, v))
         defaultArray :: ModelVal
@@ -114,20 +114,18 @@ showRelevantModel model = do
                   isInst (InstInt _ v) = True
                   isInst _ = False
                   isValidArray :: Bool
-                  isValidArray = length arrKv == 0 || (minIndex >= 0 && maxIndex < aLength)
+                  isValidArray = null arrKv || (minIndex >= 0 && maxIndex < aLength)
                       where minIndex = minimum indices
                             maxIndex = maximum indices
                             indices  = map fst arrKv
                   arrMap :: M.Map Int Int
                   arrMap = M.fromList arrKv
                   buildArray :: Int -> [Int]
-                  buildArray i = if aLength == 0 then [] else (M.findWithDefault elseVal i arrMap : if i + 1 == aLength || i + 1 > 100 then [] else buildArray (i + 1))
+                  buildArray i = if aLength == 0 then [] else M.findWithDefault elseVal i arrMap : if i + 1 == aLength || i + 1 > 100 then [] else buildArray (i + 1)
                   final :: String
-                  final = if aNull
-                             then "null"
-                             else if isValidArray
-                                     then show (buildArray 0) ++ if aLength > 100 then " (TRUNCATED, length: " ++ show aLength ++ ")" else "" --let xs = buildArray 0 in if length xs > 100 then show (take 100 xs) ++ " (TRUNCATED)" else show xs
-                                     else "inconsistent array representation" -- blub2
+                  final | aNull = "null"
+                        | isValidArray = show (buildArray 0) ++ if aLength > 100 then " (TRUNCATED, length: " ++ show aLength ++ ")" else "" --let xs = buildArray 0 in if length xs > 100 then show (take 100 xs) ++ " (TRUNCATED)" else show xs
+                        | otherwise = "inconsistent array representation" -- blub2
         -- Remove all occurrences of ArrayRef and ArrayAsConst for easier processing later, also does type casting
         modelCleanFunc :: ModelVal -> ModelVal
         modelCleanFunc (BoolVal b) = BoolVal b
@@ -143,15 +141,15 @@ showRelevantModel model = do
         cropInt32 n = fromIntegral (fromIntegral n :: Int32) :: Int
         -- Names of the array variables
         arrays :: [String]
-        arrays = nub $ M.keys (M.filter isArray modelClean) ++ catMaybes (map arrayName (M.keys modelClean))
+        arrays = nub $ M.keys (M.filter isArray modelClean) ++ mapMaybe arrayName (M.keys modelClean)
         -- Names of the constant variables
         consts :: [String]
         consts = filter (\v -> not (isSuffixOf "?length" v || isSuffixOf "?null" v)) $ M.keys (M.filter isConst modelClean)
         -- Returns Just "a" for "a?length" and "a?null"
         arrayName :: String -> Maybe String
         arrayName s
-            | isSuffixOf "?length" s = Just $ take (length s - 7) s
-            | isSuffixOf "?null" s = Just $ take (length s - 5) s
+            | "?length" `isSuffixOf` s = Just $ take (length s - 7) s
+            | "?null" `isSuffixOf` s = Just $ take (length s - 5) s
             | otherwise = Nothing
         -- Whether a ModelVal is an array
         isArray :: ModelVal -> Bool
