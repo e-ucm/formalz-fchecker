@@ -19,7 +19,19 @@ alex src/ModelParser/Lexer.x
 happy src/ModelParser/Parser.y
 ```
 
-You can now run GHCi from the `src` directory to run the examples.
+To finish setting-up the Haskell project:
+```
+stack setup
+stack build
+```
+To run the tests:
+```
+stack test
+```
+To start an interactive GHC session:
+```
+stack ghci
+```
 
 ## Java EDSL
 
@@ -71,10 +83,10 @@ public static void getMax_spec1(int[] a) {
     // preconditions
     pre(a != null);
     pre(a.length > 0);
-    
+
     // call the actual function implementation
     int retval = getMax(a);
-    
+
     // postconditions
     post(exists(a, i -> a[i] == retval)); // A
     post(forall(a, i -> a[i] <= retval)); // B
@@ -101,7 +113,7 @@ Postcondition B will be mapped to:
 
 To facilitate further development, it was decided to use an intermediate representation for logical expressions. The frontend converts the Java EDSL to the IR and the backend uses IR to implement the comparison of two expressions.
 
-You can find the data types in `src/LogicIR/Expr.hs`. 
+You can find the data types in `src/LogicIR/Expr.hs`.
 
 - TODO: future work, sets, types
 - TODO: parse logicir from file
@@ -204,7 +216,7 @@ a = inconsistent array representation
 #### Bit vectors
 
 > Modern CPUs and main-stream programming languages use arithmetic over fixed-size bit-vectors. The theory of bit-vectors allows modeling the precise semantics of unsigned and of signed two-complements arithmetic. There are a large number of supported functions and relations over bit-vectors.
-> 
+>
 > https://rise4fun.com/z3/tutorialcontent/guide#h25
 
 To implement the semantics of Java (and C#, C++, etc) we use Z3 bit vectors to represent integers. Things like overflow semantics are then handled correctly by Z3.
