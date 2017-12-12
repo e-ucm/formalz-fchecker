@@ -29,7 +29,7 @@ javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, 
                     Boolean b -> LConst (CBool b)
                     Int n -> LConst (CInt (fromIntegral n))
                     Null -> LConst CNil
-                    _ -> error $ show $ lit
+                    _ -> error $ show lit
     fClassLit = error "fClassLit not supported..."
     fThis = error "fThis not supported..."
     fThisClass = error "fThisClass not supported..."
@@ -58,7 +58,7 @@ javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, 
                                         -> quantr method name rbegin rend bound expr
                                     _
                                         -> error $ "Unimplemented fMethodInv: " ++ show inv
-                                    where quant method name bound expr = let (i) = (Var (TPrim PInt32) bound) in
+                                    where quant method name bound expr = let i = Var (TPrim PInt32) bound in
                                                                          let (zero, len) = (LConst (CInt 0), LLen (nameToVar name env decls)) in
                                                                          case method of
                                                                               "forall" -> lquantr QAll i zero len expr
@@ -76,7 +76,7 @@ javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, 
                                              ArrayIndex (ExpName name) [expr]
                                                 -> LArray (nameToVar name env decls) (javaExpToLExpr expr env decls)
                                              _
-                                                -> error $ "Multidimensional arrays are not supported: " ++ show (arrayIndex)
+                                                -> error $ "Multidimensional arrays are not supported: " ++ show arrayIndex
     fExpName name env decls = case name of -- TODO: type checking + check implicit `this.name`
                                    Name [Ident a, Ident "length"] -> LLen $ nameToVar (Name [Ident a]) env decls
                                    _ -> LVar $ nameToVar name env decls
@@ -84,7 +84,7 @@ javaExpToLExprAlgebra = (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, 
     fPostDecrement = error "fPostDecrement has side effects..."
     fPreIncrement = error "fPreIncrement has side effects..."
     fPreDecrement = error "fPreDecrement has side effects..."
-    fPrePlus e env decls = e env decls
+    fPrePlus e = e
     fPreMinus e env decls = LUnop NNeg (e env decls)
     fPreBitCompl e env decls = LUnop NNot (e env decls)
     fPreNot e env decls = LUnop LNot (e env decls)

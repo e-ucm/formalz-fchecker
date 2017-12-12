@@ -1,6 +1,13 @@
 tests/org/
+# Haskell object files
 *.hi
 *.o
+# MacOS
 .DS_Store
+# Source files generated from lexer/parser
 /src/ModelParser/Lexer.hs
 /src/ModelParser/Parser.hs
+# Stack
+.stack-work/
+# Intellij IDEA
+.idea/
