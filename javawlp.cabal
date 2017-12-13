@@ -6,6 +6,15 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
+executable javawlp
+  hs-source-dirs:      app
+  main-is:             Main.hs
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base
+                     , javawlp
+                     , optparse-applicative
+  default-language:    Haskell2010
+
 library
   hs-source-dirs:      src
   exposed-modules:     Javawlp.Engine.Types
@@ -17,6 +26,7 @@ library
                      , LogicIR.Backend.Z3
                      , LogicIR.Backend.Test
                      , LogicIR.Backend.ModelGenerator
+                     , LogicIR.Backend.SBV
                      , LogicIR.Backend.Pretty
                      , LogicIR.Backend.Null
                      , LogicIR.Fold
@@ -40,6 +50,7 @@ library
                      , pretty
                      , mtl
                      , containers
+                     , sbv
   default-language:    Haskell2010
 
 test-suite javawlp-tests

@@ -1,5 +1,4 @@
 module TExamples where
-
 import System.IO.Unsafe (unsafePerformIO)
 import System.IO.Silently (silence)
 import Test.HUnit

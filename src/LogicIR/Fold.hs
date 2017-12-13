@@ -15,7 +15,6 @@ type LExprAlgebra r = (LConst -> r, -- LConst
                       )
 
 -- Fold for logical expressions
-foldLExpr :: LExprAlgebra r -> LExpr -> r
 foldLExpr (fConst, fVar, fUnop, fBinop, fIf, fQuant, fArray, fIsnull, fLen) = fold where
     fold e = case e of
                   LConst c       -> fConst c
