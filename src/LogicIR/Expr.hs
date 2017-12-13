@@ -1,29 +1,28 @@
 module LogicIR.Expr where
 
--- Based on previous work: https://github.com/mrexodia/wp/blob/master/Wp.hs
--- Reference: https://en.wikipedia.org/wiki/First-order_logic#Logical_symbols
+import Data.String
 
--- The primitive types are bool and int32.
+-- | The primitive types are bool and int32.
 data Primitive = PBool
                | PInt32
                deriving (Show, Eq, Read)
 
--- A Type can either be a primitive or an array of Type
+-- | A Type can either be a primitive or an array type.
 data Type = TPrim Primitive
           | TArray Type
           deriving (Show, Eq, Read)
 
--- Typed + named variable
+-- | Typed + named variable.
 data Var = Var Type String
          deriving (Show, Eq, Read)
 
--- Unary operators
+-- | Unary operators.
 data LUnop = NNeg -- -n (numeric negation)
            | NNot -- ~n (numeric binary not)
            | LNot -- !n (logical not)
            deriving (Show, Eq, Read)
 
--- Binary operators
+-- | Binary operators.
 data LBinop =
             -- numeric operators
               NAdd -- a + b
@@ -39,27 +38,24 @@ data LBinop =
             -- logical operators
             | LAnd -- a && b
             | LOr -- a || b
-            | LImpl -- a => b
+            | LImpl -- a ==> b
             -- comparisons
             | CEqual -- a == b
-            | CNEqual -- a != b
             | CLess -- a < b
             | CGreater -- a > b
-            | CLeq -- a <= b
-            | CGeq -- a >= b
             deriving (Show, Eq, Read)
 
--- Quantifier operators
+-- | Quantifier operators.
 data QOp = QAll | QAny
          deriving (Show, Eq, Read)
 
--- Constants
+-- | Constants.
 data LConst = CBool Bool
             | CInt Int
             | CNil
             deriving (Show, Eq, Read)
 
--- Logical expressions
+-- | Logical expressions.
 data LExpr = LConst LConst -- constant
            | LVar Var -- variable
            | LUnop LUnop LExpr -- unary operator
@@ -70,3 +66,34 @@ data LExpr = LConst LConst -- constant
            | LIsnull Var -- var == null
            | LLen Var -- len(array)
            deriving (Show, Eq, Read)
+
+-- | EDSL.
+forall = LQuant QAll
+exists = LQuant QAny
+var x t = Var t x
+v = LVar
+n = LConst . CInt
+b = LConst . CBool
+nil = LConst CNil
+lnot = LUnop LNot
+nnot = LUnop NNot
+
+infix 1 .: ; infix 1 .!
+(.:) x t = LVar $ Var t x
+(.!) = LArray
+
+binOp op e = LBinop e op
+infix 2 .==> ; infix 3 .&& ; infix 3 .||
+infix 4 .== ; infix 4 .!= ; infix 4 .> ; infix 4 .< ; infix 4 .<= ; infix 4 .>=
+infix 5 .* ; infix 5 ./ ; infix 5 .%
+infix 6 .+ ; infix 6 .-
+infix 7 .>> ; infix 7 .<<
+infix 8 .| ; infix 8 .^ ; infix 8 .&
+(.|) = binOp NOr ; (.^) = binOp NXor ; (.&) = binOp NAnd
+(.>>) = binOp NShl ; (.<<) = binOp NShr
+(.+) = binOp NAdd ; (.-) = binOp NSub
+(.*) = binOp NMul ; (./) = binOp NDiv ; (.%) = binOp NRem
+(.==) = binOp CEqual ; (.!=) x y = lnot $ x .== y
+(.<) = binOp CLess ; (.<=) x y = x .< y .|| x.== y
+(.>) = binOp CGreater ; (.>=) x y = x .> y .|| x.== y
+(.&&) = binOp LAnd ; (.||) = binOp LOr ; (.==>) = binOp LImpl

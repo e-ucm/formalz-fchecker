@@ -18,12 +18,12 @@ type LExprAlgebra r = (LConst -> r, -- LConst
 foldLExpr :: LExprAlgebra r -> LExpr -> r
 foldLExpr (fConst, fVar, fUnop, fBinop, fIf, fQuant, fArray, fIsnull, fLen) = fold where
     fold e = case e of
-                  LConst c -> fConst c
-                  LVar v -> fVar v
-                  LUnop o a -> fUnop o (fold a)
-                  LBinop a o b -> fBinop (fold a) o (fold b)
-                  LIf c a b -> fIf (fold c) (fold a) (fold b)
+                  LConst c       -> fConst c
+                  LVar v         -> fVar v
+                  LUnop o a      -> fUnop o (fold a)
+                  LBinop a o b   -> fBinop (fold a) o (fold b)
+                  LIf c a b      -> fIf (fold c) (fold a) (fold b)
                   LQuant o b d a -> fQuant o b (fold d) (fold a)
-                  LArray v a -> fArray v (fold a)
-                  LIsnull v -> fIsnull v
-                  LLen v -> fLen v
+                  LArray v a     -> fArray v (fold a)
+                  LIsnull v      -> fIsnull v
+                  LLen v         -> fLen v

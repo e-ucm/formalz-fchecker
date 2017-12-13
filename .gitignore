@@ -1,7 +1,8 @@
 tests/org/
-# Haskell object files
+# Haskell
 *.hi
 *.o
+.stylish-haskell.yaml
 # MacOS
 .DS_Store
 # Source files generated from lexer/parser
