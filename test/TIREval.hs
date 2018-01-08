@@ -8,13 +8,15 @@ import SimpleFormulaChecker
 
 edslSrc = "examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
 
-testEval :: Bool -> String -> Assertion
-testEval b s =
-  unsafePerformIO (silence $ evaluate (edslSrc, s)) @?= b
-(.=) = testEval True
-(.!) = testEval False
+testEval :: (Bool, Maybe Bool) -> String -> Assertion
+testEval t@(evalPoss, evals2True) s =
+  unsafePerformIO (silence $ evaluate (edslSrc, s)) @?= t
+(.==) = testEval (True, Just True)
+(.=!) = testEval (True, Just False)
+(.!)  = testEval (False, Nothing)
 
 evalTests =
-  [ (.=) "simple_eval1"
-  , (.!) "simple_eval2"
+  [ (.==) "simple_eval1"
+  , (.=!) "simple_eval2"
+  , (.!)  "simple_eval3"
   ]

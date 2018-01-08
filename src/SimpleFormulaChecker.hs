@@ -220,12 +220,14 @@ compareSpec method1@(_, name1) method2@(_, name2) = do
     postAns <- determineFormulaEq m1 m2 "post"
     return $ preAns && postAns
 
-
-evaluate :: (FilePath, String) -> IO Bool
+evaluate :: (FilePath, String) -> IO (Bool, Maybe Bool)
 evaluate method = do
       m@(decls, mbody, env) <- parseMethod method
       let e = extractExpr (getMethodCalls m "pre")
       let lexpr = javaExpToLExpr e env decls
       putStrLn (prettyLExpr lexpr)
-      return ((prettyLExpr (LConst (LogicIR.Eval.eval lexpr))) == "true")
+      let t = CBool True
+      let possible = LogicIR.Eval.evalPossible lexpr
+      let res = if possible then Just (LogicIR.Eval.eval lexpr == t) else Nothing
+      return (possible, res)
 
