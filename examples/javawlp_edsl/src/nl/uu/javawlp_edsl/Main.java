@@ -5,6 +5,18 @@ import static nl.uu.impress.EDSL.*;
 
 public class Main {
 
+    public static int simple_eval1() {
+        pre(~(-5 * 2) == (79 & 41)); // evaluates to 9 == 9
+    }
+
+    public static int simple_eval2() {
+        pre(~(-5 * 2) == (79 & 40)); // evaluates to 9 == 8
+    }
+
+    public static int simple_eval3(int a) {
+        pre(~(a * 2) == (79 & 40)); // can't evaluate due to undefined variable
+    }
+
     public static int mymin(int[] a, int b) {
         assert forall(a, i -> {
             return a[i] > b;

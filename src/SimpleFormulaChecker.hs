@@ -11,8 +11,10 @@ import Javawlp.Engine.Types
 import Javawlp.Engine.HelperFunctions
 
 import LogicIR.Expr
+import LogicIR.Eval
 import LogicIR.Frontend.Java
 import LogicIR.Backend.Z3
+--import LogicIR.Backend.QuickCheck
 import LogicIR.Backend.Pretty
 import LogicIR.Backend.Null
 
@@ -217,3 +219,13 @@ compareSpec method1@(_, name1) method2@(_, name2) = do
     putStrLn "\n----POST---"
     postAns <- determineFormulaEq m1 m2 "post"
     return $ preAns && postAns
+
+
+evaluate :: (FilePath, String) -> IO Bool
+evaluate method = do
+      m@(decls, mbody, env) <- parseMethod method
+      let e = extractExpr (getMethodCalls m "pre")
+      let lexpr = javaExpToLExpr e env decls
+      putStrLn (prettyLExpr lexpr)
+      return ((prettyLExpr (LConst (LogicIR.Eval.eval lexpr))) == "true")
+

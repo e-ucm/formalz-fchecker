@@ -52,7 +52,7 @@ prettyLExprAlgebra = (fConst, prettyVar, fUnop, fBinop, fIf, fQuant, fArray, fIs
                     CInt n  -> show n
                     CNil    -> "nil"
     fUnop o a = prettyNUnop o ++ a
-    fBinop a o b = a ++ " " ++ prettyLBinop o ++ " " ++ b
+    fBinop a o b = "(" ++ a ++ " " ++ prettyLBinop o ++ " " ++ b ++ ")"
     fIf c a b = "(" ++ c ++ ") ? (" ++ a ++ ") : (" ++ b ++ ")"
     fQuant o v d a = '(' : show o ++ " " ++ prettyVar v ++ ": " ++ d ++ ": " ++ a ++ ")"
     fArray v a = prettyVar v ++ "[" ++ a ++ "]"
