@@ -31,8 +31,10 @@ public class GetMax {
         post(exists(a, i -> a[i] == retval) && forall(a, i -> a[i] <= retval));
     }
     
+
+    
     // few tests
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
     	int[] a = {1} ;
     	getMax_teacherspec(a) ;
     	
