@@ -2,6 +2,9 @@ package nl.uu.javawlp_edsl;
 
 import static nl.uu.impress.EDSL.*;
 
+/**
+ * An example of a simple program and its specification, written by a teacher.
+ */
 public class Swap {
 	
 	/**
@@ -19,8 +22,8 @@ public class Swap {
     public static void swap_teacherspec(int[] a, int i, int j) {
         pre(a != null);
         pre(a.length > 0);
-        pre(i >= 0);
-        pre(j >= 0);
+        pre(0 <= i && i < a.length);
+        pre(0 <= j && j < a.length);
         // introducing vars to remember old values
         int oldai = a[i], oldaj = a[j];
         swap(a, i, j);
