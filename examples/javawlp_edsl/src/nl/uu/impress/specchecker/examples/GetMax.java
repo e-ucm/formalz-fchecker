@@ -25,6 +25,7 @@ public class GetMax {
 	
     /**
      * Teacher's specification of getMax.
+     * Note: this specification does not explicitly require a to be left unchanged.
      */
     public static void getMax_teacherspec(int[] a) {
         pre(a != null && a.length > 0);
