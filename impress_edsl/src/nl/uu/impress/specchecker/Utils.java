@@ -1,4 +1,4 @@
-package nl.uu.impress;
+package nl.uu.impress.specchecker;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -173,7 +173,7 @@ public class Utils {
 		printIns(S) ;
 		
 		int[] b = {1,2,2,3} ;
-    	invokeSpec("nl.uu.javawlp_edsl.GetMax","getMax_teacherspec",b) ;
+    	invokeSpec("nl.uu.impress.specchecker.examples.GetMax","getMax_teacherspec",b) ;
 	}
 	
 }

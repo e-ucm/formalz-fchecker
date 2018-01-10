@@ -1,7 +1,8 @@
-package nl.uu.javawlp_edsl;
+package nl.uu.impress.specchecker.examples;
 
-import static nl.uu.impress.EDSL.*;
-import static nl.uu.impress.Utils.*;
+//Importing the EDSL like this is required for the parser!
+import static nl.uu.impress.specchecker.EDSL.*;
+import static nl.uu.impress.specchecker.Utils.*;
 
 /**
  * An example of a simple program and its specification, written by a teacher.
@@ -9,12 +10,12 @@ import static nl.uu.impress.Utils.*;
 public class GetMax {
 
 	/**
-	 * A program to obtain the maximum value of an array.
+	 * A program to obtain the maximum value of an array. The array
+	 * should contain at least one element.
 	 */
 	public static int getMax(int[] a) {
 		printIns(a) ;
-        if (a.length == 0)
-            throw new IllegalArgumentException();
+        if (a==null || a.length == 0) throw new IllegalArgumentException();
         int m = a[0];
         for (int i = 1; i < a.length; i++)
             m = a[i] > m ? a[i] : m;

@@ -1,6 +1,7 @@
-package nl.uu.javawlp_edsl;
+package nl.uu.impress.specchecker.examples;
 
-import static nl.uu.impress.EDSL.*;
+//Importing the EDSL like this is required for the parser!
+import static nl.uu.impress.specchecker.EDSL.*;
 
 /**
  * Examples of incorrect specifications of the program getMax that could have been written
