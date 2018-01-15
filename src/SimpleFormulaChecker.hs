@@ -205,15 +205,6 @@ determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
         showZ3AST :: Z3 AST -> IO String
         showZ3AST ast' = evalZ3 $ ast' >>= astToString
 
-parse :: (FilePath, String) -> (FilePath, String) -> IO (MethodDef, MethodDef)
-parse method1@(_, name1) method2@(_, name2) = do
-    -- load the methods
-    m1@(decls1, mbody1, env1) <- parseMethod method1
-    m2@(decls2, mbody2, env2) <- parseMethod method2
-    when (env1 /= env2) $ fail "inconsistent method parameters"
-    when (decls1 /= decls2) $ fail "inconsistent class declarations (TODO)"
-    return (m1, m2)
-
 -- Function that compares both the pre and the post condition for two methods.
 -- It is assumed that both methods have the same environment (parameter names, class member names, etc).
 compareSpec :: (FilePath, String) -> (FilePath, String) -> IO Bool
@@ -224,6 +215,15 @@ compareSpec method1@(_, name1) method2@(_, name2) = do
     putStrLn "\n----POST---"
     postAns <- determineFormulaEq m1 m2 "post"
     return $ preAns && postAns
+
+parse :: (FilePath, String) -> (FilePath, String) -> IO (MethodDef, MethodDef)
+parse method1@(_, name1) method2@(_, name2) = do
+    -- load the methods
+    m1@(decls1, mbody1, env1) <- parseMethod method1
+    m2@(decls2, mbody2, env2) <- parseMethod method2
+    when (env1 /= env2) $ fail "inconsistent method parameters"
+    when (decls1 /= decls2) $ fail "inconsistent class declarations (TODO)"
+    return (m1, m2)
 
 methodDefToLExpr :: MethodDef -> MethodDef -> String -> (LExpr, LExpr)
 methodDefToLExpr m1@(decls1, _, env1) m2@(decls2, _, env2) name = do

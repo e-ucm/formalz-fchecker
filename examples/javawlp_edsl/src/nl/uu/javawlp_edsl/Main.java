@@ -5,13 +5,13 @@ import static nl.uu.impress.EDSL.*;
 
 public class Main {
 
-    public static void test1(int[] b) {
+    public static void quickcheck_test1(int[] b) {
         pre(~(-a * c) == (79 & 41));
         pre(a > 0);
         pre(forall(b, i -> b[i] > -10));
     }
 
-    public static void test2(int[] b) {
+    public static void quickcheck_test2(int[] b) {
         pre(~(-a * c) == (79 & 41));
         pre(a > 0);
         pre(forall(b, i -> b[i] >= -10)); // note the >=, whereas test1 has >.

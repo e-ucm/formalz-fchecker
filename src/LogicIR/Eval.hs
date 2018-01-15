@@ -48,7 +48,7 @@ evalAlgebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
 
           -- Things that should never happen.
           quant _ _ e1 e2 = error "Quantifiers cannot be evaluated and should be replaced using LogicIR.Rewrite.replaceQuantifiers."
-          arr v a         = error "You can't contain eval on an LExpr that contains uninstantiated arrays."
+          arr v a         = error "You can't call eval on an LExpr that contains uninstantiated arrays."
           var v           = error "You can't call eval on an LExpr that contains uninstantiated vars."
 
 -- Evaluates a binary operator expression.
