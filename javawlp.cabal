@@ -31,6 +31,7 @@ library
                      , Language.Java.Syntax.Types
                      , SimpleFormulaChecker
   build-depends:       base >= 4.7 && < 5
+                     , random
                      , parsec
                      , z3
                      , QuickCheck

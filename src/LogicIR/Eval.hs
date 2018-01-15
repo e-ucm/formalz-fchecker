@@ -1,10 +1,17 @@
-module LogicIR.Eval (eval, evalPossible) where
+module LogicIR.Eval (eval, evalPossible, evalIfPossible) where
 
 import LogicIR.Expr
 import LogicIR.Fold
 import LogicIR.Backend.Pretty
 
 import Data.Bits
+
+-- Tells to which LConst a given LExpr evaluates.
+eval :: LExpr -> LConst
+eval = foldLExpr evalAlgebra
+
+evalIfPossible :: LExpr -> LExpr
+evalIfPossible e = if evalPossible e then (LConst (eval e)) else e
 
 -- Returns True if an LExpr only contains constants and no variables whatsoever.
 evalPossible :: LExpr -> Bool
@@ -19,12 +26,8 @@ evalPossibleAlgebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
           var v           = False
           quant _ _ a1 a2 = a1 && a2
           arr v a         = False
-          snull v         = False
-          len v           = False
-
--- Tells to which LConst a given LExpr evaluates.
-eval :: LExpr -> LConst
-eval = foldLExpr evalAlgebra
+          snull v         = True -- This possibly needs to be changed. See evalAlgebra
+          len v           = True -- This possibly needs to be changed. See evalAlgebra
 
 evalAlgebra :: LExprAlgebra LConst
 evalAlgebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
@@ -38,12 +41,15 @@ evalAlgebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
           bin le o re     = evalBin le o re
 
           iff ge e1 e2    = if ge == (CBool True) then e1 else e2
-          -- TODO.
-          var v           = error "You can't call eval on an LExpr that contains vars"
-          quant _ _ a1 a2 = error "Quantifiers cannot yet be evaluated."
-          arr v a         = error "Arrays cannot yet be evaluated"
-          snull v         = error "Null checks cannot yet be evaluated"
-          len v           = error "Array length cannot yet be evaluated"
+          
+          -- This possibly needs to be changed.
+          snull v         = CBool False  -- error "Null checks cannot yet be evaluated."
+          len v           = CInt  10 -- error "Array length cannot yet be evaluated."
+
+          -- Things that should never happen.
+          quant _ _ e1 e2 = error "Quantifiers cannot be evaluated and should be replaced using LogicIR.Rewrite.replaceQuantifiers."
+          arr v a         = error "You can't contain eval on an LExpr that contains uninstantiated arrays."
+          var v           = error "You can't call eval on an LExpr that contains uninstantiated vars."
 
 -- Evaluates a binary operator expression.
 -- Comparison operators

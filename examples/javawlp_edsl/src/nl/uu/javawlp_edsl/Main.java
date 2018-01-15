@@ -5,6 +5,12 @@ import static nl.uu.impress.EDSL.*;
 
 public class Main {
 
+    public static void test1(int[] b) {
+        pre(~(-a * c) == (79 & 41));
+        pre(a * c > 0);
+        pre(exists(b, i -> b[i] > 0));
+    }
+
     public static int simple_eval1() {
         pre(~(-5 * 2) == (79 & 41)); // evaluates to 9 == 9
     }

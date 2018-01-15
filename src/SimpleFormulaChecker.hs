@@ -14,7 +14,7 @@ import LogicIR.Expr
 import LogicIR.Eval
 import LogicIR.Frontend.Java
 import LogicIR.Backend.Z3
---import LogicIR.Backend.QuickCheck
+import LogicIR.Backend.QuickCheck
 import LogicIR.Backend.Pretty
 import LogicIR.Backend.Null
 
@@ -220,11 +220,19 @@ compareSpec method1@(_, name1) method2@(_, name2) = do
     postAns <- determineFormulaEq m1 m2 "post"
     return $ preAns && postAns
 
-evaluate :: (FilePath, String) -> IO (Bool, Maybe Bool)
+quickCheckTest = do
+    (result, model) <- LogicIR.Backend.QuickCheck.check e e
+    putStrLn $ "Expressions are equal: " ++ (show result)
+    putStrLn $ "Model used: " ++ (show model)
+    return ()
+        where e = LBinop (LBinop (LUnop NNot (LBinop (LUnop NNeg (LVar (Var (TPrim PInt32) "a"))) NMul (LVar (Var (TPrim PInt32) "c")))) CEqual (LBinop (LConst (CInt 79)) NAnd (LConst (CInt 41)))) LAnd (LBinop (LBinop (LBinop (LVar (Var (TPrim PInt32) "a")) NMul (LVar (Var (TPrim PInt32) "c"))) CGreater (LConst (CInt 0))) LAnd (LQuant QAny (Var (TPrim PInt32) "i") (LBinop (LBinop (LVar (Var (TPrim PInt32) "i")) CGreater (LConst (CInt 0))) LAnd (LBinop (LVar (Var (TPrim PInt32) "i")) CLess (LLen (Var (TArray (TPrim PInt32)) "b")))) (LBinop (LArray (Var (TArray (TPrim PInt32)) "b") (LVar (Var (TPrim PInt32) "i"))) CEqual (LVar (Var (TPrim PInt32) "retval")))))
+
+evaluate :: String -> IO (Bool, Maybe Bool)
 evaluate method = do
-      m@(decls, mbody, env) <- parseMethod method
+      m@(decls, mbody, env) <- parseMethod ("examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java", method)
       let e = extractExpr (getMethodCalls m "pre")
       let lexpr = javaExpToLExpr e env decls
+      putStrLn (show lexpr)
       putStrLn (prettyLExpr lexpr)
       let t = CBool True
       let possible = LogicIR.Eval.evalPossible lexpr
