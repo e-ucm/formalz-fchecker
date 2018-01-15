@@ -1,15 +1,18 @@
 module SimpleFormulaChecker where
 
-import Language.Java.Syntax
 import Language.Java.Parser
 import Language.Java.Pretty
+import Language.Java.Syntax
 
 import Z3.Monad
 import Z3.Opts
 
-import Javawlp.Engine.Types
 import Javawlp.Engine.HelperFunctions
+import Javawlp.Engine.Types
 
+import LogicIR.Backend.Null
+import LogicIR.Backend.Pretty
+import LogicIR.Backend.Z3
 import LogicIR.Expr
 import LogicIR.Eval
 import LogicIR.Frontend.Java
@@ -18,46 +21,59 @@ import LogicIR.Backend.Test
 import LogicIR.Backend.Pretty
 import LogicIR.Backend.Null
 
-import ModelParser.Parser
 import ModelParser.Model
+import ModelParser.Parser
 
 import Control.Monad (when)
 import Control.Monad.Trans (liftIO)
-import Data.Maybe
-import Data.List
-import Debug.Trace
 import Data.Int
+import Data.List
 import qualified Data.Map as M
+import Data.Maybe
+import Debug.Trace
 
 -- See README.md for a high-level description of this project.
 
 type MethodDef = ([TypeDecl], Stmt, TypeEnv)
 
--- Takes a java source file and a method name and returns the class declarations,
--- the method body and the method's formal parameters.
+
+-- Takes a Java source file and a method name and returns the class declarations,
+-- Returns the method body and the method's formal parameters.
 parseMethod :: (FilePath, String) -> IO MethodDef
 parseMethod (src, name) = do
-    -- parse the Java source file:
-    compilationnUnit <- parseJava src
-    -- get all the class declarations in the Java source file; usually a single file defines only
-    -- one class, but it could theoretically have more:
-    let decls = getDecls compilationnUnit
-    -- get the method's body ; to make it simple, the method's name is assumed to uniquely identify its body
+    decls <- parseDecls src
+    -- get the method's body (assuming all methods have different names)
     let mbody = fromJust $ getMethod decls (Ident name)
     -- get the method's formal parameters:
     let env = getMethodTypeEnv decls (Ident name)
     -- return the relevant data
     return (decls, mbody, env)
-    where
+
+-- | Get all method names in a Java source file.
+parseMethodIds :: FilePath -> IO [String]
+parseMethodIds src = do
+  decls <- parseDecls src
+  -- get the names of all the class methods
+  return $ map (\x -> case x of Ident s -> s) (getMethodIds decls)
+
+-- | Get all the class declarations in the Java source file.
+parseDecls :: FilePath -> IO [TypeDecl]
+parseDecls src = do
+  compilationUnit <- parseJava src
+  let decls = getDecls compilationUnit
+  return decls
+  where
     -- parse a Java source file, and extracts the necessary information from the compilation unit
     parseJava :: FilePath -> IO CompilationUnit
     parseJava s = do
-        -- Get the source code
-        source <- readFile s
-        -- Parse the source code
-        case parser compilationUnit source of
-            Left parseError -> error (show parseError)
-            Right compUnit  -> return compUnit
+      -- Get the source code
+      source <- readFile s
+      -- Parse the source code
+      case parser compilationUnit source of
+          Left parseError -> error (show parseError)
+          Right compUnit  -> return compUnit
+
+
 
 -- Get a list of all calls to a method of a specific name from a method definition.
 getMethodCalls :: MethodDef -> String -> [MethodInvocation]
@@ -115,7 +131,7 @@ showRelevantModel model = do
                   arrKv = filter (\(k, v) -> v /= elseVal) (sort (map (\(InstInt k v) -> (k, v)) (filter isInst a)))
                   isInst :: FuncInst -> Bool
                   isInst (InstInt _ v) = True
-                  isInst _ = False
+                  isInst _             = False
                   isValidArray :: Bool
                   isValidArray = null arrKv || (minIndex >= 0 && maxIndex < aLength)
                       where minIndex = minimum indices
@@ -157,13 +173,13 @@ showRelevantModel model = do
         -- Whether a ModelVal is an array
         isArray :: ModelVal -> Bool
         isArray (ArrayFunc _) = True
-        isArray _ = False
+        isArray _             = False
         -- Whether a ModelVal is a constant
         isConst :: ModelVal -> Bool
         isConst v = case v of
                          BoolVal _ -> True
-                         IntVal _ -> True
-                         _ -> False
+                         IntVal _  -> True
+                         _         -> False
 
 -- Determine the equality of two method's pre/post conditions.
 determineFormulaEq :: MethodDef -> MethodDef -> String -> IO Bool
@@ -222,9 +238,15 @@ parse method1@(_, name1) method2@(_, name2) = do
     -- load the methods
     m1@(decls1, mbody1, env1) <- parseMethod method1
     m2@(decls2, mbody2, env2) <- parseMethod method2
-    when (env1 /= env2) $ fail "inconsistent method parameters"
-    when (decls1 /= decls2) $ fail "inconsistent class declarations (TODO)"
-    return (m1, m2)
+    if env1 /= env2 then
+      return False
+    else do
+      when (decls1 /= decls2) $ fail "inconsistent class declarations (TODO)"
+      putStrLn $ "----PRE---- (" ++ name1 ++ " vs " ++ name2 ++ ")"
+      preAns <- determineFormulaEq m1 m2 "pre"
+      putStrLn "\n----POST---"
+      postAns <- determineFormulaEq m1 m2 "post"
+      return $ preAns && postAns
 
 methodDefToLExpr :: MethodDef -> MethodDef -> String -> (LExpr, LExpr)
 methodDefToLExpr m1@(decls1, _, env1) m2@(decls2, _, env2) name = do
