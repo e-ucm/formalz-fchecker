@@ -13,6 +13,7 @@ prettyLExpr = foldLExpr prettyLExprAlgebra
 prettyType :: Type -> String
 prettyType (TPrim PInt32) = "int"
 prettyType (TPrim PBool)  = "bool"
+prettyType (TPrim PFloat)  = "float"
 prettyType (TArray t)     = prettyType t ++ "[]"
 
 prettyLBinop :: LBinop -> String
@@ -43,7 +44,7 @@ prettyNUnop op =
     LNot -> "!"
 
 prettyVar :: Var -> String
-prettyVar (Var t n) = prettyType t ++ ":" ++ n
+prettyVar (Var t n) = n ++ ":" ++ prettyType t
 
 prettyLExprAlgebra :: LExprAlgebra String
 prettyLExprAlgebra = (fConst, prettyVar, fUnop, fBinop, fIf, fQuant, fArray, fIsnull, fLen) where

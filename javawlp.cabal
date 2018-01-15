@@ -26,7 +26,6 @@ library
                      , LogicIR.Backend.Z3
                      , LogicIR.Backend.Test
                      , LogicIR.Backend.ModelGenerator
-                     , LogicIR.Backend.SBV
                      , LogicIR.Backend.Pretty
                      , LogicIR.Backend.Null
                      , LogicIR.Fold
@@ -50,7 +49,6 @@ library
                      , pretty
                      , mtl
                      , containers
-                     , sbv
   default-language:    Haskell2010
 
 test-suite javawlp-tests

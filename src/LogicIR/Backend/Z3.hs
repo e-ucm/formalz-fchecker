@@ -16,12 +16,14 @@ lExprToZ3AstAlgebra = (fConst, fVar, fUnop, fBinop, fIf, fQuant, fArray, fIsnull
     fConst c = case c of
       CBool b -> mkBool b
       CInt n -> mkBitvector 32 (fromIntegral n)
+      CFloat f -> mkRealNum f
       CNil -> error "null constants cannot be used directly with Z3 (use LogicIR.Backend.Null)"
     fVar (Var t n) = do
       symbol <- mkStringSymbol n
       case t of
         "int" -> mkBvVar symbol 32
         "bool" -> mkBoolVar symbol
+        "float" -> mkRealVar symbol
         "[int]" -> do
           intSort <- mkBvSort 32
           arraySort <- mkArraySort intSort intSort

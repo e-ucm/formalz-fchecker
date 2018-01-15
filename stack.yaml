@@ -49,9 +49,6 @@ packages:
 # (e.g., acme-missiles-0.3)
 extra-deps:
 - z3-4.1.2
-- sbv-7.4
-- crackNum-1.9
-- FloatingHex-0.4
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

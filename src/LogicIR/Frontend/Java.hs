@@ -23,6 +23,7 @@ nameToVar name env decls =
     case arrayType of
         PrimType BooleanT                   -> fromString(symbol ++ ":bool")
         PrimType IntT                       -> fromString(symbol ++ ":int")
+        PrimType FloatT                     -> fromString(symbol ++ ":float")
         RefType (ArrayType (PrimType IntT)) -> fromString(symbol ++ ":[int]")
         _ -> error $ "Unimplemented nameToVar: " ++ show (name, arrayType)
     where

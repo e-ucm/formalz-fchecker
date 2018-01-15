@@ -92,7 +92,9 @@ bvarP = do
 typeP :: Parser Type
 typeP = try (TPrim <$> primTypeP) <|> (TArray <$> arrayTypeP)
   where
-    primTypeP = lexeme $ (PBool <$ str "bool") <|> (PInt32 <$ str "int")
+    primTypeP = lexeme (PBool <$ str "bool")
+                   <|> (PInt32 <$ str "int")
+                   <|> (PFloat <$ str "float")
     arrayTypeP = "[" ~> typeP <~ "]"
 
 -- | Useful marcros.

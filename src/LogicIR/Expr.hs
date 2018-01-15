@@ -5,6 +5,7 @@ import Data.String
 -- | The primitive types are bool and int32.
 data Primitive = PBool
                | PInt32
+               | PFloat
                deriving (Show, Eq, Read)
 
 -- | A Type can either be a primitive or an array type.
@@ -52,6 +53,7 @@ data QOp = QAll | QAny
 -- | Constants.
 data LConst = CBool Bool
             | CInt Int
+            | CFloat Float
             | CNil
             deriving (Show, Eq, Read)
 

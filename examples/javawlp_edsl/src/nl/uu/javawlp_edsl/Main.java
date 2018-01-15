@@ -29,6 +29,18 @@ public class Main {
         pre(~(a * 2) == (79 & 40)); // can't evaluate due to undefined variable
     }
 
+    public static float float1(float a) {
+        pre(a >= 2);
+        a += a;
+        post(a >= 4);
+    }
+
+    public static float float2(float a) {
+        pre(a > 2 || a == 2);
+        a = a * 2;
+        post(a > 4 || a == 4);
+    }
+
     public static int mymin(int[] a, int b) {
         assert forall(a, i -> {
             return a[i] > b;
