@@ -1,4 +1,4 @@
-module LogicIR.Backend.QuickCheck (check) where
+module LogicIR.Backend.QuickCheck (testEquality, check) where
 
 import LogicIR.Expr
 import LogicIR.Fold
@@ -14,6 +14,32 @@ import Control.Exception
 type Model = [(LExpr, LExpr)]
 empty :: Model
 empty = []
+
+-- calls testEqualityVerbose but only returns a boolean that indicates
+-- whether all n checks were successful.
+testEquality :: Int -> LExpr -> LExpr -> IO Bool
+testEquality n e1 e2 = do
+    (result, models) <- testEqualityVerbose n e1 e2
+    return $ result
+
+-- Calls checkRepeatedly and returns whether all booleans in the
+-- tuples that checkRepeatedly returned were true, and also 
+-- returns all models for which check returned false.
+testEqualityVerbose :: Int -> LExpr -> LExpr -> IO (Bool, [Model])
+testEqualityVerbose n e1 e2 = do
+    results <- checkRepeatedly n e1 e2
+    -- List of results where check returned false.
+    let checkFails = filter (not . fst) results
+    return (null checkFails, map snd checkFails)
+
+-- Calls "check" n times. The fst return tuple item tells whether the
+-- bool that "check" returns was true all n times. The snd is just a 
+-- list of n elements that contains all the results from the n check calls.
+checkRepeatedly :: Int -> LExpr -> LExpr -> IO [(Bool, Model)]
+checkRepeatedly 1 e1 e2 = check e1 e2 >>= \t -> return [t]
+checkRepeatedly n e1 e2 = do
+    t <- check e1 e2
+    checkRepeatedly (n-1) e1 e2 >>= \l -> return (t : l)
 
 -- Takes two LExprs as input. Generates a model for them, a tuple in
 -- which the first value indicates whether the two LExprs evaluate to
@@ -96,7 +122,7 @@ generateModelEntry e@(LArray (Var (TArray (TPrim t)) _) _) = do
 -- Generates a random LExpr of a certain Primitive type.
 generateValue :: Primitive -> IO LExpr
 generateValue t = do
-    v <- getStdRandom (randomR $ (0, 1))
+    v <- getStdRandom (randomR $ bounds t)
     return $ toLExpr t v
 
 -- Returns the bounds within which a random value should be generated for

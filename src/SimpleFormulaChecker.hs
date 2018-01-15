@@ -205,37 +205,43 @@ determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
         showZ3AST :: Z3 AST -> IO String
         showZ3AST ast' = evalZ3 $ ast' >>= astToString
 
--- Function that compares both the pre and the post condition for two methods.
--- It is assumed that both methods have the same environment (parameter names, class member names, etc).
-compareSpec :: (FilePath, String) -> (FilePath, String) -> IO Bool
-compareSpec method1@(_, name1) method2@(_, name2) = do
+parse :: (FilePath, String) -> (FilePath, String) -> IO (MethodDef, MethodDef)
+parse method1@(_, name1) method2@(_, name2) = do
     -- load the methods
     m1@(decls1, mbody1, env1) <- parseMethod method1
     m2@(decls2, mbody2, env2) <- parseMethod method2
     when (env1 /= env2) $ fail "inconsistent method parameters"
     when (decls1 /= decls2) $ fail "inconsistent class declarations (TODO)"
+    return (m1, m2)
+
+-- Function that compares both the pre and the post condition for two methods.
+-- It is assumed that both methods have the same environment (parameter names, class member names, etc).
+compareSpec :: (FilePath, String) -> (FilePath, String) -> IO Bool
+compareSpec method1@(_, name1) method2@(_, name2) = do
+    (m1, m2) <- parse method1 method2
     putStrLn $ "----PRE---- (" ++ name1 ++ " vs " ++ name2 ++ ")"
     preAns <- determineFormulaEq m1 m2 "pre"
     putStrLn "\n----POST---"
     postAns <- determineFormulaEq m1 m2 "post"
     return $ preAns && postAns
 
-quickCheckTest = do
-    (result, model) <- LogicIR.Backend.QuickCheck.check e e
-    putStrLn $ "Expressions are equal: " ++ (show result)
-    putStrLn $ "Model used: " ++ (show model)
-    return ()
-        where e = LBinop (LBinop (LUnop NNot (LBinop (LUnop NNeg (LVar (Var (TPrim PInt32) "a"))) NMul (LVar (Var (TPrim PInt32) "c")))) CEqual (LBinop (LConst (CInt 79)) NAnd (LConst (CInt 41)))) LAnd (LBinop (LBinop (LBinop (LVar (Var (TPrim PInt32) "a")) NMul (LVar (Var (TPrim PInt32) "c"))) CGreater (LConst (CInt 0))) LAnd (LQuant QAny (Var (TPrim PInt32) "i") (LBinop (LBinop (LVar (Var (TPrim PInt32) "i")) CGreater (LConst (CInt 0))) LAnd (LBinop (LVar (Var (TPrim PInt32) "i")) CLess (LLen (Var (TArray (TPrim PInt32)) "b")))) (LBinop (LArray (Var (TArray (TPrim PInt32)) "b") (LVar (Var (TPrim PInt32) "i"))) CEqual (LVar (Var (TPrim PInt32) "retval")))))
+methodDefToLExpr :: MethodDef -> MethodDef -> String -> (LExpr, LExpr)
+methodDefToLExpr m1@(decls1, _, env1) m2@(decls2, _, env2) name = do
+    -- get pre/post condition
+    let (e1, e2) = (extractCond m1 name, extractCond m2 name)
+    let (lExpr1', lExpr2') = (javaExpToLExpr e1 env1 decls1, javaExpToLExpr e2 env2 decls2)
+    -- preprocess "a == null" to "isNull(a)"
+    let (lExpr1, lExpr2) = (lExprPreprocessNull lExpr1', lExprPreprocessNull lExpr2')
+    (lExpr1, lExpr2)
+    where extractCond m n = extractExpr $ getMethodCalls m n
 
-evaluate :: String -> IO (Bool, Maybe Bool)
-evaluate method = do
-      m@(decls, mbody, env) <- parseMethod ("examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java", method)
-      let e = extractExpr (getMethodCalls m "pre")
-      let lexpr = javaExpToLExpr e env decls
-      putStrLn (show lexpr)
-      putStrLn (prettyLExpr lexpr)
-      let t = CBool True
-      let possible = LogicIR.Eval.evalPossible lexpr
-      let res = if possible then Just (LogicIR.Eval.eval lexpr == t) else Nothing
-      return (possible, res)
-
+testSpec :: (FilePath, String) -> (FilePath, String) -> IO Bool
+testSpec method1@(_, name1) method2@(_, name2) = do
+    (m1, m2) <- parse method1 method2
+    putStrLn $ "----PRE---- (" ++ name1 ++ " vs " ++ name2 ++ ")"
+    let (lExpr1, lExpr2) = methodDefToLExpr m1 m2 "pre"
+    preAns <- testEquality 10000 lExpr1 lExpr2
+    putStrLn "\n----POST---"
+    let (lExpr1, lExpr2) = methodDefToLExpr m1 m2 "post"
+    postAns <- testEquality 10000 lExpr1 lExpr2
+    return $ preAns && postAns

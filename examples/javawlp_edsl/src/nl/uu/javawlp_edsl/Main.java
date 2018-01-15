@@ -7,8 +7,14 @@ public class Main {
 
     public static void test1(int[] b) {
         pre(~(-a * c) == (79 & 41));
-        pre(a * c > 0);
-        pre(exists(b, i -> b[i] > 0));
+        pre(a > 0);
+        pre(forall(b, i -> b[i] > -10));
+    }
+
+    public static void test2(int[] b) {
+        pre(~(-a * c) == (79 & 41));
+        pre(a > 0);
+        pre(forall(b, i -> b[i] >= -10)); // note the >=, whereas test1 has >.
     }
 
     public static int simple_eval1() {

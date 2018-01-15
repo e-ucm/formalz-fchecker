@@ -18,6 +18,7 @@ library
                      , LogicIR.Backend.QuickCheck
                      , LogicIR.Backend.Pretty
                      , LogicIR.Backend.Null
+                     , LogicIR.Backend.Rewrite
                      , LogicIR.Fold
                      , LogicIR.Eval
                      , ModelParser.Lexer
@@ -48,7 +49,7 @@ test-suite javawlp-tests
   main-is:             Spec.hs
   other-modules:       TExamples
                      , TIRParser
-                     , TIREval
+                     , TIRQuickCheck
   build-depends:       base
                      , javawlp
                      , test-framework
