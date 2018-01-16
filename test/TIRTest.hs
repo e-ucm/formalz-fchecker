@@ -1,4 +1,4 @@
-module TIRQuickCheck where
+module TIRTest where
 
 import System.IO.Unsafe (unsafePerformIO)
 import System.IO.Silently (silence)
@@ -14,7 +14,7 @@ testEquiv b s s' n =
 eq  s s' n = testEquiv True s s' n
 neq s s' n = testEquiv False s s' n
 
-quickCheckTests =
+testingModuleTests =
   [ (eq  "swap_spec1" "swap_spec1" 10)
   , (neq "swap_spec1" "swap_spec2" 10)
   , (neq "getMax_spec1" "getMax_spec2" 1000)
@@ -22,7 +22,7 @@ quickCheckTests =
   , (eq  "blob1" "blob1" 10)
   , (neq "test1_" "test2" 10)
   , (neq "null1" "null2" 10)
-  , (neq "swap_spec1" "swap_spec3" 10)
+  , (neq "swap_spec1" "swap_spec3" 100)
   , (neq "swap_spec1" "swap_spec4" 100)
   , (neq "null3" "test2" 10)
   , (neq "sorted1" "test2" 10)

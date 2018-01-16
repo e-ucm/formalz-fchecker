@@ -3,13 +3,13 @@ import Test.Framework.Providers.HUnit
 
 import TExamples
 import TIRParser
-import TIRQuickCheck
+import TIRTest
 
 main = defaultMain
   [ constructTestSuite testName testSuite
   | (testName, testSuite) <- [ ("EXAMPLES", equivalenceTests)
                              , ("LIR_PARSER", parserTests)
-                             , ("QUICK_CHECK", quickCheckTests)
+                             , ("AUTOMATED_TESTING_CHECK", testingModuleTests)
                              ]
   ]
 

@@ -1,11 +1,10 @@
-module LogicIR.Backend.QuickCheck (testEquality, check) where
+module LogicIR.Backend.Test (test, testEquality) where
 
 import LogicIR.Expr
 import LogicIR.Fold
 import LogicIR.Eval
 import LogicIR.Backend.Rewrite
 import LogicIR.Backend.Pretty
-import Test.QuickCheck
 import Data.Maybe (fromMaybe)
 import Data.List (find, nub)
 import System.Random
@@ -15,39 +14,13 @@ type Model = [(LExpr, LExpr)]
 empty :: Model
 empty = []
 
--- calls testEqualityVerbose but only returns a boolean that indicates
--- whether all n checks were successful.
-testEquality :: Int -> LExpr -> LExpr -> IO Bool
-testEquality n e1 e2 = do
-    (result, models) <- testEqualityVerbose n e1 e2
-    return $ result
-
--- Calls checkRepeatedly and returns whether all booleans in the
--- tuples that checkRepeatedly returned were true, and also 
--- returns all models for which check returned false.
-testEqualityVerbose :: Int -> LExpr -> LExpr -> IO (Bool, [Model])
-testEqualityVerbose n e1 e2 = do
-    results <- checkRepeatedly n e1 e2
-    -- List of results where check returned false.
-    let checkFails = filter (not . fst) results
-    return (null checkFails, map snd checkFails)
-
--- Calls "check" n times. The fst return tuple item tells whether the
--- bool that "check" returns was true all n times. The snd is just a 
--- list of n elements that contains all the results from the n check calls.
-checkRepeatedly :: Int -> LExpr -> LExpr -> IO [(Bool, Model)]
-checkRepeatedly 1 e1 e2 = check e1 e2 >>= \t -> return [t]
-checkRepeatedly n e1 e2 = do
-    t <- check e1 e2
-    checkRepeatedly (n-1) e1 e2 >>= \l -> return (t : l)
-
 -- Takes two LExprs as input. Generates a model for them, a tuple in
 -- which the first value indicates whether the two LExprs evaluate to
 -- the same boolean value when the generated model is used for substitution,
 -- and in which the second value is the generated model itself.
-check :: LExpr -> LExpr -> IO (Bool, Model)
-check e1 e2 = do
-    (result1, model) <- checkLExpr e1
+test :: LExpr -> LExpr -> IO (Bool, Model)
+test e1 e2 = do
+    (result1, model) <- testLExpr e1
     let primFreeE     = applyModel model $ replaceQuantifiers e2
     let finalE        = repeatedApplyModel (primFreeE, model)
     if evalPossible finalE then do
@@ -56,12 +29,38 @@ check e1 e2 = do
     else
         return (False, model)
 
+-- calls testEqualityVerbose but only returns a boolean that indicates
+-- whether all n tests were successful.
+testEquality :: Int -> LExpr -> LExpr -> IO Bool
+testEquality n e1 e2 = do
+    (result, models) <- testEqualityVerbose n e1 e2
+    return $ result
+
+-- Calls testRepeatedly and returns whether all booleans in the
+-- tuples that testRepeatedly returned were true, and also 
+-- returns all models for which test returned false.
+testEqualityVerbose :: Int -> LExpr -> LExpr -> IO (Bool, [Model])
+testEqualityVerbose n e1 e2 = do
+    results <- testRepeatedly n e1 e2
+    -- List of results where test returned false.
+    let testFails = filter (not . fst) results
+    return (null testFails, map snd testFails)
+
+-- Calls "test" n times. The fst return tuple item tells whether the
+-- bool that "test" returns was true all n times. The snd is just a 
+-- list of n elements that contains all the results from the n test calls.
+testRepeatedly :: Int -> LExpr -> LExpr -> IO [(Bool, Model)]
+testRepeatedly 1 e1 e2 = test e1 e2 >>= \t -> return [t]
+testRepeatedly n e1 e2 = do
+    t <- test e1 e2
+    testRepeatedly (n-1) e1 e2 >>= \l -> return (t : l)
+
 -- Given an LExpr, generates a substitution model for all variables in it,
 -- and returns whether the formula evaluates to true or to false when that model
 -- is used, and the model itself. If the formula, after substitution, cannot
 -- be evaluated - i.e. there's still a variable in the LExpr - an error will be thrown.
-checkLExpr :: LExpr -> IO (LConst, Model)
-checkLExpr e = do 
+testLExpr :: LExpr -> IO (LConst, Model)
+testLExpr e = do 
     --putStrLn $ (show $ findPrimitives quantFreeE)
     primitivesModel      <- generateModel $ findPrimitives quantFreeE
     let primFreeE         = applyModel primitivesModel quantFreeE

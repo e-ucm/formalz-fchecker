@@ -15,7 +15,7 @@ library
                      , LogicIR.Parser
                      , LogicIR.Frontend.Java
                      , LogicIR.Backend.Z3
-                     , LogicIR.Backend.QuickCheck
+                     , LogicIR.Backend.Test
                      , LogicIR.Backend.Pretty
                      , LogicIR.Backend.Null
                      , LogicIR.Backend.Rewrite
@@ -35,7 +35,6 @@ library
                      , random
                      , parsec
                      , z3
-                     , QuickCheck
                      , language-java
                      , array
                      , pretty
@@ -49,14 +48,13 @@ test-suite javawlp-tests
   main-is:             Spec.hs
   other-modules:       TExamples
                      , TIRParser
-                     , TIRQuickCheck
+                     , TIRTest
   build-depends:       base
                      , javawlp
                      , test-framework
                      , test-framework-hunit
                      , HUnit
                      , z3
-                     , QuickCheck
                      , language-java
                      , array
                      , pretty

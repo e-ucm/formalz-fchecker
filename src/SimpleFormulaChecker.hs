@@ -14,7 +14,7 @@ import LogicIR.Expr
 import LogicIR.Eval
 import LogicIR.Frontend.Java
 import LogicIR.Backend.Z3
-import LogicIR.Backend.QuickCheck
+import LogicIR.Backend.Test
 import LogicIR.Backend.Pretty
 import LogicIR.Backend.Null
 
