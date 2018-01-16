@@ -245,5 +245,3 @@ testSpec method1@(_, name1) method2@(_, name2) n = do
     let (lExpr1, lExpr2) = methodDefToLExpr m1 m2 "post"
     postAns <- testEquality n lExpr1 lExpr2
     return $ preAns && postAns
-
-res = testSpec ("examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java", "swap_spec1") ("examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java", "swap_spec2")
