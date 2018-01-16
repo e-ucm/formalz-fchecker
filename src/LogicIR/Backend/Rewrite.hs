@@ -29,8 +29,8 @@ replaceQuantifiersAlgebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
 replaceQuantifier :: QOp -> Var -> LExpr -> LExpr -> LExpr
 replaceQuantifier op var domain e = LBinop e1 combiner e2
     where prime (Var t name) = Var t (name ++ "'")
-          e1                 = LBinop domain LAnd e
-          e2                 = replace var (prime var) (LBinop domain LAnd e)
+          e1                 = LBinop domain LImpl e
+          e2                 = replace var (prime var) (LBinop domain LImpl e)
           combiner           = if op == QAll then LAnd else LOr
 
 -- Returns an LExpr where all occurences of vOld in the given LExpr are

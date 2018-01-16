@@ -62,17 +62,14 @@ check e1 e2 = do
 -- be evaluated - i.e. there's still a variable in the LExpr - an error will be thrown.
 checkLExpr :: LExpr -> IO (LConst, Model)
 checkLExpr e = do 
-    primitivesModel      <- generateModel $ primitives
+    --putStrLn $ (show $ findPrimitives quantFreeE)
+    primitivesModel      <- generateModel $ findPrimitives quantFreeE
     let primFreeE         = applyModel primitivesModel quantFreeE
     (finalE, arrayModel) <- repeatedApplyAndExpandModel (primFreeE, empty)
     let model             = arrayModel ++ primitivesModel
     let result            = eval finalE
     return $ (result, model)
-    where quantFreeE                     = replaceQuantifiers e
-          vars                           = findPrimitives quantFreeE
-          primitives                     = filter sPrim vars
-          sPrim (LVar (Var (TPrim _) _)) = True
-          sPrim _                        = False
+    where quantFreeE = replaceQuantifiers e
 
 -- applies substitution of arrays until a "pure" LExpr is the result, or no
 -- more substitutions can be applied. If the latter is the case, an error
@@ -114,7 +111,7 @@ applyModel model = foldLExpr algebra
           var v           = substitute (LVar v) model
           quant _ _ e1 e2 = error "applyModel expects a quantifier-free LExpr."
           arr v e         = substitute (LArray v e) model
-          snull v         = LIsnull v
+          snull v         = substitute (LIsnull v) model
           len v           = LLen v
 
 -- Substitutes an LExpr if a valid substitute can be found in the given list.
@@ -131,6 +128,11 @@ generateModelEntry e@(LVar (Var (TPrim t) _)) = do
     generateValue t >>= \v -> return (e, v)
 generateModelEntry e@(LArray (Var (TArray (TPrim t)) _) _) = do
     generateValue t >>= \v -> return (e, v)
+generateModelEntry e@(LIsnull (Var (TArray _) _)) = do
+    generateValue PBool >>= \v -> return (e, v)
+generateModelEntry e = do
+    error $ "Cannot generate model entry for " ++ show e
+    return (e, e)
 
 -- Generates a random LExpr of a certain Primitive type.
 generateValue :: Primitive -> IO LExpr
@@ -151,7 +153,7 @@ toLExpr PInt32 v = LConst $ CInt  $ v
 
 -- Returns a list with all Vars in the LExpr.
 findPrimitives :: LExpr -> [LExpr]
-findPrimitives expr = nub $ foldLExpr algebra expr
+findPrimitives expr = filter isPrim $ nub $ foldLExpr algebra expr
     where algebra :: LExprAlgebra [LExpr]
           algebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
           cnst _          = []
@@ -161,8 +163,10 @@ findPrimitives expr = nub $ foldLExpr algebra expr
           var v           = [LVar v]
           quant _ _ e1 e2 = error "findPrimitives expects a quantifier-free LExpr."
           arr v e         = e
-          snull v         = [LVar v]
+          snull v         = [LIsnull v]
           len v           = [LVar v]
+          isPrim (LVar (Var (TArray _) _)) = False
+          isPrim _                         = True
 
 -- Returns a list with all LArrays in the LExpr. 
 findArrays :: LExpr -> [LExpr]

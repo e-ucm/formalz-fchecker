@@ -245,3 +245,8 @@ testSpec method1@(_, name1) method2@(_, name2) n = do
     let (lExpr1, lExpr2) = methodDefToLExpr m1 m2 "post"
     postAns <- testEquality n lExpr1 lExpr2
     return $ preAns && postAns
+
+-- The legendary 16th test that causes an endless loop in Z3 and that gives
+-- incorrect test results in the case of QuickCheck.
+test16 = testSpec (edslSrc, "sorted1") (edslSrc, "sorted4") 10000
+    where edslSrc = "examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"

@@ -19,15 +19,16 @@ evalPossible = foldLExpr evalPossibleAlgebra
 
 evalPossibleAlgebra :: LExprAlgebra Bool
 evalPossibleAlgebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
-    where cnst _          = True
-          uni _ c         = c
-          bin le _ re     = le && re
-          iff ge e1 e2    = ge && e1 && e2
-          var v           = False
-          quant _ _ a1 a2 = a1 && a2
-          arr v a         = False
-          snull v         = True -- This possibly needs to be changed. See evalAlgebra
-          len v           = True -- This possibly needs to be changed. See evalAlgebra
+    where cnst _                   = True
+          uni _ c                  = c
+          bin le _ re              = le && re
+          iff ge e1 e2             = ge && e1 && e2
+          var v                    = False
+          quant _ _ a1 a2          = a1 && a2
+          arr v a                  = False
+          snull (Var (TPrim _) _)  = True -- Primitive type is never null.
+          snull (Var (TArray _) _) = False
+          len v                    = True -- This possibly needs to be changed. See evalAlgebra
 
 evalAlgebra :: LExprAlgebra LConst
 evalAlgebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
@@ -43,8 +44,10 @@ evalAlgebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
           iff ge e1 e2    = if ge == (CBool True) then e1 else e2
           
           -- This possibly needs to be changed.
-          snull v         = CBool False  -- error "Null checks cannot yet be evaluated."
           len v           = CInt  10 -- error "Array length cannot yet be evaluated."
+
+          snull (Var (TPrim _) _)  = CBool False -- Primitive type is never null.
+          snull (Var (TArray _) _) = error "You can't call eval on an LExpr that has an (LIsnull someArrayVar) that wasn't converted to a boolean first."
 
           -- Things that should never happen.
           quant _ _ e1 e2 = error "Quantifiers cannot be evaluated and should be replaced using LogicIR.Rewrite.replaceQuantifiers."
