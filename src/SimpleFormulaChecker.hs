@@ -71,6 +71,7 @@ getMethodCalls (_, StmtBlock (Block bs), _) name = mapMaybe extractMethodInv bs
 extractExpr :: [MethodInvocation] -> Exp
 extractExpr call = combineExprs $ map (\(MethodCall (Name [Ident _]) [a]) -> a) call
     where combineExprs :: [Exp] -> Exp
+          combineExprs []  = Lit $ Boolean True -- If the expression is empty, just return True.
           combineExprs [e] = e
           combineExprs (e:es) = BinOp e CAnd (combineExprs es)
 
@@ -233,7 +234,7 @@ methodDefToLExpr m1@(decls1, _, env1) m2@(decls2, _, env2) name = do
     -- preprocess "a == null" to "isNull(a)"
     let (lExpr1, lExpr2) = (lExprPreprocessNull lExpr1', lExprPreprocessNull lExpr2')
     (lExpr1, lExpr2)
-    where extractCond m n = extractExpr $ getMethodCalls m n
+        where extractCond m n = extractExpr $ getMethodCalls m n
 
 testSpec :: (FilePath, String) -> (FilePath, String) -> Int -> IO Bool
 testSpec method1@(_, name1) method2@(_, name2) n = do

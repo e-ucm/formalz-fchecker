@@ -14,7 +14,7 @@ public class Main {
     public static void quickcheck_test2(int[] b) {
         pre(~(-a * c) == (79 & 41));
         pre(a > 0);
-        pre(forall(b, i -> b[i] >= -10)); // note the >=, whereas test1 has >.
+        pre(forall(b, i -> b[i] >= -10)); // note the >=, whereas quickcheck_test1 has >.
     }
 
     public static int simple_eval1() {

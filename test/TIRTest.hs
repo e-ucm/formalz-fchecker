@@ -24,7 +24,7 @@ testingModuleTests =
   , (neq "null1" "null2" 10)
   , (neq "swap_spec1" "swap_spec3" 100)
   , (neq "swap_spec1" "swap_spec4" 100)
-  , (neq "null3" "test2" 10)
+  , (neq "null3" "test2" 100)
   , (neq "sorted1" "test2" 10)
   , (neq "sorted1" "sorted2" 1000)
   , (neq "sorted1" "sorted3" 1000)
