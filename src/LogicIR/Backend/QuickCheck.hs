@@ -48,8 +48,13 @@ checkRepeatedly n e1 e2 = do
 check :: LExpr -> LExpr -> IO (Bool, Model)
 check e1 e2 = do
     (result1, model) <- checkLExpr e1
-    let result2       = eval $ applyModel model $ replaceQuantifiers e2
-    return (result1 == result2, model)
+    let primFreeE     = applyModel model $ replaceQuantifiers e2
+    let finalE        = repeatedApplyModel (primFreeE, model)
+    if evalPossible finalE then do
+        let result2 = eval finalE
+        return (result1 == result2, model)
+    else
+        return (False, model)
 
 -- Given an LExpr, generates a substitution model for all variables in it,
 -- and returns whether the formula evaluates to true or to false when that model
@@ -59,7 +64,7 @@ checkLExpr :: LExpr -> IO (LConst, Model)
 checkLExpr e = do 
     primitivesModel      <- generateModel $ primitives
     let primFreeE         = applyModel primitivesModel quantFreeE
-    (finalE, arrayModel) <- repeatedApplyModel (primFreeE, empty)
+    (finalE, arrayModel) <- repeatedApplyAndExpandModel (primFreeE, empty)
     let model             = arrayModel ++ primitivesModel
     let result            = eval finalE
     return $ (result, model)
@@ -71,14 +76,15 @@ checkLExpr e = do
 
 -- applies substitution of arrays until a "pure" LExpr is the result, or no
 -- more substitutions can be applied. If the latter is the case, an error
--- will be thrown.
-repeatedApplyModel :: (LExpr, Model) -> IO (LExpr, Model)
-repeatedApplyModel (e, m) = do
+-- will be thrown. ***NOTE***: this function actually expands the model if
+-- necessary. If you don't want this, use repeatedApplyModel
+repeatedApplyAndExpandModel :: (LExpr, Model) -> IO (LExpr, Model)
+repeatedApplyAndExpandModel (e, m) = do
     if length arrays > 0 then
         if length substitutableArrays > 0 then do
             model   <- generateModel substitutableArrays
             let newE = applyModel model e
-            repeatedApplyModel (newE, m ++ model)
+            repeatedApplyAndExpandModel (newE, m ++ model)
         else
             error $ "There are unsubstitutable array accesses: " ++ (show arrays)
     else
@@ -88,6 +94,13 @@ repeatedApplyModel (e, m) = do
           -- An array access a[i] is substitutable if the indexer
           -- i doesn't contain variables.
           sSubstitutable (LArray var e) = evalPossible e
+
+repeatedApplyModel :: (LExpr, Model) -> LExpr
+repeatedApplyModel (e, m) = if newE /= e then
+                                repeatedApplyModel (newE, m)
+                            else
+                                e
+    where newE = applyModel m e
 
 -- Applies substitution given a Model and an LExpr.
 applyModel :: Model -> LExpr -> LExpr

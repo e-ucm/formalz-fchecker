@@ -10,7 +10,7 @@ edslSrc = "examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
 
 testEquiv :: Bool -> String -> String -> Assertion
 testEquiv b s s' =
-  unsafePerformIO (silence $ testSpec (edslSrc, s) (edslSrc, s')) @?= b
+  unsafePerformIO (silence $ testSpec (edslSrc, s) (edslSrc, s') 100000) @?= b
 (.==) = testEquiv True
 (.!=) = testEquiv False
 
@@ -30,5 +30,5 @@ quickCheckTests =
   , "sorted1".!= "sorted3"
   , "test2" .!= "sorted3"
   , "sorted3" .!= "sorted4"
-  -- , equivalent "sorted1" "sorted4" -- does not terminate (TODO: should time out, but this does not work)
+  , "sorted1" .== "sorted4"
   ]

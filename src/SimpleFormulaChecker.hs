@@ -235,13 +235,15 @@ methodDefToLExpr m1@(decls1, _, env1) m2@(decls2, _, env2) name = do
     (lExpr1, lExpr2)
     where extractCond m n = extractExpr $ getMethodCalls m n
 
-testSpec :: (FilePath, String) -> (FilePath, String) -> IO Bool
-testSpec method1@(_, name1) method2@(_, name2) = do
+testSpec :: (FilePath, String) -> (FilePath, String) -> Int -> IO Bool
+testSpec method1@(_, name1) method2@(_, name2) n = do
     (m1, m2) <- parse method1 method2
     putStrLn $ "----PRE---- (" ++ name1 ++ " vs " ++ name2 ++ ")"
     let (lExpr1, lExpr2) = methodDefToLExpr m1 m2 "pre"
-    preAns <- testEquality 10000 lExpr1 lExpr2
+    preAns <- testEquality n lExpr1 lExpr2
     putStrLn "\n----POST---"
     let (lExpr1, lExpr2) = methodDefToLExpr m1 m2 "post"
-    postAns <- testEquality 10000 lExpr1 lExpr2
+    postAns <- testEquality n lExpr1 lExpr2
     return $ preAns && postAns
+
+res = testSpec ("examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java", "swap_spec1") ("examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java", "swap_spec2")
