@@ -30,5 +30,5 @@ testingModuleTests =
   , (neq "sorted1" "sorted3" 1000)
   , (neq "test2" "sorted3" 10)
   , (neq "sorted3" "sorted4" 1000)
-  --, (eq  "sorted1" "sorted4" 1000)
+  , (eq  "sorted1" "sorted4" 10000)
   ]

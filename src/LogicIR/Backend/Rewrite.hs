@@ -9,6 +9,20 @@ import LogicIR.Backend.Pretty
 replaceQuantifiers :: LExpr -> LExpr
 replaceQuantifiers = foldLExpr replaceQuantifiersAlgebra
 
+type Env = Int
+
+replaceQuantifiersEnvAlgebra :: LExprAlgebra (Env -> LExpr)
+replaceQuantifiersEnvAlgebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
+    where cnst c        = \env -> LConst c
+          uni op e      = \env -> LUnop op (e env)
+          bin e1 op e2  = \env -> LBinop (e1 env) op (e2 env)
+          iff ge e1 e2  = \env -> LIf (ge env) (e1 env) (e2 env)
+          var v         = \env -> LVar v
+          quant t v d e = \env -> replaceQuantifier t v (d (env*2)) (e (env*2+1))
+          arr v e       = \env -> LArray v (e env)
+          snull v       = \env -> LIsnull v
+          len v         = \env -> LLen v
+
 replaceQuantifiersAlgebra :: LExprAlgebra LExpr
 replaceQuantifiersAlgebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
     where cnst          = LConst
