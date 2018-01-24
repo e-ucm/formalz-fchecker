@@ -13,8 +13,8 @@ prettyLExpr = foldLExpr prettyLExprAlgebra
 prettyType :: Type -> String
 prettyType (TPrim PInt32) = "int"
 prettyType (TPrim PBool)  = "bool"
-prettyType (TPrim PFloat)  = "float"
-prettyType (TArray t)     = prettyType t ++ "[]"
+prettyType (TPrim PReal)  = "real"
+prettyType (TArray t)     = "[" ++ prettyType t ++ "]"
 
 prettyLBinop :: LBinop -> String
 prettyLBinop op =
@@ -51,6 +51,7 @@ prettyLExprAlgebra = (fConst, prettyVar, fUnop, fBinop, fIf, fQuant, fArray, fIs
     fConst c = case c of
                     CBool b -> if b then "true" else "false"
                     CInt n  -> show n
+                    CReal n -> show n
                     CNil    -> "nil"
     fUnop o a = prettyNUnop o ++ a
     fBinop a o b = "(" ++ a ++ " " ++ prettyLBinop o ++ " " ++ b ++ ")"

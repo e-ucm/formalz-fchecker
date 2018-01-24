@@ -5,7 +5,7 @@ import Data.String
 -- | The primitive types are bool and int32.
 data Primitive = PBool
                | PInt32
-               | PFloat
+               | PReal
                deriving (Show, Eq, Read)
 
 -- | A Type can either be a primitive or an array type.
@@ -31,6 +31,7 @@ data LBinop =
             | NMul -- a * b
             | NDiv -- a / b
             | NRem -- a % b
+            -- bit-wise operators
             | NShl -- a >> b
             | NShr -- a << b
             | NAnd -- a & b
@@ -53,7 +54,7 @@ data QOp = QAll | QAny
 -- | Constants.
 data LConst = CBool Bool
             | CInt Int
-            | CFloat Float
+            | CReal Double
             | CNil
             deriving (Show, Eq, Read)
 
@@ -78,6 +79,7 @@ forall = LQuant QAll
 exists = LQuant QAny
 var x t = Var t x
 v = LVar
+r = LConst . CReal
 n = LConst . CInt
 b = LConst . CBool
 nil = LConst CNil

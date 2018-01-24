@@ -77,10 +77,15 @@ iteP = do
   e' <- exprP
   return $ LIf g e e'
 varP = LVar <$> bvarP
-constP = LConst <$> ((CBool <$> boolP) <|> (CInt <$> numP) <|> (CNil <$ nilP))
+constP = LConst <$> ((CBool <$> boolP)
+                 <|> (CInt <$> numP)
+                 <|> (CReal <$> realP)
+                 <|> (CNil <$ nilP)
+                 )
   where
     boolP = (True <$ str "true") <|> (False <$ str "false")
     numP = lexeme $ fmap fromInteger (Tokens.integer haskell)
+    realP = lexeme $ Tokens.float haskell
     nilP = str "null"
 
 bvarP :: Parser Var
@@ -94,7 +99,7 @@ typeP = try (TPrim <$> primTypeP) <|> (TArray <$> arrayTypeP)
   where
     primTypeP = lexeme (PBool <$ str "bool")
                    <|> (PInt32 <$ str "int")
-                   <|> (PFloat <$ str "float")
+                   <|> (PReal <$ str "real")
     arrayTypeP = "[" ~> typeP <~ "]"
 
 -- | Useful marcros.

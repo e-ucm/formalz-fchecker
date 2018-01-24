@@ -29,13 +29,13 @@ public class Main {
         pre(~(a * 2) == (79 & 40)); // can't evaluate due to undefined variable
     }
 
-    public static float float1(float a) {
-        pre(a >= 2);
+    public static float real1(float a) {
+        pre(a >= (2 - 1 + 1));
         a += a;
-        post(a >= 4);
+        post(a >= (4 - 3 + 3));
     }
 
-    public static float float2(float a) {
+    public static float real2(float a) {
         pre(a > 2 || a == 2);
         a = a * 2;
         post(a > 4 || a == 4);

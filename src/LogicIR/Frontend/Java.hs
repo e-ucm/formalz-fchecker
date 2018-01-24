@@ -21,10 +21,17 @@ javaExpToLExpr = foldExp javaExpToLExprAlgebra
 nameToVar :: Name -> TypeEnv -> [TypeDecl] -> Var
 nameToVar name env decls =
     case arrayType of
-        PrimType BooleanT                   -> fromString(symbol ++ ":bool")
-        PrimType IntT                       -> fromString(symbol ++ ":int")
-        PrimType FloatT                     -> fromString(symbol ++ ":float")
-        RefType (ArrayType (PrimType IntT)) -> fromString(symbol ++ ":[int]")
+        PrimType BooleanT                       -> fromString(symbol ++ ":bool")
+        PrimType ShortT                         -> fromString(symbol ++ ":int")
+        PrimType IntT                           -> fromString(symbol ++ ":int")
+        PrimType LongT                          -> fromString(symbol ++ ":int")
+        PrimType FloatT                         -> fromString(symbol ++ ":real")
+        PrimType DoubleT                        -> fromString(symbol ++ ":real")
+        RefType (ArrayType (PrimType ShortT))   -> fromString(symbol ++ ":[int]")
+        RefType (ArrayType (PrimType IntT))     -> fromString(symbol ++ ":[int]")
+        RefType (ArrayType (PrimType LongT))    -> fromString(symbol ++ ":[int]")
+        RefType (ArrayType (PrimType FloatT))   -> fromString(symbol ++ ":[real]")
+        RefType (ArrayType (PrimType DoubleT))  -> fromString(symbol ++ ":[real]")
         _ -> error $ "Unimplemented nameToVar: " ++ show (name, arrayType)
     where
       (arrayType, symbol) = (lookupType decls env name, prettyPrint name)
@@ -40,6 +47,8 @@ javaExpToLExprAlgebra =
       case lit of
         Boolean t -> b t
         Int i     -> n $ fromInteger i
+        Float i   -> r i
+        Double i  -> r i
         Null      -> "null"
         _         -> error $ "Unsupported type: " ++ show lit
     fClassLit = error "fClassLit not supported..."

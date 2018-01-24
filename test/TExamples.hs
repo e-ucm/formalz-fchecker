@@ -14,7 +14,8 @@ testEquiv b s s' =
 (.!=) = testEquiv False
 
 equivalenceTests =
-  [ "swap_spec1" .== "swap_spec1"
+  [ "real1" .== "real2"
+  , "swap_spec1" .== "swap_spec1"
   , "swap_spec1" .!= "swap_spec2"
   , "getMax_spec1" .!= "getMax_spec2"
   , "test1" .!= "test2"
