@@ -6,13 +6,13 @@ import LogicIR.Eval
 import LogicIR.Backend.Rewrite
 import LogicIR.Backend.Pretty
 import Data.Maybe (fromMaybe)
-import Data.List (find, nub)
+import Data.List (find, nub, (\\))
 import System.Random
 import Control.Exception
-import Data.List
+import Data.Maybe (isNothing, fromJust)
 import Data.Map (Map)
-import qualified Data.Map as M
-
+import qualified Data.Map.Lazy as M
+import System.IO.Unsafe
 
 
 type Model = [(LExpr, LExpr)]
@@ -25,153 +25,114 @@ instance Ord Var where
 
 
 
-test :: LExpr -> LExpr -> IO (Bool, Model)
-test e1 e2 = return (False, empty)
+test :: LExpr -> LExpr -> IO (Bool, Model, ArrayModel)
+test e1 e2 = do
+    (res1,primitivesModel,arrayModel) <- testLExpr e1
+    (res2,_,_) <- testModel e2 (primitivesModel, arrayModel)
+    return (res1 == res2, primitivesModel, arrayModel)
 
-testEquality :: Int -> LExpr -> LExpr -> IO Bool
+testEquality :: Int -> LExpr -> LExpr -> IO (Bool, (Model, ArrayModel))
+testEquality 0 e1 e2 = return (True, (empty, M.empty))
 testEquality n e1 e2 = do
-    testLExpr e1
-    testLExpr e2
-    return False
-
----- Takes two LExprs as input. Generates a model for them, a tuple in
----- which the first value indicates whether the two LExprs evaluate to
----- the same boolean value when the generated model is used for substitution,
----- and in which the second value is the generated model itself.
---test :: LExpr -> LExpr -> IO (Bool, Model)
---test e1 e2 = do
---    (result1, model) <- testLExpr e1
---    let primFreeE     = applyModel model $ replaceQuantifiers e2
---    let finalE        = repeatedApplyModel (primFreeE, model)
---    if evalPossible finalE then do
---        let result2 = eval finalE
---        return (result1 == result2, model)
---    else
---        return (False, model)
-
----- calls testEqualityVerbose but only returns a boolean that indicates
----- whether all n tests were successful.
---testEquality :: Int -> LExpr -> LExpr -> IO Bool
---testEquality n e1 e2 = do
---    (result, models) <- testEqualityVerbose n e1 e2
---    return $ result
-
----- Calls testRepeatedly and returns whether all booleans in the
----- tuples that testRepeatedly returned were true, and also 
----- returns all models for which test returned false.
---testEqualityVerbose :: Int -> LExpr -> LExpr -> IO (Bool, [Model])
---testEqualityVerbose n e1 e2 = do
---    results <- testRepeatedly n e1 e2
---    -- List of results where test returned false.
---    let testFails = filter (not . fst) results
---    return (null testFails, map snd testFails)
-
----- Calls "test" n times. The fst return tuple item tells whether the
----- bool that "test" returns was true all n times. The snd is just a 
----- list of n elements that contains all the results from the n test calls.
---testRepeatedly :: Int -> LExpr -> LExpr -> IO [(Bool, Model)]
---testRepeatedly 1 e1 e2 = test e1 e2 >>= \t -> return [t]
---testRepeatedly n e1 e2 = do
---    t <- test e1 e2
---    testRepeatedly (n-1) e1 e2 >>= \l -> return (t : l)
+    (r,m1,m2) <- test e1 e2
+    if not r then do 
+        putStrLn $ show r
+        putStrLn $ show m1
+        putStrLn $ show m2
+        return (False, (m1, m2))
+    else do
+        (rs, model) <- testEquality (n-1) e1 e2
+        return ((r && rs), model)
 
 -- Given an LExpr, generates a substitution model for all variables in it,
 -- and returns whether the formula evaluates to true or to false when that model
 -- is used, and the model itself. If the formula, after substitution, cannot
 -- be evaluated - i.e. there's still a variable in the LExpr - an error will be thrown.
-testLExpr :: LExpr -> IO (LConst, Model)
+testLExpr :: LExpr -> IO (LConst, Model, ArrayModel)
 testLExpr e = do 
     let (regularVs, (arrayVs, arrayOpVs), quantVs) = findVariables e
-    putStrLn $ prettyLExpr e
-    primitivesModel      <- generateModel regularVs
-    arrayModel           <- generateArrayModel arrayVs
-    let primFreeE         = applyModel (primitivesModel, arrayModel) e
-    let final             = applyQuantifiers (primitivesModel, arrayModel) e
-    putStrLn $ prettyLExpr primFreeE
-    --putStrLn $ show primitivesModel
-    --putStrLn $ show arrayModel
-    --(finalE, arrayModel) <- repeatedApplyAndExpandModel (e, empty)
-    --let model             = arrayModel ++ primitivesModel
-    --let result            = eval finalE
-    --return $ (result, model)
-    return $ (CBool True, primitivesModel)
+    primitivesModel  <- generateModel regularVs
+    arrayModel       <- generateArrayModel arrayVs
+    testModel e (primitivesModel, arrayModel)
 
-    --where quantFreeE = replaceQuantifiers e
-
-applyQuantifiers :: LExpr -> ArrayModel -> LExpr
-applyQuantifiers e arrayModel = foldLExpr algebra
-    where algebra :: LExprAlgebra LExpr
-          algebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
-          cnst c           = LConst c
-          uni op e         = evalIfPossible $ LUnop op e
-          bin le op re     = evalIfPossible $ LBinop le op re
-          iff ge e1 e2     = evalIfPossible $ LIf ge e1 e2
-          var v            = substitute (LVar v) models
-          quant op v e1 e2 = LQuant op v e1 (substitute e2 models)   -- error "applyModel expects a quantifier-free LExpr."
-          arr v e          = substitute (LArray v e) models
-          snull v          = substitute (LIsnull v) models
-          len v            = substitute (LLen v) models
-
-
-
-
-
--- applies substitution of arrays until a "pure" LExpr is the result, or no
--- more substitutions can be applied. If the latter is the case, an error
--- will be thrown. ***NOTE***: this function actually expands the model if
--- necessary. If you don't want this, use repeatedApplyModel
---repeatedApplyAndExpandModel :: (LExpr, Model) -> IO (LExpr, Model)
---repeatedApplyAndExpandModel (e, m) = do
---    if length arrays > 0 then
---        if length substitutableArrays > 0 then do
---            model   <- generateModel substitutableArrays
---            let newE = applyModel model e
---            repeatedApplyAndExpandModel (newE, m ++ model)
---        else
---            error $ "There are unsubstitutable array accesses: " ++ (show arrays)
---    else
---        return (e, m)
---    where arrays                        = findArrays e
---          substitutableArrays           = filter sSubstitutable arrays
---          -- An array access a[i] is substitutable if the indexer
---          -- i doesn't contain variables.
---          sSubstitutable (LArray var e) = evalPossible e
-
---repeatedApplyModel :: (LExpr, Model) -> LExpr
---repeatedApplyModel (e, m) = if newE /= e then
---                                repeatedApplyModel (newE, m)
---                            else
---                                e
---    where newE = applyModel m e
+testModel :: LExpr -> (Model, ArrayModel) -> IO (LConst, Model, ArrayModel)
+testModel e (primitivesModel, arrayModel) = do
+    let substitutedE = applyModel e (primitivesModel, arrayModel)
+    if evalPossible substitutedE then do
+        let res = eval substitutedE
+        return (res, primitivesModel, arrayModel)
+    else
+        return (CBool False, primitivesModel, arrayModel)
 
 -- Applies substitution given a Model and an LExpr.
-applyModel :: (Model, ArrayModel) -> LExpr -> LExpr
-applyModel models = foldLExpr algebra
+applyModel :: LExpr -> (Model, ArrayModel) -> LExpr
+applyModel e models = foldLExpr algebra e
     where algebra :: LExprAlgebra LExpr
           algebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
-          cnst c           = LConst c
+          cnst             = LConst
           uni op e         = evalIfPossible $ LUnop op e
           bin le op re     = evalIfPossible $ LBinop le op re
           iff ge e1 e2     = evalIfPossible $ LIf ge e1 e2
-          var v            = substitute (LVar v) models
-          quant op v e1 e2 = LQuant op v e1 (substitute e2 models)   -- error "applyModel expects a quantifier-free LExpr."
-          arr v e          = substitute (LArray v e) models
-          snull v          = substitute (LIsnull v) models
-          len v            = substitute (LLen v) models
+          var v            = subst (LVar v) models
+          quant op v e1 e2 = subst (LQuant op v (subst e1 models) (subst e2 models)) models
+          arr v e          = subst (LArray v e) models
+          snull v          = subst (LIsnull v) models
+          len v            = subst (LLen v) models
 
--- Substitutes an LExpr if a valid substitute can be found in the given list.
-substitute :: LExpr -> (Model, ArrayModel) -> LExpr
-substitute e@(LArray v i) (_, arrayModel) = do
-    if evalPossible i then 
-        let (LConst CInt index) = eval i
-        let a = arrayModel M.! v
-        let l = length a
-        let finalIndex = min 
-        LConst $ CInt $ (arrayModel M.! v) !! index
+tr model v = do
+    let res = (M.lookup) v model
+    if res == Nothing then do 
+        let res = (unsafePerformIO $ putStrLn $ "Is nothing! " ++ (show v) ++ " " ++ (show model))
+        []
+    else
+        fromJust res
+
+-- Substitutes an LExpr if a valid subst can be found in the given models.
+-- Otherwise simply returns the input expression as output.
+subst :: LExpr -> (Model, ArrayModel) -> LExpr
+subst e@(LArray v indexE) (_, arrayModel)
+    = if evalPossible indexE then do
+        let (CInt index) = eval indexE
+        let a            = tr arrayModel v
+        let len          = length a
+        if index < len && index >= 0 then
+            LConst $ a !! index
+        else
+            e -- Just return the input LExpr, since the index is out of the domain.
     else e
-substitute (LIsnull v)  (_, arrayModel) = LConst (CInt (length (arrayModel M.! v)))
-substitute (LLen    v)  (_, arrayModel) = LConst (CBool (0 == length (arrayModel M.! v)))
-substitute v            (model, _)      = fromMaybe v (fmap snd $ find (\(old,new) -> v == old) model)
+subst   q@(LQuant qop v domain e) models = do
+    let op = if qop == QAll then and else or
+    let results = evalQuantifier v domain e models
+    if any isNothing results
+    then q
+    else LConst $ CBool $ op $ map fromJust results
+subst (LIsnull v)  (_, arrayModel) = LConst (CBool (0 == length (tr arrayModel v)))
+subst (LLen    v)  (_, arrayModel) = LConst (CInt (length (tr arrayModel v)))
+subst v (model, _)                 = fromMaybe v (fmap snd $ find (\(old,new) -> v == old) model)
+
+-- Returns, given a domain LExpr that concerns a certain Var, all
+-- Ints that fall in that domain.
+evalQuantifier :: Var -> LExpr -> LExpr -> (Model, ArrayModel) -> [Maybe Bool]
+evalQuantifier v domain e (m1,m2) = do
+    let newM1s = map (\i -> (LVar v, LConst (CInt i)) : m1) [-20..20]
+    concatMap getResult newM1s
+    where isTrue expr = (eval expr) == (CBool True)
+          getResult newM1 = do
+              let newDomain = applyModel domain (newM1,m2)
+              if evalPossible newDomain then
+                  if isTrue newDomain then do
+                      let newE = applyModel e (newM1,m2)
+                      if evalPossible newE then
+                          if isTrue newE then
+                              [Just True]
+                          else
+                              [Just False]
+                      else
+                          [Nothing] -- newE cannot be evaluated yet.
+                  else
+                      []
+              else
+                  [Nothing] -- newDomain cannot be evaluated yet.
 
 -- Generates a constant value for all vars vars in the given list.
 generateModel :: [LExpr] -> IO Model
@@ -245,23 +206,3 @@ findVariables e = (a \\ c, b, c)
 
           (afull,(bfull,cfull),dfull) = foldLExpr algebra e
           (a,b,c) = (nub afull,(nub bfull,nub cfull),nub dfull)
-
-
----- Returns a list with all LArrays in the LExpr. 
---findArrays :: LExpr -> [LExpr]
---findArrays expr = nub $ arrs
---    where (arrs,_) = foldLExpr algebra expr
---          algebra :: LExprAlgebra ([LExpr], LExpr)
---          algebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
---          cnst c          = ([], LConst c)
---          uni op e        = (fst e, LUnop op (snd e))
---          bin le op re    = (fst le ++ fst re, LBinop (snd le) op (snd re))
---          iff ge e1 e2    = (fst ge ++ fst e1 ++ fst e2, LIf (snd ge) (snd e1) (snd e2))
---          var v           = error "findArrays expects an LVar-free LExpr"
---          quant _ _ e1 e2 = error "findArrays expects a quantifier-free LExpr."
---          arr v e         = do
---              let array = LArray v (snd e)
---              (array : (fst e), array)
---          snull v         = ([], LVar v)
---          len v           = ([], LVar v)
-

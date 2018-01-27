@@ -241,10 +241,14 @@ testSpec method1@(_, name1) method2@(_, name2) n = do
     (m1, m2) <- parse method1 method2
     putStrLn $ "----PRE---- (" ++ name1 ++ " vs " ++ name2 ++ ")"
     let (lExpr1, lExpr2) = methodDefToLExpr m1 m2 "pre"
-    preAns <- testEquality n lExpr1 lExpr2
+    (preAns, counterModel) <- testEquality n lExpr1 lExpr2
     putStrLn "\n----POST---"
     let (lExpr1, lExpr2) = methodDefToLExpr m1 m2 "post"
-    postAns <- testEquality n lExpr1 lExpr2
+    (postAns, counterModel) <- testEquality n lExpr1 lExpr2
+
+    putStrLn $ "Pre  condition equality counter model: " ++ (show counterModel)
+    putStrLn $ "Post condition equality counter model: " ++ (show counterModel)
+
     return $ preAns && postAns
 
 -- The legendary 16th test that causes an endless loop in Z3 and that gives
