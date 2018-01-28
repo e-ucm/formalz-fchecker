@@ -1,12 +1,15 @@
 module TEquivalenceClasses where
-import System.IO.Unsafe (unsafePerformIO)
-import System.IO.Silently (silence)
+
+import Data.List (elemIndex)
 import Data.List.Split (splitOn)
+import System.IO.Silently (silence)
+import System.IO.Unsafe (unsafePerformIO)
+import Control.Monad
 import Test.HUnit
 
 import SimpleFormulaChecker (compareSpec, parseMethodIds)
 
-edslSrc = "examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Test.java"
+edslSrc = "examples/test_equiv/Doubles.java"
 
 testEquiv :: Bool -> String -> String -> Assertion
 testEquiv b s s' =
@@ -17,8 +20,15 @@ testEquiv b s s' =
 equivClassesTests =
   let methodIds = unsafePerformIO (silence $ parseMethodIds edslSrc)
       getClass = last . splitOn "_"
+      tailFrom :: Eq a => [a] -> a -> [a]
+      tailFrom xs x = case elemIndex x xs of Just i  -> snd $ splitAt i xs
+                                             Nothing -> []
   in [ a `op` b | a <- methodIds
-                , b <- methodIds
+                , b <- methodIds `tailFrom` a
                 , a /= b
-                , let op = if getClass a == getClass b then (.==) else (.!=)
+                , let op = unsafePerformIO $ do
+                        let eq = getClass a == getClass b
+                        putStrLn $ foldl1 (++)
+                          ["  (", a, if eq then " == " else " != ", b, ")"]
+                        return $ if eq then (.==) else (.!=)
                 ]

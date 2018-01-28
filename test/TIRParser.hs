@@ -32,3 +32,4 @@ parserTests =
         x' = v x
         xArr = var "x" "[int]"
         xArr' = var "x" "[real]"
+        xArr'' = var "x" "[[real]]"

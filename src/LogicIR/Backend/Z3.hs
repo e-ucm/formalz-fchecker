@@ -44,7 +44,6 @@ lExprToZ3AstAlgebra = (fConst, fVar, fUnop, fBinop, fIf, fQuant, fArray, fIsnull
       a <- a'
       case o of
         NNeg -> mkUnaryMinus a
-        NNot -> mkBvnot a --
         LNot -> mkNot a
     fBinop a' o b' = do
       a <- a'
@@ -53,13 +52,8 @@ lExprToZ3AstAlgebra = (fConst, fVar, fUnop, fBinop, fIf, fQuant, fArray, fIsnull
         NAdd     -> mkAdd [a, b]
         NSub     -> mkSub [a, b]
         NMul     -> mkMul [a, b]
-        NDiv     -> mkDiv a b -- NOTE: signed division
-        NRem     -> mkRem a b -- TODO: check if the correct remainder is taken
-        NShl     -> mkBvshl a b --
-        NShr     -> mkBvashr a b -- NOTE: signed shift right will keep the sign
-        NAnd     -> mkBvand a b --
-        NOr      -> mkBvor a b --
-        NXor     -> mkBvxor a b --
+        NDiv     -> mkDiv a b
+        NRem     -> mkRem a b
         LAnd     -> mkAnd [a, b]
         LOr      -> mkOr [a, b]
         LImpl    -> mkImplies a b

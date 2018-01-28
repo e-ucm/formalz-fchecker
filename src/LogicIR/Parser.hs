@@ -25,10 +25,7 @@ exprP :: Parser LExpr
 exprP =
   buildExpressionParser table term <?> "expression"
   where table = [ -- Numeric
-                  [ prefix "~" nnot]
-                , [ infix_ ">>" (.>>), infix_ "<<" (.<<) ]
-                , [ infix_ "&" (.&), infix_ "|" (.|), infix_ "^" (.^) ]
-                , [ infix_ "*" (.*), infix_ "/" (./), infix_ "%" (.%) ]
+                  [ infix_ "*" (.*), infix_ "/" (./), infix_ "%" (.%) ]
                 , [ infix_ "+" (.+) , infix_ "-" (.-) ]
                   -- Comparison
                 , [ infix_ "==" (.==) , infix_ "!=" (.!=) , infix_ "<" (.<)

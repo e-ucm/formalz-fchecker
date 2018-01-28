@@ -87,9 +87,9 @@ getMethodCalls (_, StmtBlock (Block bs), _) name = mapMaybe extractMethodInv bs
 extractExpr :: [MethodInvocation] -> Exp
 extractExpr call = combineExprs $ map (\(MethodCall (Name [Ident _]) [a]) -> a) call
     where combineExprs :: [Exp] -> Exp
-          combineExprs []  = Lit $ Boolean True -- If the expression is empty, just return True.
-          combineExprs [e] = e
-          combineExprs (e:es) = BinOp e CAnd (combineExprs es)
+          combineExprs [] = true
+          combineExprs [e]    = e
+          combineExprs (e:es) = e &* combineExprs es
 
 -- Check if two Z3 AST's are equivalent
 isEquivalent :: Z3 AST -> Z3 AST -> IO (Result, Maybe Model)

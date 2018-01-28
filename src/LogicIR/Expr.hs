@@ -19,7 +19,6 @@ data Var = Var Type String
 
 -- | Unary operators.
 data LUnop = NNeg -- -n (numeric negation)
-           | NNot -- ~n (numeric binary not)
            | LNot -- !n (logical not)
            deriving (Show, Eq, Read)
 
@@ -31,12 +30,6 @@ data LBinop =
             | NMul -- a * b
             | NDiv -- a / b
             | NRem -- a % b
-            -- bit-wise operators
-            | NShl -- a >> b
-            | NShr -- a << b
-            | NAnd -- a & b
-            | NOr -- a | b
-            | NXor -- a ^ b
             -- logical operators
             | LAnd -- a && b
             | LOr -- a || b
@@ -84,7 +77,6 @@ n = LConst . CInt
 b = LConst . CBool
 nil = LConst CNil
 lnot = LUnop LNot
-nnot = LUnop NNot
 
 infix 1 .: ; infix 1 .!
 (.:) x t = LVar $ Var t x
@@ -95,10 +87,6 @@ infix 2 .==> ; infix 3 .&& ; infix 3 .||
 infix 4 .== ; infix 4 .!= ; infix 4 .> ; infix 4 .< ; infix 4 .<= ; infix 4 .>=
 infix 5 .* ; infix 5 ./ ; infix 5 .%
 infix 6 .+ ; infix 6 .-
-infix 7 .>> ; infix 7 .<<
-infix 8 .| ; infix 8 .^ ; infix 8 .&
-(.|) = binOp NOr ; (.^) = binOp NXor ; (.&) = binOp NAnd
-(.>>) = binOp NShl ; (.<<) = binOp NShr
 (.+) = binOp NAdd ; (.-) = binOp NSub
 (.*) = binOp NMul ; (./) = binOp NDiv ; (.%) = binOp NRem
 (.==) = binOp CEqual ; (.!=) x y = lnot $ x .== y

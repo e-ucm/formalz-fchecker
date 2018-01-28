@@ -24,11 +24,6 @@ prettyLBinop op =
     NMul     -> "*"
     NDiv     -> "/"
     NRem     -> "%"
-    NShl     -> ">>"
-    NShr     -> "<<"
-    NAnd     -> "&"
-    NOr      -> "|"
-    NXor     -> "^"
     LAnd     -> "&&"
     LOr      -> "||"
     LImpl    -> "->"
@@ -40,7 +35,6 @@ prettyNUnop :: LUnop -> String
 prettyNUnop op =
   case op of
     NNeg -> "-"
-    NNot -> "~"
     LNot -> "!"
 
 prettyVar :: Var -> String

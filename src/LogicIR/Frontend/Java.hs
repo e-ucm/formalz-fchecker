@@ -114,7 +114,7 @@ javaExpToLExprAlgebra =
     fPreDecrement = error "fPreDecrement has side effects..."
     fPrePlus e = e
     fPreMinus e env decls = LUnop NNeg (e env decls)
-    fPreBitCompl e env decls = LUnop NNot (e env decls)
+    fPreBitCompl e env decls = error "Bitwise operations not supported..."
     fPreNot e env decls = LUnop LNot (e env decls)
     fCast = error "fCast is not supported..." -- TODO: perhaps support cast for some types?
     fBinOp e1 op e2 env decls = -- TODO: type checking?
@@ -128,12 +128,7 @@ javaExpToLExprAlgebra =
             Rem     -> (.%)
             Add     -> (.+)
             Sub     -> (.-)
-            LShift  -> (.>>)
-            RShift  -> (.<<)
             RRShift -> undefined
-            And     -> (.&)
-            Or      -> (.|)
-            Xor     -> (.^)
             -- Logical
             CAnd    -> (.&&)
             COr     -> (.||)
@@ -144,6 +139,7 @@ javaExpToLExprAlgebra =
             GThanE  -> (.>=)
             Equal   -> (.==)
             NotEq   -> (.!=)
+            _ -> error $ "Unsupported operation: " ++ show op
     fInstanceOf = error "fInstanceOf is not supported..."
     fCond c a b env decls = LIf (c env decls) (a env decls) (b env decls)
     fAssign = error "fAssign has side effects..."
