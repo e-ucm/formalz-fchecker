@@ -9,15 +9,13 @@ import Test.HUnit
 
 import SimpleFormulaChecker (compareSpec, parseMethodIds)
 
-edslSrc = "examples/test_equiv/Doubles.java"
-
-testEquiv :: Bool -> String -> String -> Assertion
-testEquiv b s s' =
-  unsafePerformIO (silence $ compareSpec (edslSrc, s) (edslSrc, s')) @?= b
+testEquiv :: Bool -> String -> String -> String -> Assertion
+testEquiv b src s s' =
+  unsafePerformIO (id $ compareSpec (src, s) (src, s')) @?= b
 (.==) = testEquiv True
 (.!=) = testEquiv False
 
-equivClassesTests =
+genEquivTests edslSrc =
   let methodIds = unsafePerformIO (silence $ parseMethodIds edslSrc)
       getClass = last . splitOn "_"
       tailFrom :: Eq a => [a] -> a -> [a]
@@ -30,5 +28,5 @@ equivClassesTests =
                         let eq = getClass a == getClass b
                         putStrLn $ foldl1 (++)
                           ["  (", a, if eq then " == " else " != ", b, ")"]
-                        return $ if eq then (.==) else (.!=)
+                        return $ (if eq then (.==) else (.!=)) edslSrc
                 ]

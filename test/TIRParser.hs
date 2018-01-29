@@ -27,6 +27,8 @@ parserTests =
       LLen xArr .== n 0 .&& lnot (LIsnull xArr)
   , "len(x:[real]) == 0 /\\ ! x:[real] == null" @?=
       LLen xArr' .== n 0 .&& lnot (LIsnull xArr')
+  , "len(x:[[real]]) == 0 /\\ ! x:[[real]] == null" @?=
+      LLen xArr'' .== n 0 .&& lnot (LIsnull xArr'')
   ]
   where x = var "x" "int"
         x' = v x

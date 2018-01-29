@@ -26,6 +26,7 @@ import ModelParser.Parser
 
 import Control.Monad (when)
 import Control.Monad.Trans (liftIO)
+import Control.Exception.Base (catch)
 import Data.Int
 import Data.List
 import qualified Data.Map as M
@@ -87,23 +88,26 @@ getMethodCalls (_, StmtBlock (Block bs), _) name = mapMaybe extractMethodInv bs
 extractExpr :: [MethodInvocation] -> Exp
 extractExpr call = combineExprs $ map (\(MethodCall (Name [Ident _]) [a]) -> a) call
     where combineExprs :: [Exp] -> Exp
-          combineExprs [] = true
+          combineExprs []     = true
           combineExprs [e]    = e
           combineExprs (e:es) = e &* combineExprs es
 
+
+-- | Z3 try evaluation with timeout.
+tryZ3 = evalZ3With Nothing (Z3.Opts.opt "timeout" "3000")
+
 -- Check if two Z3 AST's are equivalent
 isEquivalent :: Z3 AST -> Z3 AST -> IO (Result, Maybe Model)
-isEquivalent ast1' ast2' = evalZ3 z3
-    where
-    z3 = do
-         ast1 <- ast1'
-         ast2 <- ast2'
-         astEq <- mkEq ast1 ast2
-         astNeq <- mkNot astEq -- negate the question to get a model
-         assert astNeq
-         r <- solverCheckAndGetModel -- check in documentatie
-         solverReset
-         return r
+isEquivalent ast1' ast2' =
+  tryZ3 $ do
+    ast1 <- ast1'
+    ast2 <- ast2'
+    astEq <- mkEq ast1 ast2
+    astNeq <- mkNot astEq -- negate the question to get a model
+    assert astNeq
+    r <- solverCheckAndGetModel -- check in documentatie
+    solverReset
+    return r
 
 -- Function that shows a human-readable model and also highlights potential inconsistencies.
 -- Sorry for the code, it is quite awful...
@@ -200,7 +204,10 @@ determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
     putStrLn "Z3 Result:"
     -- Check if the formula is satisfiable. If it is, print the instantiation of its free
     -- variables that would make it true:
-    (result, model) <- isEquivalent ast1 ast2
+    (result, model) <- isEquivalent ast1 ast2 `catch` (\err -> do
+                                putStrLn $ "ERROR: " ++ show (err :: Z3Error)
+                                return (Undef, Nothing)
+                                )
     case result of
        Unsat -> do
          putStrLn "formulas are equivalent!"
@@ -211,7 +218,7 @@ determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
        Sat   -> do
                 putStrLn "formulas are NOT equivalent, model:"
                 case model of
-                  Just m -> do s <- evalZ3With Nothing (Z3.Opts.opt "timeout" (1000 :: Int)) (modelToString m) -- TODO: the option is set, but does not actually work :(
+                  Just m -> do s <- tryZ3 (modelToString m)
                                putStrLn s
                                -- showRelevantModel $ parseModel s
                                return False
@@ -220,7 +227,7 @@ determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
         extractCond :: MethodDef -> String -> Exp
         extractCond m n = extractExpr (getMethodCalls m n)
         showZ3AST :: Z3 AST -> IO String
-        showZ3AST ast' = evalZ3 $ ast' >>= astToString
+        showZ3AST ast' = tryZ3 $ ast' >>= astToString
 
 -- Function that compares both the pre and the post condition for two methods.
 -- It is assumed that both methods have the same environment (parameter names, class member names, etc).
