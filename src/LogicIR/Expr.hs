@@ -4,7 +4,7 @@ import Data.String
 
 -- | The primitive types are bool and int32.
 data Primitive = PBool
-               | PInt32
+               | PInt
                | PReal
                deriving (Show, Eq, Read)
 

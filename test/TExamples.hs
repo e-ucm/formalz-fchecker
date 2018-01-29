@@ -5,15 +5,19 @@ import Test.HUnit
 
 import SimpleFormulaChecker
 
-edslSrc = "examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
+src = "examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
 
-testEquiv :: Bool -> String -> String -> Assertion
+testEquiv :: Response -> String -> String -> Assertion
 testEquiv b s s' =
-  unsafePerformIO (silence $ compareSpec (edslSrc, s) (edslSrc, s')) @?= b
-(.==) = testEquiv True
-(.!=) = testEquiv False
+  (case unsafePerformIO (silence $ compareSpec (src, s) (src, s')) of
+    NotEquivalent _ -> NotEquivalent Nothing
+    x -> x
+   ) @?= b
+(.==) = testEquiv Equivalent
+(.!=) = testEquiv $ NotEquivalent Nothing
+(.??) = testEquiv Timeout
 
-equivalenceTests =
+examples =
   [ "swap_spec1" .== "swap_spec1"
   , "swap_spec1" .!= "swap_spec2"
   , "getMax_spec1" .!= "getMax_spec2"
@@ -29,5 +33,5 @@ equivalenceTests =
   , "sorted1".!= "sorted3"
   , "test2" .!= "sorted3"
   , "sorted3" .!= "sorted4"
-  -- , equivalent "sorted1" "sorted4" -- does not terminate (TODO: should time out, but this does not work)
+  , "sorted1" .!= "sorted4"
   ]

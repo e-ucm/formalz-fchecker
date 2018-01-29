@@ -81,7 +81,7 @@ javaExpToLExprAlgebra =
         _
             -> error $ "Unimplemented fMethodInv: " ++ show inv
         where quant method name bound expr =
-                let i = Var (TPrim PInt32) bound
+                let i = Var (TPrim PInt) bound
                     (zero, len) = (LConst (CInt 0), LLen (nameToVar name env decls))
                 in case method of
                           "forall" -> lquantr QAll i zero len expr
@@ -89,7 +89,7 @@ javaExpToLExprAlgebra =
                           _ -> error $ "Unimplemented fMethodInv: " ++ show inv
               quantr method name rbegin rend bound expr =
                 let (begin, end) = (refold rbegin, refold rend)
-                    (i, arr) = (Var (TPrim PInt32) bound, nameToVar name env decls)
+                    (i, arr) = (Var (TPrim PInt) bound, nameToVar name env decls)
                 in case method of
                           "forallr" -> lquantr QAll i begin end expr
                           "existsr" -> lquantr QAny i begin end expr

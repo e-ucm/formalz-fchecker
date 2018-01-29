@@ -1,4 +1,4 @@
-module LogicIR.Backend.Null (lExprPreprocessNull) where
+module LogicIR.Null (lExprPreprocessNull) where
 
 import           LogicIR.Expr
 import           LogicIR.Fold

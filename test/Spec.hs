@@ -8,11 +8,12 @@ import TEquivalenceClasses
 
 main = defaultMain
   [ constructTestSuite testName testSuite
-  | (testName, testSuite) <- [ ("EXAMPLES", equivalenceTests)
-                             , ("LIR_PARSER", parserTests)
-                             , ("AUTOMATED_TESTING_CHECK", testingModuleTests)
-                             , ("EQUIV_CLASSES", equivClassesTests)
-                             ]
+  | (testName, testSuite) <- [
+        ("EXAMPLES", examples)
+      , ("LIR_PARSER", parserTests)
+      , ("EQUIV_REAL", genEquivTests "examples/test_equiv/Reals.java")
+      , ("EQUIV_ARRAY", genEquivTests "examples/test_equiv/Arrays.java")
+      ]
   ]
 
 constructTestSuite s suite =

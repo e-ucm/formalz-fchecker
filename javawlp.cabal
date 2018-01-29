@@ -21,7 +21,10 @@ library
                      , Javawlp.Engine.HelperFunctions
                      , Javawlp.Engine.Folds
                      , LogicIR.Expr
+                     , LogicIR.Fold
                      , LogicIR.Parser
+                     , LogicIR.Null
+                     , LogicIR.Pretty
                      , LogicIR.Frontend.Java
                      , LogicIR.Backend.Z3
                      , LogicIR.Backend.Test
@@ -30,6 +33,7 @@ library
                      , LogicIR.Backend.Null
                      , LogicIR.Fold
                      , LogicIR.Eval
+                     , LogicIR.Backend.API
                      , ModelParser.Lexer
                      , ModelParser.Parser
                      , ModelParser.Model
