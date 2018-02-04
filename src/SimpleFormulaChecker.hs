@@ -245,11 +245,6 @@ testSpec method1@(_, name1) method2@(_, name2) n = do
     putStrLn "\n----POST---"
     let (lExpr1, lExpr2) = methodDefToLExpr m1 m2 "post"
     (postAns, counterModel) <- testEquality n lExpr1 lExpr2
-
-    appendFile "results.txt" (name1 ++ ", " ++ name2 ++ "\n")
-    appendFile "results.txt" ("Pre  condition equality counter model: " ++ (show counterModel) ++ "\n")
-    appendFile "results.txt" ("Post condition equality counter model: " ++ (show counterModel) ++ "\n")
-
     return $ preAns && postAns
 
 test9 = testSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec4") 1000

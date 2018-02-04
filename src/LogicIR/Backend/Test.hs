@@ -44,9 +44,6 @@ testEquality 0 e1 e2 = do
 testEquality n e1 e2 = do
     (r,m1,m2) <- test e1 e2
     if not r then do 
-        putStrLn $ show r
-        putStrLn $ show m1
-        putStrLn $ show m2
         return (False, (m1, m2))
     else do
         (rs, model) <- testEquality (n-1) e1 e2
@@ -59,11 +56,14 @@ testEquality n e1 e2 = do
 testLExpr :: LExpr -> IO (LConst, EvalInfo)
 testLExpr e = do 
     let vs@(regularVs, (arrayVs, arrayOpVs), quantVs) = findVariables e
-    primitivesModel  <- generateModel regularVs
+    let isNullExprs   = filter sIsnullExpr arrayOpVs
+    primitivesModel  <- generateModel (regularVs ++ isNullExprs)
     arrayModel       <- generateArrayModel arrayVs
     testResult       <- testModel e (primitivesModel, arrayModel, quantVs)
     let evalInfo      = (primitivesModel, arrayModel, quantVs)
     return (testResult, evalInfo)
+    where sIsnullExpr (LIsnull _) = True
+          sIsnullExpr _           = False
 
 testModel :: LExpr -> EvalInfo -> IO LConst
 testModel e evalInfo = do
@@ -120,9 +120,13 @@ subst   q@(LQuant qop v domain e) evalInfo = do
       q
     else
       LConst $ CBool $ op $ map fromJust results
-subst (LIsnull v)  (_,arrayModel,_) = LConst (CBool (0 == length (tr arrayModel v)))
 subst (LLen    v)  (_,arrayModel,_) = LConst (CInt (length (tr arrayModel v)))
 subst v (model,_,_)                 = fromMaybe v (fmap snd $ find (\(old,new) -> v == old) model)
+-- Note that firstly,  LIsnull can only be applied to arrays since ints/bools cannot be null in Java,
+--           secondly, LIsnull is not substituted based on the actual value of the array in the
+--                     ArrayModel. Instead, it's just a random bool that is present in the primitives model.
+--                     This is because otherwise, the evaluation of an LExpr should be changed drastically.
+--                     After all, How do you evaluate a[0] or a.length if a == null...
 
 -- Returns, given a domain LExpr that concerns a certain Var, all
 -- Ints that fall in that domain.
@@ -136,8 +140,6 @@ evalQuantifier v domain e (m1,m2,quantVs) = do
           getResult newM1 = do
               let newEvalInfo = (newM1,m2,quantVs)
               let newDomain = applyModel domain newEvalInfo
-              --let !x = unsafePerformIO $ putStrLn $ prettyLExpr domain
-              --let !x = unsafePerformIO $ putStrLn $ prettyLExpr newDomain ++ "\n"
               if evalPossible newDomain then
                   if isTrue newDomain then do
                       let newE = applyModel e newEvalInfo
@@ -184,11 +186,8 @@ generateModelEntry e@(LVar (Var (TPrim t) _)) = do
     generatePrimitive t >>= \v -> return (e, v)
 generateModelEntry e@(LIsnull (Var (TArray _) _)) = do
     generatePrimitive PBool >>= \v -> return (e, v)
-generateModelEntry e = do
+generateModelEntry e =
     error $ "Cannot generate model entry for " ++ show e
-    return (e, e)
---generateModelEntry e@(LArray (Var (TArray (TPrim t)) _) _) = do
-    --generatePrimitive t >>= \v -> return (e, v)
 
 generatePrimitive :: Primitive -> IO LExpr
 generatePrimitive t = generatePrimitiveWithBounds t (bounds t)
