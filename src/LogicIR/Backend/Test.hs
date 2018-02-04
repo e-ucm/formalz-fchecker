@@ -5,12 +5,10 @@ module LogicIR.Backend.Test (testEquality) where
 import LogicIR.Expr
 import LogicIR.Fold
 import LogicIR.Eval
-import LogicIR.Backend.Rewrite
 import LogicIR.Backend.Pretty
 import Data.Maybe (fromMaybe)
 import Data.List (find, nub, (\\))
 import System.Random
-import Control.Exception
 import Data.Maybe (isNothing, fromJust)
 import Data.Map (Map)
 import qualified Data.Map.Lazy as M

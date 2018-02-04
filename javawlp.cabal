@@ -18,7 +18,6 @@ library
                      , LogicIR.Backend.Test
                      , LogicIR.Backend.Pretty
                      , LogicIR.Backend.Null
-                     , LogicIR.Backend.Rewrite
                      , LogicIR.Fold
                      , LogicIR.Eval
                      , ModelParser.Lexer
