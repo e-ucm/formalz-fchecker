@@ -246,12 +246,11 @@ testSpec method1@(_, name1) method2@(_, name2) n = do
     let (lExpr1, lExpr2) = methodDefToLExpr m1 m2 "post"
     (postAns, counterModel) <- testEquality n lExpr1 lExpr2
 
-    putStrLn $ "Pre  condition equality counter model: " ++ (show counterModel)
-    putStrLn $ "Post condition equality counter model: " ++ (show counterModel)
+    appendFile "results.txt" (name1 ++ ", " ++ name2 ++ "\n")
+    appendFile "results.txt" ("Pre  condition equality counter model: " ++ (show counterModel) ++ "\n")
+    appendFile "results.txt" ("Post condition equality counter model: " ++ (show counterModel) ++ "\n")
 
     return $ preAns && postAns
 
--- The legendary 16th test that causes an endless loop in Z3 and that gives
--- incorrect test results in the case of QuickCheck.
-test16 = testSpec (edslSrc, "sorted1") (edslSrc, "sorted4") 10000
+test9 = testSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec4") 1000
     where edslSrc = "examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"

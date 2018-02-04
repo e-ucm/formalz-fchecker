@@ -1,4 +1,6 @@
-module LogicIR.Backend.Test (test, testEquality) where
+{-# LANGUAGE BangPatterns #-}
+
+module LogicIR.Backend.Test (testEquality) where
 
 import LogicIR.Expr
 import LogicIR.Fold
@@ -19,7 +21,11 @@ type Model = [(LExpr, LExpr)]
 type ArrayModel = Map Var [LConst]
 empty = []
 
--- Needed for the ArrayModel key ordering.
+-- EvalInfo contains all information needed to evaluate an LExpr.
+-- The third tuple element is a list of all Quantifier iterator vars.
+type EvalInfo = (Model, ArrayModel, [LExpr])
+
+-- Needed for the ArrayModel key ordering in the Map.
 instance Ord Var where
   (Var _ name1) `compare` (Var _ name2) = name1 `compare` name2
 
@@ -27,12 +33,14 @@ instance Ord Var where
 
 test :: LExpr -> LExpr -> IO (Bool, Model, ArrayModel)
 test e1 e2 = do
-    (res1,primitivesModel,arrayModel) <- testLExpr e1
-    (res2,_,_) <- testModel e2 (primitivesModel, arrayModel)
+    (res1,evalInfo) <- testLExpr e1
+    res2            <- testModel e2 evalInfo
+    let (primitivesModel, arrayModel, _) = evalInfo
     return (res1 == res2, primitivesModel, arrayModel)
 
 testEquality :: Int -> LExpr -> LExpr -> IO (Bool, (Model, ArrayModel))
-testEquality 0 e1 e2 = return (True, (empty, M.empty))
+testEquality 0 e1 e2 = do
+    return (True, (empty, M.empty))
 testEquality n e1 e2 = do
     (r,m1,m2) <- test e1 e2
     if not r then do 
@@ -48,49 +56,51 @@ testEquality n e1 e2 = do
 -- and returns whether the formula evaluates to true or to false when that model
 -- is used, and the model itself. If the formula, after substitution, cannot
 -- be evaluated - i.e. there's still a variable in the LExpr - an error will be thrown.
-testLExpr :: LExpr -> IO (LConst, Model, ArrayModel)
+testLExpr :: LExpr -> IO (LConst, EvalInfo)
 testLExpr e = do 
-    let (regularVs, (arrayVs, arrayOpVs), quantVs) = findVariables e
+    let vs@(regularVs, (arrayVs, arrayOpVs), quantVs) = findVariables e
     primitivesModel  <- generateModel regularVs
     arrayModel       <- generateArrayModel arrayVs
-    testModel e (primitivesModel, arrayModel)
+    testResult       <- testModel e (primitivesModel, arrayModel, quantVs)
+    let evalInfo      = (primitivesModel, arrayModel, quantVs)
+    return (testResult, evalInfo)
 
-testModel :: LExpr -> (Model, ArrayModel) -> IO (LConst, Model, ArrayModel)
-testModel e (primitivesModel, arrayModel) = do
-    let substitutedE = applyModel e (primitivesModel, arrayModel)
+testModel :: LExpr -> EvalInfo -> IO LConst
+testModel e evalInfo = do
+    let substitutedE = applyModel e evalInfo
     if evalPossible substitutedE then do
         let res = eval substitutedE
-        return (res, primitivesModel, arrayModel)
+        return res
     else
-        return (CBool False, primitivesModel, arrayModel)
+        return $ CBool False
 
--- Applies substitution given a Model and an LExpr.
-applyModel :: LExpr -> (Model, ArrayModel) -> LExpr
-applyModel e models = foldLExpr algebra e
+-- Applies substitution to an LExpr given the necessary EvalInfo.
+applyModel :: LExpr -> EvalInfo -> LExpr
+applyModel e evalInfo = foldLExpr algebra e
     where algebra :: LExprAlgebra LExpr
           algebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
           cnst             = LConst
           uni op e         = evalIfPossible $ LUnop op e
           bin le op re     = evalIfPossible $ LBinop le op re
           iff ge e1 e2     = evalIfPossible $ LIf ge e1 e2
-          var v            = subst (LVar v) models
-          quant op v e1 e2 = subst (LQuant op v (subst e1 models) (subst e2 models)) models
-          arr v e          = subst (LArray v e) models
-          snull v          = subst (LIsnull v) models
-          len v            = subst (LLen v) models
+          var v            = subst (LVar v) evalInfo
+          quant op v e1 e2 = subst (LQuant op v (subst e1 evalInfo) (subst e2 evalInfo)) evalInfo
+          arr v e          = subst (LArray v e) evalInfo
+          snull v          = subst (LIsnull v) evalInfo
+          len v            = subst (LLen v) evalInfo
 
 tr model v = do
     let res = (M.lookup) v model
     if res == Nothing then do 
-        let res = (unsafePerformIO $ putStrLn $ "Is nothing! " ++ (show v) ++ " " ++ (show model))
+        error $ "Bug in Test.hs made substitution of LArray impossible. This should never happen! Array: " ++ show v ++ ", ArrayModel: " ++ show model
         []
-    else
+    else do
         fromJust res
 
 -- Substitutes an LExpr if a valid subst can be found in the given models.
 -- Otherwise simply returns the input expression as output.
-subst :: LExpr -> (Model, ArrayModel) -> LExpr
-subst e@(LArray v indexE) (_, arrayModel)
+subst :: LExpr -> EvalInfo -> LExpr
+subst e@(LArray v indexE) (_,arrayModel,_)
     = if evalPossible indexE then do
         let (CInt index) = eval indexE
         let a            = tr arrayModel v
@@ -98,41 +108,62 @@ subst e@(LArray v indexE) (_, arrayModel)
         if index < len && index >= 0 then
             LConst $ a !! index
         else
-            e -- Just return the input LExpr, since the index is out of the domain.
-    else e
-subst   q@(LQuant qop v domain e) models = do
+             -- Just return the input LExpr, since the index is out of the domain.
+            e
+    else do
+        e
+subst   q@(LQuant qop v domain e) evalInfo = do
     let op = if qop == QAll then and else or
-    let results = evalQuantifier v domain e models
+    let results = evalQuantifier v domain e evalInfo
     if any isNothing results
-    then q
-    else LConst $ CBool $ op $ map fromJust results
-subst (LIsnull v)  (_, arrayModel) = LConst (CBool (0 == length (tr arrayModel v)))
-subst (LLen    v)  (_, arrayModel) = LConst (CInt (length (tr arrayModel v)))
-subst v (model, _)                 = fromMaybe v (fmap snd $ find (\(old,new) -> v == old) model)
+    then
+      q
+    else
+      LConst $ CBool $ op $ map fromJust results
+subst (LIsnull v)  (_,arrayModel,_) = LConst (CBool (0 == length (tr arrayModel v)))
+subst (LLen    v)  (_,arrayModel,_) = LConst (CInt (length (tr arrayModel v)))
+subst v (model,_,_)                 = fromMaybe v (fmap snd $ find (\(old,new) -> v == old) model)
 
 -- Returns, given a domain LExpr that concerns a certain Var, all
 -- Ints that fall in that domain.
-evalQuantifier :: Var -> LExpr -> LExpr -> (Model, ArrayModel) -> [Maybe Bool]
-evalQuantifier v domain e (m1,m2) = do
+evalQuantifier :: Var -> LExpr -> LExpr -> EvalInfo -> [Maybe Bool]
+evalQuantifier v domain e (m1,m2,quantVs) = do
+    -- Check which integers in domain [-20,20] fall in the domain of the
+    -- quantifier and evaluate the quantifier with those integers.
     let newM1s = map (\i -> (LVar v, LConst (CInt i)) : m1) [-20..20]
     concatMap getResult newM1s
     where isTrue expr = (eval expr) == (CBool True)
           getResult newM1 = do
-              let newDomain = applyModel domain (newM1,m2)
+              let newEvalInfo = (newM1,m2,quantVs)
+              let newDomain = applyModel domain newEvalInfo
+              --let !x = unsafePerformIO $ putStrLn $ prettyLExpr domain
+              --let !x = unsafePerformIO $ putStrLn $ prettyLExpr newDomain ++ "\n"
               if evalPossible newDomain then
                   if isTrue newDomain then do
-                      let newE = applyModel e (newM1,m2)
+                      let newE = applyModel e newEvalInfo
                       if evalPossible newE then
                           if isTrue newE then
                               [Just True]
                           else
                               [Just False]
-                      else
-                          [Nothing] -- newE cannot be evaluated yet.
+                      else do
+                          -- This can happen if newDomain is true but the actual quantifier expression can not be evaluated.
+                          -- e.g.   a.length==1 && forall 0<i<2: a[i]<a[i+1] (here, a[i+1] == 2, but a is only 1 in length)
+                          -- We view such quantifier iterations as failures, i.e. False.
+                          [Just False]
                   else
-                      []
-              else
-                  [Nothing] -- newDomain cannot be evaluated yet.
+                      [] -- domain expression is false, so we skip the iteration.
+              else do
+                  let vs@(primitives,(_,_),_) = findVariables newDomain
+                  -- If null == True, then there is a primitive in the newDomain that is bound by a parent/ancestor quantifier.
+                  if null (primitives \\ quantVs) then
+                      -- newDomain could not be evaluated because it is nested in another quantifier that has
+                      -- not been evaluated yet. Therefore, we just wait with the evaluation of this quantifier.
+                      [Nothing]
+                  else
+                      -- newDomain could not be evaluated because there are variables in it that should have been
+                      -- substituted by now. This should never happen.
+                      error ("Quantifier domain could not be evaluated. This should never happen. " ++ (prettyLExpr newDomain))
 
 -- Generates a constant value for all vars vars in the given list.
 generateModel :: [LExpr] -> IO Model
@@ -141,7 +172,7 @@ generateModel exprs = mapM generateModelEntry exprs
 generateArrayModel :: [LExpr] -> IO ArrayModel
 generateArrayModel es = mapM generateArray es >>= \l -> return (M.fromList l)
     where generateArray e@(LVar v@(Var (TArray (TPrim t)) _)) = do
-              len         <- generateIntWithBounds (0,3)
+              len         <- generateIntWithBounds (0,4)
               let b        = bounds t
               expArr      <- mapM (\x -> generatePrimitiveWithBounds t b) [1..len]
               let cnstArr  = map (\(LConst c) -> c) expArr
@@ -201,8 +232,8 @@ findVariables e = (a \\ c, b, c)
           var v            = ([LVar v],([],[]),[])
           quant qt v e1 e2 = merge ([],([],[]),[LVar v]) $ merge e1 e2
           arr v e          = merge ([],([LVar v],[]),[]) e
-          snull v          = ([],([],[LIsnull v]),[])
-          len v            = ([],([],[LLen v]),[])
+          snull v          = ([],([LVar v],[LIsnull v]),[])
+          len v            = ([],([LVar v],[LLen v]),[])
 
           (afull,(bfull,cfull),dfull) = foldLExpr algebra e
           (a,b,c) = (nub afull,(nub bfull,nub cfull),nub dfull)
