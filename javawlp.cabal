@@ -16,6 +16,7 @@ library
                      , LogicIR.Frontend.Java
                      , LogicIR.Backend.Z3
                      , LogicIR.Backend.Test
+                     , LogicIR.Backend.ModelGenerator
                      , LogicIR.Backend.Pretty
                      , LogicIR.Backend.Null
                      , LogicIR.Fold

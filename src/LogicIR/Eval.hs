@@ -2,7 +2,6 @@ module LogicIR.Eval (eval, evalPossible, evalIfPossible) where
 
 import LogicIR.Expr
 import LogicIR.Fold
-import LogicIR.Backend.Pretty
 
 import Data.Bits
 
