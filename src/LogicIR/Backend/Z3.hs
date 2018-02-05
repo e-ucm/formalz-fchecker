@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module LogicIR.Backend.Z3 (lExprToZ3Ast) where
+module LogicIR.Backend.Z3 where
 
 import Z3.Monad
 import Control.Monad.Trans (liftIO)
@@ -11,12 +11,6 @@ import LogicIR.Parser
 lExprToZ3Ast :: LExpr -> Z3 AST
 lExprToZ3Ast = foldLExpr lExprToZ3AstAlgebra
 
-getSorts :: AST -> AST -> Z3 (String, String)
-getSorts a b = do
-  as <- getSort a
-  bs <- getSort b
-  return (show as, show bs)
-
 -- TODO: support more types
 lExprToZ3AstAlgebra :: LExprAlgebra (Z3 AST)
 lExprToZ3AstAlgebra = (fConst, fVar, fUnop, fBinop, fIf, fQuant, fArray, fIsnull, fLen) where
@@ -25,21 +19,16 @@ lExprToZ3AstAlgebra = (fConst, fVar, fUnop, fBinop, fIf, fQuant, fArray, fIsnull
       CInt n -> mkInteger $toInteger n
       CReal f -> mkRealNum f
       CNil -> error "null constants cannot be used directly with Z3 (use LogicIR.Backend.Null)"
-    fVar (Var t n) = do
-      symbol <- mkStringSymbol n
-      case t of
-        "int" -> mkIntVar symbol
-        "bool" -> mkBoolVar symbol
-        "real" -> mkRealVar symbol
-        "[int]" -> do
-          intSort <- mkIntSort
-          arraySort <- mkArraySort intSort intSort
-          mkVar symbol arraySort
-        "[bool]" -> do
-          intSort <- mkIntSort
-          arraySort <- mkBoolSort >>= mkArraySort intSort
-          mkVar symbol arraySort
-        _ -> error $ "unsupported type: " ++ show n
+    fVar (Var t n) =
+      mkStringSymbol n >>=
+        case t of
+          "int" -> mkIntVar
+          "bool" -> mkBoolVar
+          "real" -> mkRealVar
+          "[int]" -> mkIntArrayVar
+          "[real]" -> mkRealArrayVar
+          "[bool]" -> mkBoolArrayVar
+          _ -> error $ "unsupported type: " ++ show t
     fUnop o a' = do
       a <- a'
       case o of
@@ -83,3 +72,19 @@ lExprToZ3AstAlgebra = (fConst, fVar, fUnop, fBinop, fIf, fQuant, fArray, fIsnull
       mkSelect v a
     fIsnull (Var (TArray _) n) = mkStringSymbol (n ++ "?null") >>= mkBoolVar
     fLen (Var (TArray _) n) = mkStringSymbol (n ++ "?length") >>= mkIntVar -- TODO: support proper array lengths
+
+mkArrayVar :: Z3 Sort -> Symbol -> Z3 AST
+mkArrayVar mkValSort symbol = do
+  intSort <- mkIntSort
+  valSort <- mkValSort
+  arraySort <- mkArraySort intSort valSort
+  mkVar symbol arraySort
+mkRealArrayVar = mkArrayVar mkRealSort
+mkIntArrayVar = mkArrayVar mkIntSort
+mkBoolArrayVar = mkArrayVar mkBoolSort
+
+getSorts :: AST -> AST -> Z3 (String, String)
+getSorts a b = do
+  as <- getSort a
+  bs <- getSort b
+  return (show as, show bs)

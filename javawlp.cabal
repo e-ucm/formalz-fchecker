@@ -34,9 +34,7 @@ library
                      , LogicIR.Fold
                      , LogicIR.Eval
                      , LogicIR.Backend.API
-                     , ModelParser.Lexer
-                     , ModelParser.Parser
-                     , ModelParser.Model
+                     , LogicIR.Backend.Model
                      , Language.Java.Lexer
                      , Language.Java.Parser
                      , Language.Java.Pretty
@@ -54,6 +52,8 @@ library
                      , mtl
                      , containers
   default-language:    Haskell2010
+  -- build-tools:         alex, happy
+  -- other-modules:       ModelParser.Lexer, ModelParser.Parser
 
 test-suite javawlp-tests
   type:                exitcode-stdio-1.0
@@ -63,6 +63,7 @@ test-suite javawlp-tests
                      , TIRParser
                      , TIRTest
                      , TEquivalenceClasses
+                     , TZ3Model
   build-depends:       base
                      , javawlp
                      , test-framework

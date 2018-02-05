@@ -7,8 +7,7 @@ import qualified Data.Map as M
 import Z3.Monad
 import Z3.Opts
 
-import ModelParser.Model
-import ModelParser.Parser
+import LogicIR.Backend.Model
 import LogicIR.Expr
 import LogicIR.Fold
 

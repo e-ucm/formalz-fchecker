@@ -197,4 +197,14 @@ public class Main {
     public static void main(String[] args) {
         System.out.println("Hello, world!");
     }
+
+    public static void arr1(int[] a) {
+        pre(true);
+        post(true);
+    }
+
+    public static void arr2(double[] a) {
+        pre(forallr(a, 0, a.length - 1, i -> a[i] <= a[i + 1]));
+        post(true);
+    }
 }

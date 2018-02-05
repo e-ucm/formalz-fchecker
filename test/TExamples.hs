@@ -18,7 +18,8 @@ testEquiv b s s' =
 (.??) = testEquiv Timeout
 
 examples =
-  [ "swap_spec1" .== "swap_spec1"
+  [ "arr1" .!= "arr2"
+  , "swap_spec1" .== "swap_spec1"
   , "swap_spec1" .!= "swap_spec2"
   , "getMax_spec1" .!= "getMax_spec2"
   , "test1" .!= "test2"
@@ -30,6 +31,7 @@ examples =
   , "null3" .!= "test2"
   , "sorted1" .!= "test2"
   , "sorted1" .!= "sorted2"
+  , "sorted2".!= "sorted3"
   , "sorted1".!= "sorted3"
   , "test2" .!= "sorted3"
   , "sorted3" .!= "sorted4"
