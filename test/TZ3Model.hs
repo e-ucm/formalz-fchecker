@@ -3,8 +3,7 @@ import System.IO.Unsafe (unsafePerformIO)
 import System.IO.Silently (silence)
 import Test.HUnit
 
-import LogicIR.Backend.Model
-import Debug.Trace
+import LogicIR.Backend.Z3.Model
 
 (~~) model ast = runP modelP model @?= ast
 

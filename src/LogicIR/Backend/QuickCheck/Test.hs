@@ -1,12 +1,11 @@
-module LogicIR.Backend.Test (testEquality) where
+module LogicIR.Backend.QuickCheck.Test (testEquality) where
 
 import LogicIR.Expr
 import LogicIR.Fold
 import LogicIR.Eval
-import LogicIR.Backend.ModelGenerator
-import Data.Maybe (fromMaybe)
+import LogicIR.Backend.QuickCheck.ModelGenerator
+import Data.Maybe (fromMaybe, isNothing, fromJust)
 import Data.List (find, nub, (\\))
-import Data.Maybe (isNothing, fromJust)
 import Data.Map (Map)
 import qualified Data.Map.Lazy as M
 
@@ -26,7 +25,7 @@ testEquality 0 e1 e2 = do
     return (True, ([], M.empty))
 testEquality n e1 e2 = do
     (r,m1,m2) <- test e1 e2
-    if not r then do 
+    if not r then do
         return (False, (m1, m2))
     else do
         (rs, model) <- testEquality (n-1) e1 e2
@@ -37,7 +36,7 @@ testEquality n e1 e2 = do
 -- is used, and the model itself. If the formula, after substitution, cannot
 -- be evaluated - i.e. there's still a variable in the LExpr - an error will be thrown.
 testLExpr :: LExpr -> IO (LConst, EvalInfo)
-testLExpr e = do 
+testLExpr e = do
     let vs@(regularVs, (arrayVs, arrayOpVs), quantVs) = findVariables e
     let isNullExprs   = filter sIsnullExpr arrayOpVs
     primitivesModel  <- generateModel (regularVs ++ isNullExprs)
@@ -74,7 +73,7 @@ applyModel e evalInfo = foldLExpr algebra e
 
 get arr model = do
     let res = (M.lookup) arr model
-    if res == Nothing then do 
+    if res == Nothing then do
         error $ "Bug in Test.hs made substitution of Array expression impossible. This should never happen. Array: " ++ show arr ++ ", ArrayModel: " ++ show model
         []
     else do

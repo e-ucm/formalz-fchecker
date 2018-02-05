@@ -10,7 +10,7 @@ eval :: LExpr -> LConst
 eval = foldLExpr evalAlgebra
 
 evalIfPossible :: LExpr -> LExpr
-evalIfPossible e = if evalPossible e then (LConst (eval e)) else e
+evalIfPossible e = if evalPossible e then LConst (eval e) else e
 
 -- Returns True if an LExpr only contains constants and no variables whatsoever.
 evalPossible :: LExpr -> Bool
@@ -33,21 +33,14 @@ evalAlgebra :: LExprAlgebra LConst
 evalAlgebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
     where cnst b@(CBool _) = b
           cnst i@(CInt  _) = i
-
           uni NNeg (CInt i)  = CInt (-i)
-          uni NNot (CInt i)  = CInt (-i - 1)
           uni LNot (CBool b) = CBool (not b)
-
-          bin le o re     = evalBin le o re
-
-          iff ge e1 e2    = if ge == (CBool True) then e1 else e2
-          
+          bin = evalBin
+          iff ge e1 e2    = if ge == CBool True then e1 else e2
           -- This possibly needs to be changed.
           len v           = CInt  10 -- error "Array length cannot yet be evaluated."
-
           snull (Var (TPrim _) _)  = CBool False -- Primitive type is never null.
           snull (Var (TArray _) _) = error "You can't call eval on an LExpr that has an (LIsnull someArrayVar) that wasn't converted to a boolean first."
-
           -- Things that should never happen.
           quant _ _ e1 e2 = error "Quantifiers cannot be evaluated and should be replaced using LogicIR.Rewrite.replaceQuantifiers."
           arr v a         = error "You can't call eval on an LExpr that contains uninstantiated arrays."
@@ -61,9 +54,9 @@ evalBin (CInt l) CGreater (CInt r) = CBool (l > r)
 -- Logical operators
 evalBin (CBool l) LAnd  (CBool r) = CBool (l && r)
 evalBin (CBool l) LOr   (CBool r) = CBool (l || r)
-evalBin (CBool l) LImpl (CBool r) = CBool ((not l) || (l && r))
+evalBin (CBool l) LImpl (CBool r) = CBool (not l || (l && r))
 -- Numerical operators
-evalBin (CInt l) o (CInt r) = CInt ((convert o) l r)
+evalBin (CInt l) o (CInt r) = CInt (convert o l r)
      -- Both NShr and NShl are evaluated using the Data.Bits.shift function,
      -- where a right shift is achieved by inverting the r integer.
      where convert NAdd = (+)
@@ -71,8 +64,3 @@ evalBin (CInt l) o (CInt r) = CInt ((convert o) l r)
            convert NMul = (*)
            convert NDiv = div
            convert NRem = mod
-           convert NShl = shiftL
-           convert NShr = shiftR
-           convert NAnd = (.&.)
-           convert NOr  = (.|.)
-           convert NXor = xor

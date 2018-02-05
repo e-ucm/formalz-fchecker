@@ -13,6 +13,7 @@ main = defaultMain
         ("LIR_PARSER", parserTests)
       , ("Z3_MODEL", modelTests)
       , ("EXAMPLES", examples)
+      , ("AUTOMATED_TESTING_CHECK", testingModuleTests)
       , ("EQUIV_REAL", genEquivTests "examples/test_equiv/Reals.java")
       , ("EQUIV_ARRAY", genEquivTests "examples/test_equiv/Arrays.java")
       ]

@@ -1,11 +1,12 @@
-module LogicIR.Backend.Pretty (showRelevantModel) where
+module LogicIR.Backend.Z3.Pretty (showRelevantModel) where
+
 import Data.List
 import Data.Maybe
 import qualified Data.Map as M
 import Z3.Monad
 import Z3.Opts
 
-import LogicIR.Backend.Model
+import LogicIR.Backend.Z3.Model
 
 -- | Function that shows a human-readable model and also highlights potential inconsistencies.
 showRelevantModel :: Z3Model -> IO ()

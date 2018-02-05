@@ -1,4 +1,4 @@
-module LogicIR.Backend.API where
+module LogicIR.Backend.Z3.API where
 
 import Z3.Monad
 import Z3.Opts
@@ -9,10 +9,10 @@ import Control.Monad.Trans (liftIO)
 import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
 
-import LogicIR.Backend.Model
+import LogicIR.Backend.Z3.Model
 
-import LogicIR.Backend.Pretty (showRelevantModel)
-import LogicIR.Backend.Z3
+import LogicIR.Backend.Z3.Pretty (showRelevantModel)
+import LogicIR.Backend.Z3.Z3
 import LogicIR.Expr (LExpr)
 
 -- | Z3 Response type.

@@ -1,18 +1,19 @@
-module LogicIR.Backend.ModelGenerator (generateModel, generateArrayModel, Model, ArrayModel) where
+module LogicIR.Backend.QuickCheck.ModelGenerator (generateModel, generateArrayModel, Model, ArrayModel) where
 
-import LogicIR.Expr
 import Data.List (find, nub, (\\))
 import System.Random
 import Data.Maybe (isNothing, fromJust)
 import Data.Map (Map)
 import qualified Data.Map.Lazy as M
 
+import LogicIR.Expr
+
 type Model = [(LExpr, LExpr)]
 type ArrayModel = Map Var [LConst]
 
 -- Generates a constant value for all vars vars in the given list.
 generateModel :: [LExpr] -> IO Model
-generateModel exprs = mapM generateModelEntry exprs
+generateModel = mapM generateModelEntry
 
 generateArrayModel :: [LExpr] -> IO ArrayModel
 generateArrayModel es = mapM generateArray es >>= \l -> return (M.fromList l)
@@ -31,9 +32,9 @@ generateArrayModel es = mapM generateArray es >>= \l -> return (M.fromList l)
                        This is because otherwise, the evaluation of an LExpr should be changed drastically.
                        After all, How do you evaluate a[0] or a.length if a == null... -}
 generateModelEntry :: LExpr -> IO (LExpr, LExpr)
-generateModelEntry e@(LVar (Var (TPrim t) _)) = do
+generateModelEntry e@(LVar (Var (TPrim t) _)) =
     generatePrimitive t >>= \v -> return (e, v)
-generateModelEntry e@(LIsnull (Var (TArray _) _)) = do
+generateModelEntry e@(LIsnull (Var (TArray _) _)) =
     generatePrimitive PBool >>= \v -> return (e, v)
 generateModelEntry e =
     error $ "Cannot generate model entry for " ++ show e
@@ -54,9 +55,9 @@ generateIntWithBounds b = getStdRandom (randomR b)
 -- some type primitive type.
 bounds :: Primitive -> (Int, Int)
 bounds PBool  = (0, 1)
-bounds PInt32 = (-10, 10)
+bounds PInt = (-10, 10)
 
 -- Generates an LExpr given a Primitive type and a value.
 toLExpr :: Primitive -> Int -> LExpr
 toLExpr PBool  v = LConst $ CBool $ v == 1
-toLExpr PInt32 v = LConst $ CInt  $ v
+toLExpr PInt v = LConst $ CInt v

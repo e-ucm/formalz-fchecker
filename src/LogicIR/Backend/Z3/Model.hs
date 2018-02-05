@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
-module LogicIR.Backend.Model where
+module LogicIR.Backend.Z3.Model where
 
 import Data.String
 import System.IO.Unsafe (unsafePerformIO)
@@ -10,8 +10,6 @@ import Text.Parsec.Expr
 import Text.Parsec.Language
 import Text.Parsec.String
 import qualified Text.Parsec.Token as Tokens
-
-import Debug.Trace
 
 data FuncInst = InstVal Integer ModelVal
               | InstElse ModelVal

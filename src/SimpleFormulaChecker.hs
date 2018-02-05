@@ -12,14 +12,12 @@ import Language.Java.Parser
 import Language.Java.Pretty
 import Language.Java.Syntax
 
-import qualified LogicIR.Backend.API as Z3
+import qualified LogicIR.Backend.Z3.API as Z3
 import LogicIR.Expr
 import LogicIR.Eval
-import LogicIR.Frontend.Java
-import LogicIR.Backend.Z3
-import LogicIR.Backend.Test
-import LogicIR.Backend.Pretty
-import LogicIR.Backend.Null
+import LogicIR.Backend.Z3.Z3
+import LogicIR.Backend.QuickCheck.Test
+import LogicIR.Backend.Z3.Pretty
 
 import LogicIR.Frontend.Java (javaExpToLExpr)
 import LogicIR.Null (lExprPreprocessNull)
@@ -98,5 +96,32 @@ extractExpr call = combineExprs $ map (\(MethodCall (Name [Ident _]) [a]) -> a) 
           combineExprs [e]    = e
           combineExprs (e:es) = e &* combineExprs es
 
-test9 = testSpec (edslSrc, "swap_spec1") (edslSrc, "swap_spec4") 1000
-    where edslSrc = "examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
+parse :: (FilePath, String) -> (FilePath, String) -> IO (MethodDef, MethodDef)
+parse method1@(_, name1) method2@(_, name2) = do
+    -- load the methods
+    m1@(decls1, mbody1, env1) <- parseMethod method1
+    m2@(decls2, mbody2, env2) <- parseMethod method2
+    when (env1 /= env2) $ fail "inconsistent method parameters"
+    when (decls1 /= decls2) $ fail "inconsistent class declarations (TODO)"
+    return (m1, m2)
+
+methodDefToLExpr :: MethodDef -> MethodDef -> String -> (LExpr, LExpr)
+methodDefToLExpr m1@(decls1, _, env1) m2@(decls2, _, env2) name = do
+    -- get pre/post condition
+    let (e1, e2) = (extractCond m1 name, extractCond m2 name)
+    let (lExpr1', lExpr2') = (javaExpToLExpr e1 env1 decls1, javaExpToLExpr e2 env2 decls2)
+    -- preprocess "a == null" to "isNull(a)"
+    let (lExpr1, lExpr2) = (lExprPreprocessNull lExpr1', lExprPreprocessNull lExpr2')
+    (lExpr1, lExpr2)
+        where extractCond m n = extractExpr $ getMethodCalls m n
+
+testSpec :: (FilePath, String) -> (FilePath, String) -> Int -> IO Bool
+testSpec method1@(_, name1) method2@(_, name2) n = do
+    (m1, m2) <- parse method1 method2
+    putStrLn $ "----PRE---- (" ++ name1 ++ " vs " ++ name2 ++ ")"
+    let (lExpr1, lExpr2) = methodDefToLExpr m1 m2 "pre"
+    (preAns, counterModel) <- testEquality n lExpr1 lExpr2
+    putStrLn "\n----POST---"
+    let (lExpr1, lExpr2) = methodDefToLExpr m1 m2 "post"
+    (postAns, counterModel) <- testEquality n lExpr1 lExpr2
+    return $ preAns && postAns

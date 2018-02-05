@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module LogicIR.Backend.Z3 where
+module LogicIR.Backend.Z3.Z3 where
 
 import Z3.Monad
 import Control.Monad.Trans (liftIO)
