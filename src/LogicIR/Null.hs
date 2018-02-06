@@ -1,7 +1,7 @@
 module LogicIR.Null (lExprPreprocessNull) where
 
-import           LogicIR.Expr
-import           LogicIR.Fold
+import LogicIR.Expr
+import LogicIR.Fold
 
 -- | Replace all instances of "a ==/!= null" with (!)isNull(a).
 lExprPreprocessNull :: LExpr -> LExpr

@@ -23,9 +23,6 @@ equivalentTo :: LExpr -> LExpr -> IO Z3Response
 equivalentTo lexpr lexpr' = do
     let fv = freeVars2 lexpr lexpr'
     let (ast, ast') = (lExprToZ3Ast lexpr, lExprToZ3Ast lexpr')
-    asts <- showZ3AST ast
-    asts' <- showZ3AST ast'
-    -- putStrLn $ "Z3_AST1:\n" ++ asts ++ "\n\nZ3_AST2:\n" ++ asts' ++ "\n"
     res <- tryJust errorSelector $ equivalentToZ3 fv ast ast'
     case res of
       Left () -> return Timeout
@@ -37,18 +34,12 @@ equivalentTo lexpr lexpr' = do
           InvalidUsage -> Just ()
           _            -> Nothing
 
--- | Sequence tactics.
-(-->) t t' = do
-  tt <- mkTactic t
-  tt' <- mkTactic t'
-  andThenTactic tt tt'
-
 -- | Check if two Z3 AST's are equivalent.
 equivalentToZ3 :: Z3 FreeVars -> Z3 AST -> Z3 AST -> IO Z3Response
 equivalentToZ3 freeVars ast1' ast2' =
   tryZ3 $ do
+    -- Setup
     fv <- freeVars
-    -- liftIO $ putStr "FreeVars: " >> print (M.keys fv)
     ast1 <- ast1'
     ast2 <- ast2'
     astEq <- mkEq ast1 ast2
@@ -60,46 +51,43 @@ equivalentToZ3 freeVars ast1' ast2' =
     t <- "qe" --> "aig"
     a <- applyTactic t g
     asts <- getGoalFormulas =<< getApplyResultSubgoal a 0
-    -- liftIO $ putStrLn "After tactics:"
-    -- astStrs <- mapM astToString asts
-    -- forM_ astStrs (liftIO . putStrLn)
     g' <- mkAnd asts
     assert g'
 
-    -- assert astNeq
-    (r, model) <- solverCheckAndGetModel -- check in documentation
+    -- Get model
+    (r, model) <- solverCheckAndGetModel
 
-    case r of
+    response <- case r of
       Unsat -> return Equivalent
       Undef -> return Undefined
       Sat   -> do
-        let m = fromJust model
-        ms <- M.fromList <$> forM (M.toList fv) (evalAST fv m)
-        let ms' = sanitize ms
-        liftIO $ putStr "Model: " >> print ms'
-        return $ NotEquivalent ms'
-    -- solverReset
-    where evalAST :: FreeVars -> Model -> (String, AST) -> Z3 (String, ModelVal)
-          evalAST fv m (k, ast) = do
-            v <- fromJust <$> modelEval m ast True
-            sortKind <- getSort v >>= getSortKind
-            if sortKind == Z3_ARRAY_SORT then do
-              -- Retrieve array's length
-              lenName <- mkStringSymbol (k ++ "?length") >>= mkIntVar
-              f <- snd <$> evalAST fv m (k ++ "?length", lenName)
-              let len = case f of
-                    (IntVal i) -> i
-                    _ -> error "non-int length"
-              -- Iterate array "points"
-              modelVals <- forM [0..(len-1)] (\i -> do
-                indexAST <- mkInteger $ toInteger i
-                pointAST <- mkSelect v indexAST
-                snd <$> evalAST fv m ("", pointAST)
-                )
-              return (k, ManyVal modelVals)
-            else do
-              v' <- astToString v
-              return (k, fromString v' :: ModelVal)
+        ms <- M.fromList <$> forM (M.toList fv) (evalAST fv (fromJust model))
+        return $ NotEquivalent (sanitize ms)
+    solverReset
+    return response
+    where
+      -- Construct model values
+      evalAST :: FreeVars -> Model -> (String, AST) -> Z3 (String, ModelVal)
+      evalAST fv m (k, ast) = do
+        v <- fromJust <$> modelEval m ast True
+        sortKind <- getSort v >>= getSortKind
+        if sortKind == Z3_ARRAY_SORT then do
+          -- Retrieve array's length
+          lenName <- mkStringSymbol (k ++ "?length") >>= mkIntVar
+          f <- snd <$> evalAST fv m (k ++ "?length", lenName)
+          let len = case f of
+                (IntVal i) -> i
+                _ -> error "non-int length"
+          -- Iterate array "points"
+          modelVals <- forM [0..(len-1)] (\i -> do
+            indexAST <- mkInteger $ toInteger i
+            pointAST <- mkSelect v indexAST
+            snd <$> evalAST fv m ("", pointAST)
+            )
+          return (k, ManyVal modelVals)
+        else do
+          v' <- astToString v
+          return (k, fromString v' :: ModelVal)
 
 -- | Z3 try evaluation with timeout.
 tryZ3 = evalZ3With Nothing (  opt "timeout" (5000 :: Integer)
@@ -108,6 +96,12 @@ tryZ3 = evalZ3With Nothing (  opt "timeout" (5000 :: Integer)
                            +? opt "auto_config" True
                            -- +? opt "unsat_core" True
                            )
+                           
+-- | Sequence tactics.
+(-->) t t' = do
+  tt <- mkTactic t
+  tt' <- mkTactic t'
+  andThenTactic tt tt'
 
 -- | Pretty-print Z3 AST.
 showZ3AST :: Z3 AST -> IO String

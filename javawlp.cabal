@@ -28,6 +28,7 @@ library
                      , LogicIR.Pretty
                      , LogicIR.Frontend.Java
                      , LogicIR.Eval
+                     , LogicIR.ParserUtils
                      -- Checker
                      , SimpleFormulaChecker
                      -- Z3

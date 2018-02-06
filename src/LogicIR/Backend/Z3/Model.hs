@@ -1,17 +1,17 @@
-{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 module LogicIR.Backend.Z3.Model where
 
 import qualified Data.Map as M
-
 import Data.String
 import Text.Parsec hiding (runP)
-import Text.Parsec.Char
 import Text.Parsec.Expr
 import Text.Parsec.Language
 import Text.Parsec.String
 import qualified Text.Parsec.Token as Tokens
 
+import LogicIR.ParserUtils
+
+-- | Data type.
 data ModelVal = BoolVal Bool
               | IntVal Integer
               | RealVal Double
@@ -21,6 +21,7 @@ data ModelVal = BoolVal Bool
 type Z3Model = M.Map String ModelVal
 emptyZ3Model = M.empty :: Z3Model
 
+-- | Pretty-printing.
 instance Show ModelVal where
   show (BoolVal b)  = show b
   show (IntVal i)   = show i
@@ -37,17 +38,7 @@ sanitize model = M.mapWithKey f model
             (IntVal i) -> i
             _ -> error "non-int length"
 
--- | Implicit conversion from strings.
-instance IsString ModelVal where
-  fromString = runP modelP
-
--- | Parser.
-runP :: Parser a -> String -> a
-runP p s =
-  case runParser (p <* eof) () "" s of
-        Left err -> error $ show err
-        Right r  -> r
-
+-- | Parsers.
 modelP :: Parser ModelVal
 modelP = try (BoolVal <$> boolP)
      <|> try (RealVal <$> realP)
@@ -74,14 +65,6 @@ indexP = Tokens.natural haskell
 boolP :: Parser Bool
 boolP = (True <$ str "true") <|> (False <$ str "false")
 
--- | Useful marcros.
-lexeme p = spaces *> p <* spaces
-str = lexeme . string
-commas l = l `sepBy` string ", "
-(<~) p s = p <* lexeme (string s)
-(~>) s p = lexeme (string s) *> p
-parens = Tokens.parens haskell
-reserved = Tokens.reservedOp haskell
-infix_ op f = Infix (reserved op >> return f) AssocLeft
-prefix op f = Prefix (reserved op >> return f)
-postfix op f = Postfix (reserved op >> return f)
+-- | Implicit conversion from strings.
+instance IsString ModelVal where
+  fromString = runP modelP
