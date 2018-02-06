@@ -2,91 +2,71 @@
 {-# LANGUAGE OverloadedStrings #-}
 module LogicIR.Backend.Z3.Model where
 
+import qualified Data.Map as M
+
 import Data.String
-import System.IO.Unsafe (unsafePerformIO)
-import Text.Parsec
+import Text.Parsec hiding (runP)
 import Text.Parsec.Char
 import Text.Parsec.Expr
 import Text.Parsec.Language
 import Text.Parsec.String
 import qualified Text.Parsec.Token as Tokens
 
-data FuncInst = InstVal Integer ModelVal
-              | InstElse ModelVal
-              deriving (Show, Read, Eq, Ord)
-
 data ModelVal = BoolVal Bool
               | IntVal Integer
               | RealVal Double
-              | ArrayRef String
-              | ArrayFunc [FuncInst]
-              deriving (Read, Eq, Ord)
+              | ManyVal [ModelVal]
+              deriving (Eq)
 
-type Z3Model = [(String, ModelVal)]
+type Z3Model = M.Map String ModelVal
+emptyZ3Model = M.empty :: Z3Model
 
 instance Show ModelVal where
-  show (BoolVal b) = show b
-  show (IntVal i) = show i
-  show (RealVal i) = show i
-  show (ArrayRef s) = s
-  show (ArrayFunc fs) = show fs
+  show (BoolVal b)  = show b
+  show (IntVal i)   = show i
+  show (RealVal i)  = show i
+  show (ManyVal vs) = show vs
+
+-- | Crop arrays until their specified length.
+sanitize :: Z3Model -> Z3Model
+sanitize model = M.mapWithKey f model
+  where f k (ManyVal array) = ManyVal $ take (counts k) array
+        f _ x = x
+        counts k = fromInteger $
+          case model M.! (k ++ "?length") of
+            (IntVal i) -> i
+            _ -> error "non-int length"
+
+-- | Implicit conversion from strings.
+instance IsString ModelVal where
+  fromString = runP modelP
 
 -- | Parser.
 runP :: Parser a -> String -> a
-runP p s = unsafePerformIO $
+runP p s =
   case runParser (p <* eof) () "" s of
-        Left err   -> fail $ show err
-        Right lExp -> return lExp
+        Left err -> error $ show err
+        Right r  -> r
 
-runP' :: Parser a -> String -> Either ParseError a
-runP' p = runParser (p <* eof) () ""
-
-modelP :: Parser Z3Model
-modelP = many1 (lexeme asgP)
-
-asgP :: Parser (String, ModelVal)
-asgP = do
-  identifier <- idP <~ "->"
-  val <- valP
-  return (identifier, val)
-
-valP :: Parser ModelVal
-valP = try (parens valP)
-   <|> try (ArrayFunc <$> funcP)
-   <|> try (ArrayRef <$> arrP)
-   <|> try (RealVal <$> realP)
-   <|> try (IntVal <$> intP)
-   <|> (BoolVal <$> boolP)
-
-funcP :: Parser [FuncInst]
-funcP = "{" ~> many1 funcInstP <~ "}"
-
-arrP :: Parser String
-arrP = "(_ as-array" ~> idP <~ ")"
-
-funcInstP :: Parser FuncInst
-funcInstP = try instElse
-        <|> try instVal
-        <|> instConst
-  where instVal = do
-          i <- (indexP <~ "->") <?> "index"
-          v <- valP <?> "val"
-          return $ InstVal i v
-        instElse = do
-          v <- "else ->" ~> valP
-          return $ InstElse v
-        instConst = InstElse <$> valP
-
-idP :: Parser String
-idP = many1 (letter <|> digit <|> oneOf ['!', '?'])
+modelP :: Parser ModelVal
+modelP = try (BoolVal <$> boolP)
+     <|> try (RealVal <$> realP)
+     <|> (IntVal <$> intP)
 
 realP :: Parser Double
-realP = negRealP <|> Tokens.float haskell
-  where negRealP = do v <- "-" ~> Tokens.float haskell
-                      return (-v)
+realP =  try negRealP <|> try divRealP <|> Tokens.float haskell
+  where divRealP = do
+          v <- "(/" ~> realP
+          v' <- realP <~ ")"
+          return $ v / v'
+        negRealP = do
+          v <- "(-" ~> realP <~ ")"
+          return $ -v
 
 intP :: Parser Integer
-intP = Tokens.integer haskell
+intP = try negIntP <|> Tokens.integer haskell
+  where negIntP = do v <- "(-" ~> intP <~ ")"
+                     return $ -v
 
 indexP :: Parser Integer
 indexP = Tokens.natural haskell

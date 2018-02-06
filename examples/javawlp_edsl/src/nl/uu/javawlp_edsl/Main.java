@@ -198,13 +198,15 @@ public class Main {
         System.out.println("Hello, world!");
     }
 
-    public static void arr1(int[] a) {
-        pre(true);
+    public static void arr1(double[] a) {
+        pre(a.length == 2 && forall(a, i -> forallr(a, i, a.length, j -> a[i] <= a[j])));
         post(true);
     }
 
     public static void arr2(double[] a) {
-        pre(forallr(a, 0, a.length - 1, i -> a[i] <= a[i + 1]));
+        // pre(a.length == 2);
+        // pre(forall(a, i -> forallr(a, i, a.length, j -> a[j] >= a[i])));
+        pre(a.length == 2 && forall(a, i -> forallr(a, i+1, a.length, j -> a[i] < a[j] + 1)));
         post(true);
     }
 }

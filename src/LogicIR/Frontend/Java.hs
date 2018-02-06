@@ -95,7 +95,7 @@ javaExpToLExprAlgebra =
                           "existsr" -> lquantr QAny i begin end expr
                           _ -> error $ "Unimplemented fMethodInv: " ++ show inv
               lquantr op i begin end expr =
-                LQuant op i (LBinop (v i .> begin) LAnd (LBinop (LVar i) CLess end)) (refold expr)
+                LQuant op i (LBinop (v i .>= begin) LAnd (LBinop (LVar i) CLess end)) (refold expr)
               refold expr =
                 foldExp javaExpToLExprAlgebra expr env decls
     fArrayAccess arrayIndex env decls =

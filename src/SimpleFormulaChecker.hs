@@ -16,16 +16,17 @@ import qualified LogicIR.Backend.Z3.API as Z3
 import LogicIR.Expr
 import LogicIR.Eval
 import LogicIR.Backend.Z3.Z3
+import LogicIR.Backend.Z3.Model
 import LogicIR.Backend.QuickCheck.Test
-import LogicIR.Backend.Z3.Pretty
 
 import LogicIR.Frontend.Java (javaExpToLExpr)
 import LogicIR.Null (lExprPreprocessNull)
 import LogicIR.Pretty (prettyLExpr)
 
 -- | Response type.
-data Response = Equivalent | NotEquivalent (Maybe String) | Undefined | Timeout
+data Response = Equivalent | NotEquivalent Z3Model | Undefined | Timeout
                 deriving (Eq, Show)
+
 (<>) :: Response -> Response -> Response
 Equivalent <> r = r
 NotEquivalent s <> _ = NotEquivalent s

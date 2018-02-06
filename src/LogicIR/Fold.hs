@@ -2,7 +2,7 @@ module LogicIR.Fold where
 
 import LogicIR.Expr
 
--- Fold algebra for logical expressions
+-- | Fold algebra for logical expressions.
 type LExprAlgebra r = (LConst -> r, -- LConst
                        Var -> r, -- LVar
                        LUnop -> r -> r, -- LUnop
@@ -14,7 +14,7 @@ type LExprAlgebra r = (LConst -> r, -- LConst
                        Var -> r -- LLen
                       )
 
--- Fold for logical expressions
+-- | Fold for logical expressions.
 foldLExpr :: LExprAlgebra r -> LExpr -> r
 foldLExpr (fConst, fVar, fUnop, fBinop, fIf, fQuant, fArray, fIsnull, fLen) = fold where
     fold e = case e of

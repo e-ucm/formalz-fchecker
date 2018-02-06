@@ -3,41 +3,33 @@ module LogicIR.Backend.Z3.API where
 import Z3.Monad
 import Z3.Opts
 
+import Data.String
 import Control.Exception.Base (tryJust)
-import Control.Monad (when, forM_)
+import Control.Monad (forM, forM_, when)
 import Control.Monad.Trans (liftIO)
 import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
+import qualified Data.Map as M
 
-import LogicIR.Backend.Z3.Model
-
-import LogicIR.Backend.Z3.Pretty (showRelevantModel)
-import LogicIR.Backend.Z3.Z3
 import LogicIR.Expr (LExpr)
+import LogicIR.Backend.Z3.Model
+import LogicIR.Backend.Z3.Z3
 
 -- | Z3 Response type.
-data Z3Response = Equivalent | NotEquivalent (Maybe String) | Timeout | Undefined
+data Z3Response = Equivalent | NotEquivalent Z3Model | Timeout | Undefined
 
 -- | Determine the equality of two method's pre/post conditions.
 equivalentTo :: LExpr -> LExpr -> IO Z3Response
 equivalentTo lexpr lexpr' = do
-    let (ast1, ast2) = (lExprToZ3Ast lexpr, lExprToZ3Ast lexpr')
-    ast1s <- showZ3AST ast1
-    ast2s <- showZ3AST ast2
-    putStrLn $ "Z3_AST1:\n" ++ ast1s ++ "\n\nZ3_AST2:\n" ++ ast2s ++ "\n"
-    res <- tryJust errorSelector (ast1 `equivalentToZ3` ast2)
+    let fv = freeVars2 lexpr lexpr'
+    let (ast, ast') = (lExprToZ3Ast lexpr, lExprToZ3Ast lexpr')
+    asts <- showZ3AST ast
+    asts' <- showZ3AST ast'
+    -- putStrLn $ "Z3_AST1:\n" ++ asts ++ "\n\nZ3_AST2:\n" ++ asts' ++ "\n"
+    res <- tryJust errorSelector $ equivalentToZ3 fv ast ast'
     case res of
       Left () -> return Timeout
-      Right (result, model) ->
-        case result of
-          Unsat -> return Equivalent
-          Undef -> return Undefined
-          Sat   -> do modelStr <- tryZ3 $ showModel $ fromJust model
-                      putStrLn $ "\nModel:\n" ++ modelStr
-                      case runP' modelP modelStr of
-                        Left err -> putStrLn $ "Cannot parse model:\n" ++ show err
-                        Right m -> showRelevantModel m
-                      return $ NotEquivalent (Just modelStr)
+      Right r -> return r
     where
       errorSelector :: Z3Error -> Maybe ()
       errorSelector err =
@@ -52,9 +44,11 @@ equivalentTo lexpr lexpr' = do
   andThenTactic tt tt'
 
 -- | Check if two Z3 AST's are equivalent.
-equivalentToZ3 :: Z3 AST -> Z3 AST -> IO (Result, Maybe Model)
-equivalentToZ3 ast1' ast2' =
+equivalentToZ3 :: Z3 FreeVars -> Z3 AST -> Z3 AST -> IO Z3Response
+equivalentToZ3 freeVars ast1' ast2' =
   tryZ3 $ do
+    fv <- freeVars
+    -- liftIO $ putStr "FreeVars: " >> print (M.keys fv)
     ast1 <- ast1'
     ast2 <- ast2'
     astEq <- mkEq ast1 ast2
@@ -66,16 +60,46 @@ equivalentToZ3 ast1' ast2' =
     t <- "qe" --> "aig"
     a <- applyTactic t g
     asts <- getGoalFormulas =<< getApplyResultSubgoal a 0
-    liftIO $ putStrLn "After tactics:"
-    astStrs <- mapM astToString asts
-    forM_ astStrs (liftIO . putStrLn)
+    -- liftIO $ putStrLn "After tactics:"
+    -- astStrs <- mapM astToString asts
+    -- forM_ astStrs (liftIO . putStrLn)
     g' <- mkAnd asts
     assert g'
 
     -- assert astNeq
-    r <- solverCheckAndGetModel -- check in documentation
-    solverReset
-    return r
+    (r, model) <- solverCheckAndGetModel -- check in documentation
+
+    case r of
+      Unsat -> return Equivalent
+      Undef -> return Undefined
+      Sat   -> do
+        let m = fromJust model
+        ms <- M.fromList <$> forM (M.toList fv) (evalAST fv m)
+        let ms' = sanitize ms
+        liftIO $ putStr "Model: " >> print ms'
+        return $ NotEquivalent ms'
+    -- solverReset
+    where evalAST :: FreeVars -> Model -> (String, AST) -> Z3 (String, ModelVal)
+          evalAST fv m (k, ast) = do
+            v <- fromJust <$> modelEval m ast True
+            sortKind <- getSort v >>= getSortKind
+            if sortKind == Z3_ARRAY_SORT then do
+              -- Retrieve array's length
+              lenName <- mkStringSymbol (k ++ "?length") >>= mkIntVar
+              f <- snd <$> evalAST fv m (k ++ "?length", lenName)
+              let len = case f of
+                    (IntVal i) -> i
+                    _ -> error "non-int length"
+              -- Iterate array "points"
+              modelVals <- forM [0..(len-1)] (\i -> do
+                indexAST <- mkInteger $ toInteger i
+                pointAST <- mkSelect v indexAST
+                snd <$> evalAST fv m ("", pointAST)
+                )
+              return (k, ManyVal modelVals)
+            else do
+              v' <- astToString v
+              return (k, fromString v' :: ModelVal)
 
 -- | Z3 try evaluation with timeout.
 tryZ3 = evalZ3With Nothing (  opt "timeout" (5000 :: Integer)

@@ -34,7 +34,6 @@ library
                      , LogicIR.Backend.Z3.Z3
                      , LogicIR.Backend.Z3.API
                      , LogicIR.Backend.Z3.Model
-                     , LogicIR.Backend.Z3.Pretty
                      -- QuickCheck
                      , LogicIR.Backend.QuickCheck.Test
                      , LogicIR.Backend.QuickCheck.ModelGenerator
@@ -64,7 +63,7 @@ test-suite javawlp-tests
                      , TIRParser
                      , TIRTest
                      , TEquivalenceClasses
-                     , TZ3Model
+                     , TModelParser
   build-depends:       base
                      , javawlp
                      , test-framework

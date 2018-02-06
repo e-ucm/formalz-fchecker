@@ -5,14 +5,14 @@ import TExamples
 import TIRParser
 import TIRTest
 import TEquivalenceClasses
-import TZ3Model
+import TModelParser
 
 main = defaultMain
   [ constructTestSuite testName testSuite
   | (testName, testSuite) <- [
         ("LIR_PARSER", parserTests)
-      , ("Z3_MODEL", modelTests)
       , ("EXAMPLES", examples)
+      , ("MODEL_PARSER", modelParserTests)
       , ("AUTOMATED_TESTING_CHECK", testingModuleTests)
       , ("EQUIV_REAL", genEquivTests "examples/test_equiv/Reals.java")
       , ("EQUIV_ARRAY", genEquivTests "examples/test_equiv/Arrays.java")
