@@ -137,7 +137,7 @@ public static void test(int[] a) {
 ```
 
 The resulting (raw) model:
-```yaml
+```scala
 a.null -> true
 a -> {
   0 -> 1
@@ -147,7 +147,7 @@ a -> {
 ```
 
 Essentially this model tells us that the two preconditions are not equivalent with an `a` that is both `null` and `[1, 0]`. A post-processing step has been added to pretty print the model and it shows:
-```yaml
+```scala
 a = null
 ```
 
@@ -168,7 +168,7 @@ public static void test2(int[] a) {
 ```
 
 The resulting (raw) model:
-```yaml
+```scala
 a.length -> 1
 a -> {
   0 -> 0
@@ -178,7 +178,7 @@ a -> {
 ```
 
 This model tells us that `a.length == 1` and that `a == [0, 1]` which is contradictory. A postprocessing step has been added to pretty print the model. And the result will instead show:
-```yaml
+```scala
 a = inconsistent array representation
 ```
 
