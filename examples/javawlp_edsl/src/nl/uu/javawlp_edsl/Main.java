@@ -92,7 +92,7 @@ public class Main {
     }
 
     public static void swap_spec3(int[] a, int i, int j) {
-        pre(a == null);
+        // pre(a == null);
         pre(a.length > 0);
         pre(i >= 0);
         pre(j >= 0);
@@ -104,6 +104,7 @@ public class Main {
     }
 
     public static void swap_spec4(int[] a, int i, int j) {
+        pre(a != null);
         pre(a.length > 0);
         pre(i >= 0);
         pre(j >= 0);

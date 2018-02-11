@@ -3,24 +3,45 @@ We want to help students learn about formal program verification. One aspect of 
 
 One use case could be to integrate our tool in a submission system like [DOMjudge](https://www.domjudge.org). We then allow students to submit their programs and they get instant feedback on their work.
 
-A proof of concept can be found in `src/SimpleFormulaChecker.hs`, the "main" function is `compareSpec`.
+## Dependencies:
+- [z3](https://hackage.haskell.org/package/z3)
+- [haskell](https://www.haskell.org/)
+- [stack](https://docs.haskellstack.org/en/stable/README/)
 
-To compile the project you need to install following packages:
-
-- [z3](https://hackage.haskell.org/package/z3) (see the [repository wiki](https://git.science.uu.nl/d.h.ogilvie2/javawlp/wikis/Installing-z3-haskell) for installation instructions)
-
+## Usage
 To setup the Haskell project:
 ```
-stack setup
-stack build
+> stack setup
+> stack build
 ```
+
+Command-line usage:
+```
+stack exec javawlp --
+  [--srcA STRING] [--srcB STRING] [-a STRING] [-b STRING]
+  [-w|--runServer] [-p|--port INT]
+```
+
+To run a comparison between two methods:
+```
+> stack exec javawlp -- \
+  --srcA 'examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java' -a 'real1' \
+  --srcB 'examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java' -b 'real2'
+```
+
+To run the server API at port 8080:
+```
+> stack exec javawlp -- -p 8080 --runServer
+```
+
+To query the server (see [API.md](https://git.science.uu.nl/impresshs/javawlp/blob/master/API.md) for available options):
+```
+> curl localhost:8080/compare?a="examples/Main.java:real1"&b="examples/Main.java:real2"
+```
+
 To run the tests:
 ```
-stack test
-```
-To start an interactive GHC session:
-```
-stack ghci
+> stack test
 ```
 
 ## Java EDSL

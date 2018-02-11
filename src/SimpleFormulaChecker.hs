@@ -5,6 +5,7 @@ import Control.Monad (when)
 import Control.Monad.Trans (liftIO)
 import qualified Data.Map as M
 import Data.Maybe
+import Data.String
 
 import Javawlp.Engine.HelperFunctions
 import Javawlp.Engine.Types
@@ -25,13 +26,21 @@ import LogicIR.Pretty (prettyLExpr)
 
 -- | Response type.
 data Response = Equivalent | NotEquivalent Z3Model | Undefined | Timeout
-                deriving (Eq, Show)
+                deriving (Eq)
 
 (<>) :: Response -> Response -> Response
 Equivalent <> r = r
 NotEquivalent s <> _ = NotEquivalent s
 Timeout <> _ = Timeout
 Undefined <> _ = Undefined
+
+instance Show Response where
+  show Equivalent = "Formulas are equivalent"
+  show Undefined = "Oops... could not determine if formulas are equivalent"
+  show Timeout = "Timeout occured"
+  show (NotEquivalent model) = "Not equivalent: " ++ show model
+
+debug = False
 
 -- Function that compares both the pre and the post condition for two methods.
 -- It is assumed that both methods have the same environment (parameter names, class member names, etc).
@@ -42,9 +51,9 @@ compareSpec method1@(_, name1) method2@(_, name2) = do
     m2@(decls2, mbody2, env2) <- parseMethod method2
     when (decls1 /= decls2) $ fail "inconsistent class declarations"
     -- when (env1 /= env2) $ fail "inconsistent environments"
-    putStrLn $ "----PRE---- (" ++ name1 ++ " vs " ++ name2 ++ ")"
+    -- putStrLn $ "----PRE---- (" ++ name1 ++ " vs " ++ name2 ++ ")"
     preAns <- determineFormulaEq m1 m2 "pre"
-    putStrLn "\n----POST---"
+    -- putStrLn "\n----POST---"
     postAns <- determineFormulaEq m1 m2 "post"
     return $ preAns <> postAns
 
@@ -53,10 +62,10 @@ determineFormulaEq :: MethodDef -> MethodDef -> String -> IO Response
 determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
     -- get pre/post condition
     let (e1, e2) = (extractCond m1 name, extractCond m2 name)
-    putStrLn $ "e1:\n" ++ prettyPrint e1 ++ "\n\ne2:\n" ++ prettyPrint e2 ++ "\n"
+    when debug $ putStrLn $ "e1:\n" ++ prettyPrint e1 ++ "\n\ne2:\n" ++ prettyPrint e2 ++ "\n"
     let (l1, l2) = (javaExpToLExpr e1 env1 decls1, javaExpToLExpr e2 env2 decls2)
     let (l, l') = (lExprPreprocessNull l1, lExprPreprocessNull l2) -- preprocess "a == null" to "isNull(a)"
-    putStrLn $ "LogicIR.Pretty 1:\n" ++ prettyLExpr l ++ "\n\nLogicIR.Pretty 2:\n" ++ prettyLExpr l' ++ "\n"
+    -- putStrLn $ "LogicIR.Pretty 1:\n" ++ prettyLExpr l ++ "\n\nLogicIR.Pretty 2:\n" ++ prettyLExpr l' ++ "\n"
     z3Response <- l `Z3.equivalentTo` l'
     case z3Response of
       Z3.Equivalent      -> return Equivalent

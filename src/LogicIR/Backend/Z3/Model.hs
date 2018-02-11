@@ -1,8 +1,11 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 module LogicIR.Backend.Z3.Model where
 
 import qualified Data.Map as M
 import Data.String
+import Data.List (isSuffixOf)
 import Text.Parsec hiding (runP)
 import Text.Parsec.Expr
 import Text.Parsec.Language
@@ -16,7 +19,7 @@ data ModelVal = BoolVal Bool
               | IntVal Integer
               | RealVal Double
               | ManyVal [ModelVal]
-              deriving (Eq)
+              deriving Eq
 
 type Z3Model = M.Map String ModelVal
 emptyZ3Model = M.empty :: Z3Model
@@ -30,13 +33,20 @@ instance Show ModelVal where
 
 -- | Crop arrays until their specified length.
 sanitize :: Z3Model -> Z3Model
-sanitize model = M.mapWithKey f model
+sanitize model =
+  M.filterWithKey isNotLen $ M.filterWithKey isNotNull $ M.mapWithKey f model
   where f k (ManyVal array) = ManyVal $ take (counts k) array
-        f _ x = x
+        f _ x               = x
         counts k = fromInteger $
           case model M.! (k ++ "?length") of
             (IntVal i) -> i
-            _ -> error "non-int length"
+            _          -> error "non-int length"
+        isNotNull k _ =
+          ((k ++ "?null") `M.notMember` model) ||
+          case model M.! (k ++ "?null") of
+            (BoolVal b) -> not b
+            _           -> error "non-bool null"
+        isNotLen k _ = not $ "?length" `isSuffixOf` k
 
 -- | Parsers.
 modelP :: Parser ModelVal
