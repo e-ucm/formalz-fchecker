@@ -40,6 +40,7 @@ instance Show Response where
   show Timeout = "Timeout occured"
   show (NotEquivalent model) = "Not equivalent: " ++ show model
 
+-- Whether to print debug messages.
 debug = False
 
 -- Function that compares both the pre and the post condition for two methods.
@@ -51,9 +52,9 @@ compareSpec method1@(_, name1) method2@(_, name2) = do
     m2@(decls2, mbody2, env2) <- parseMethod method2
     when (decls1 /= decls2) $ fail "inconsistent class declarations"
     -- when (env1 /= env2) $ fail "inconsistent environments"
-    -- putStrLn $ "----PRE---- (" ++ name1 ++ " vs " ++ name2 ++ ")"
+    when debug $ putStrLn $ "----PRE---- (" ++ name1 ++ " vs " ++ name2 ++ ")"
     preAns <- determineFormulaEq m1 m2 "pre"
-    -- putStrLn "\n----POST---"
+    when debug $ putStrLn "\n----POST---"
     postAns <- determineFormulaEq m1 m2 "post"
     return $ preAns <> postAns
 
@@ -65,7 +66,7 @@ determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
     when debug $ putStrLn $ "e1:\n" ++ prettyPrint e1 ++ "\n\ne2:\n" ++ prettyPrint e2 ++ "\n"
     let (l1, l2) = (javaExpToLExpr e1 env1 decls1, javaExpToLExpr e2 env2 decls2)
     let (l, l') = (lExprPreprocessNull l1, lExprPreprocessNull l2) -- preprocess "a == null" to "isNull(a)"
-    -- putStrLn $ "LogicIR.Pretty 1:\n" ++ prettyLExpr l ++ "\n\nLogicIR.Pretty 2:\n" ++ prettyLExpr l' ++ "\n"
+    when debug $ putStrLn $ "LogicIR.Pretty 1:\n" ++ prettyLExpr l ++ "\n\nLogicIR.Pretty 2:\n" ++ prettyLExpr l' ++ "\n"
     z3Response <- l `Z3.equivalentTo` l'
     case z3Response of
       Z3.Equivalent      -> return Equivalent
@@ -128,10 +129,10 @@ methodDefToLExpr m1@(decls1, _, env1) m2@(decls2, _, env2) name = do
 testSpec :: (FilePath, String) -> (FilePath, String) -> Int -> IO Bool
 testSpec method1@(_, name1) method2@(_, name2) n = do
     (m1, m2) <- parse method1 method2
-    putStrLn $ "----PRE---- (" ++ name1 ++ " vs " ++ name2 ++ ")"
+    when debug $ putStrLn $ "----PRE---- (" ++ name1 ++ " vs " ++ name2 ++ ")"
     let (lExpr1, lExpr2) = methodDefToLExpr m1 m2 "pre"
     (preAns, counterModel) <- testEquality n lExpr1 lExpr2
-    putStrLn "\n----POST---"
+    when debug $ putStrLn "\n----POST---"
     let (lExpr1, lExpr2) = methodDefToLExpr m1 m2 "post"
     (postAns, counterModel) <- testEquality n lExpr1 lExpr2
     return $ preAns && postAns
