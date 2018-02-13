@@ -9,17 +9,15 @@ import Data.List (find, nub, (\\))
 import Data.Map (Map)
 import qualified Data.Map.Lazy as M
 
--- EvalInfo contains all information needed to evaluate an LExpr.
--- The third tuple element is a list of all Quantifier iterator vars.
-type EvalInfo = (Model, ArrayModel, [LExpr])
-
 test :: LExpr -> LExpr -> IO (Bool, Model, ArrayModel)
 test e1 e2 = do
-    (res1,evalInfo) <- testLExpr e1
-    res2            <- testModel e2 evalInfo
-    let (primitivesModel, arrayModel, _) = evalInfo
+    (res1,(m,arrM,_)) <- testLExpr e1
+    evalInfo'         <- expandEvalInfo e2 (m, arrM)
+    res2              <- testModel e2 evalInfo'
+    let (primitivesModel, arrayModel, _) = evalInfo'
     return (res1 == res2, primitivesModel, arrayModel)
 
+-- Calls 'test' multiple times.
 testEquality :: Int -> LExpr -> LExpr -> IO (Bool, (Model, ArrayModel))
 testEquality 0 e1 e2 = do
     return (True, ([], M.empty))
@@ -37,15 +35,10 @@ testEquality n e1 e2 = do
 -- be evaluated - i.e. there's still a variable in the LExpr - an error will be thrown.
 testLExpr :: LExpr -> IO (LConst, EvalInfo)
 testLExpr e = do
-    let vs@(regularVs, (arrayVs, arrayOpVs), quantVs) = findVariables e
-    let isNullExprs   = filter sIsnullExpr arrayOpVs
-    primitivesModel  <- generateModel (regularVs ++ isNullExprs)
-    arrayModel       <- generateArrayModel arrayVs
+    (primitivesModel, arrayModel, quantVs) <- generateEvalInfo e
     testResult       <- testModel e (primitivesModel, arrayModel, quantVs)
     let evalInfo      = (primitivesModel, arrayModel, quantVs)
     return (testResult, evalInfo)
-    where sIsnullExpr (LIsnull _) = True
-          sIsnullExpr _           = False
 
 testModel :: LExpr -> EvalInfo -> IO LConst
 testModel e evalInfo = do
@@ -74,7 +67,7 @@ applyModel e evalInfo = foldLExpr algebra e
 get arr model = do
     let res = (M.lookup) arr model
     if res == Nothing then do
-        error $ "Bug in Test.hs made substitution of Array expression impossible. This should never happen. Array: " ++ show arr ++ ", ArrayModel: " ++ show model
+        error $ "Impossible substitution of Array expression. Array: " ++ show arr ++ ", ArrayModel: " ++ show model
         []
     else do
         fromJust res
@@ -143,30 +136,3 @@ evalQuantifier v domain e (m1,m2,quantVs) = do
                       -- newDomain could not be evaluated because there are variables in it that should have been
                       -- substituted by now. This should never happen.
                       error $ "Quantifier domain could not be evaluated. This should never happen. " ++ (show newDomain)
-
-
-
--- The first  list contains all regular var LExpr's.
--- The second item contains a list of all arrays and a list of array operators (isnull / len).
--- The third  list contains all quantifier indexer vars.
-type VariableCollection = ([LExpr],([LExpr],[LExpr]),[LExpr])
-
-findVariables :: LExpr -> VariableCollection
-findVariables e = (a \\ c, b, c)
-    where merge :: VariableCollection -> VariableCollection -> VariableCollection
-          merge (a1,(b1,c1),d1) (a2,(b2,c2),d2) = (a1++a2,(b1++b2,c1++c2),d1++d2)
-
-          algebra :: LExprAlgebra VariableCollection
-          algebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
-          cnst _           = ([],([],[]),[])
-          uni _ e          = e
-          bin le _ re      = merge le re
-          iff ge e1 e2     = merge ge $ merge e1 e2
-          var v            = ([LVar v],([],[]),[])
-          quant qt v e1 e2 = merge ([],([],[]),[LVar v]) $ merge e1 e2
-          arr v e          = merge ([],([LVar v],[]),[]) e
-          snull v          = ([],([LVar v],[LIsnull v]),[])
-          len v            = ([],([LVar v],[LLen v]),[])
-
-          (afull,(bfull,cfull),dfull) = foldLExpr algebra e
-          (a,b,c) = (nub afull,(nub bfull,nub cfull),nub dfull)

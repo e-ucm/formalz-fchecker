@@ -14,11 +14,11 @@ import Language.Java.Pretty
 import Language.Java.Syntax
 
 import qualified LogicIR.Backend.Z3.API as Z3
+import qualified LogicIR.Backend.QuickCheck.API as Test
 import LogicIR.Expr
 import LogicIR.Eval
 import LogicIR.Backend.Z3.Z3
 import LogicIR.Backend.Z3.Model
-import LogicIR.Backend.QuickCheck.Test
 
 import LogicIR.Frontend.Java (javaExpToLExpr)
 import LogicIR.Null (lExprPreprocessNull)
@@ -68,11 +68,7 @@ determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
     let (l, l') = (lExprPreprocessNull l1, lExprPreprocessNull l2) -- preprocess "a == null" to "isNull(a)"
     when debug $ putStrLn $ "LogicIR.Pretty 1:\n" ++ prettyLExpr l ++ "\n\nLogicIR.Pretty 2:\n" ++ prettyLExpr l' ++ "\n"
     z3Response <- l `Z3.equivalentTo` l'
-    case z3Response of
-      Z3.Equivalent      -> return Equivalent
-      Z3.NotEquivalent s -> return $ NotEquivalent s
-      Z3.Timeout         -> return Timeout -- TODO add QuickCheck on timeout
-      _                  -> return Undefined
+    return $ toResponse z3Response
     where
       extractCond :: MethodDef -> String -> Exp
       extractCond m n = extractExpr (getMethodCalls m n)
@@ -126,13 +122,19 @@ methodDefToLExpr m1@(decls1, _, env1) m2@(decls2, _, env2) name = do
     (lExpr1, lExpr2)
         where extractCond m n = extractExpr $ getMethodCalls m n
 
-testSpec :: (FilePath, String) -> (FilePath, String) -> Int -> IO Bool
-testSpec method1@(_, name1) method2@(_, name2) n = do
+testSpec :: (FilePath, String) -> (FilePath, String) -> IO Response
+testSpec method1@(_, name1) method2@(_, name2) = do
     (m1, m2) <- parse method1 method2
     when debug $ putStrLn $ "----PRE---- (" ++ name1 ++ " vs " ++ name2 ++ ")"
-    let (lExpr1, lExpr2) = methodDefToLExpr m1 m2 "pre"
-    (preAns, counterModel) <- testEquality n lExpr1 lExpr2
+    let (l, l') = methodDefToLExpr m1 m2 "pre"
+    preRes <- l `Test.equivalentTo` l'
     when debug $ putStrLn "\n----POST---"
-    let (lExpr1, lExpr2) = methodDefToLExpr m1 m2 "post"
-    (postAns, counterModel) <- testEquality n lExpr1 lExpr2
-    return $ preAns && postAns
+    let (l, l') = methodDefToLExpr m1 m2 "post"
+    postRes <- l `Test.equivalentTo` l'
+    return $ (toResponse preRes) <> (toResponse postRes)
+
+toResponse :: Z3.Z3Response -> Response
+toResponse  Z3.Equivalent       = Equivalent
+toResponse (Z3.NotEquivalent s) = NotEquivalent s
+toResponse  Z3.Timeout          = Timeout -- TODO add QuickCheck on timeout
+toResponse  _                   = Undefined

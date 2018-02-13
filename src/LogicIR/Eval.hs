@@ -3,8 +3,6 @@ module LogicIR.Eval (eval, evalPossible, evalIfPossible) where
 import LogicIR.Expr
 import LogicIR.Fold
 
-import Data.Bits
-
 -- Tells to which LConst a given LExpr evaluates.
 eval :: LExpr -> LConst
 eval = foldLExpr evalAlgebra
@@ -31,8 +29,7 @@ evalPossibleAlgebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
 
 evalAlgebra :: LExprAlgebra LConst
 evalAlgebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
-    where cnst b@(CBool _) = b
-          cnst i@(CInt  _) = i
+    where cnst = id
           uni NNeg (CInt i)  = CInt (-i)
           uni LNot (CBool b) = CBool (not b)
           bin = evalBin
@@ -49,18 +46,24 @@ evalAlgebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
 -- Evaluates a binary operator expression.
 -- Comparison operators
 evalBin le       CEqual   re       = CBool (le == re)
-evalBin (CInt l) CLess    (CInt r) = CBool (l < r)
-evalBin (CInt l) CGreater (CInt r) = CBool (l > r)
+evalBin (CInt  l) CLess    (CInt  r) = CBool (l < r)
+evalBin (CReal l) CLess    (CReal r) = CBool (l < r)
+evalBin (CInt  l) CGreater (CInt  r) = CBool (l > r)
+evalBin (CReal l) CGreater (CReal r) = CBool (l > r)
 -- Logical operators
 evalBin (CBool l) LAnd  (CBool r) = CBool (l && r)
 evalBin (CBool l) LOr   (CBool r) = CBool (l || r)
 evalBin (CBool l) LImpl (CBool r) = CBool (not l || (l && r))
 -- Numerical operators
-evalBin (CInt l) o (CInt r) = CInt (convert o l r)
-     -- Both NShr and NShl are evaluated using the Data.Bits.shift function,
-     -- where a right shift is achieved by inverting the r integer.
-     where convert NAdd = (+)
-           convert NSub = (-)
-           convert NMul = (*)
-           convert NDiv = div
-           convert NRem = mod
+evalBin (CInt  l) NRem (CInt  r) = CInt  (l `mod`  r)
+evalBin (CInt  l) NDiv (CInt  r) = CInt  (l `quot` r)
+evalBin (CReal l) NDiv (CInt  r) = CReal (l / (fromIntegral r))
+evalBin (CInt  l) NDiv (CReal r) = CReal ((fromIntegral l) / r)
+evalBin (CInt  l) o    (CInt  r) = CInt  (convert o l r)
+evalBin (CReal l) o    (CReal r) = CReal (convert o l r)
+evalBin (CInt  l) o    (CReal r) = CReal (convert o (fromIntegral l) r)
+evalBin (CReal l) o    (CInt  r) = CReal (convert o l (fromIntegral r))
+
+convert NAdd a b = (+) a b
+convert NSub a b = (-) a b
+convert NMul a b = (*) a b

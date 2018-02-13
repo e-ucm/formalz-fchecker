@@ -38,6 +38,7 @@ library
                      , LogicIR.Backend.Z3.API
                      , LogicIR.Backend.Z3.Model
                      -- QuickCheck
+                     , LogicIR.Backend.QuickCheck.API
                      , LogicIR.Backend.QuickCheck.Test
                      , LogicIR.Backend.QuickCheck.ModelGenerator
                      -- Java EDSL
