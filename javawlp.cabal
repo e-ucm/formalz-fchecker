@@ -78,7 +78,6 @@ test-suite javawlp-tests
   main-is:             Spec.hs
   other-modules:       TExamples
                      , TIRParser
-                     , TIRTest
                      , TEquivalenceClasses
                      , TModelParser
   build-depends:       base

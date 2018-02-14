@@ -10,7 +10,7 @@ src = "examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
 
 testEquiv :: Response -> String -> String -> Assertion
 testEquiv b s s' =
-  (case unsafePerformIO (silence $ compareSpec (src, s) (src, s')) of
+  (case unsafePerformIO (silence $ compareSpec Debug (src, s) (src, s')) of
     NotEquivalent _ -> NotEquivalent emptyZ3Model
     x -> x
    ) @?= b

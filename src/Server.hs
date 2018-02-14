@@ -27,7 +27,7 @@ import Servant
 import Servant.Server
 import Servant.Docs
 
-import SimpleFormulaChecker (compareSpec)
+import SimpleFormulaChecker (compareSpec, Mode (..))
 import qualified SimpleFormulaChecker as S
 import LogicIR.Backend.Z3.Model
 
@@ -118,7 +118,7 @@ getCompareResponse :: Maybe String -> Maybe String -> Handler ApiResponse
 getCompareResponse a b = do
     let [srcA, methodA] = splitOn ":" (fromJust a)
     let [srcB, methodB] = splitOn ":" (fromJust b)
-    response <- liftIO $ compareSpec (srcA, methodA) (srcB, methodB)
+    response <- liftIO $ compareSpec Release (srcA, methodA) (srcB, methodB)
     return $ case response of
                   S.Equivalent ->
                     ApiResponse { responseType = Equivalent, model = Nothing }

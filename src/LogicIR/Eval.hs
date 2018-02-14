@@ -43,27 +43,47 @@ evalAlgebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
           arr v a         = error "You can't call eval on an LExpr that contains uninstantiated arrays."
           var v           = error "You can't call eval on an LExpr that contains uninstantiated vars."
 
+compOps = [CLess, CEqual, CGreater]
+compOpF CLess    = (<)
+compOpF CEqual   = (==)
+compOpF CGreater = (>)
+
+val (CInt  i) = fromIntegral i
+val (CReal r) = r
+
 -- Evaluates a binary operator expression.
--- Comparison operators
-evalBin le       CEqual   re       = CBool (le == re)
-evalBin (CInt  l) CLess    (CInt  r) = CBool (l < r)
-evalBin (CReal l) CLess    (CReal r) = CBool (l < r)
-evalBin (CInt  l) CGreater (CInt  r) = CBool (l > r)
-evalBin (CReal l) CGreater (CReal r) = CBool (l > r)
 -- Logical operators
 evalBin (CBool l) LAnd  (CBool r) = CBool (l && r)
 evalBin (CBool l) LOr   (CBool r) = CBool (l || r)
 evalBin (CBool l) LImpl (CBool r) = CBool (not l || (l && r))
+-- Comparison operators
+evalBin (CInt  l) o (CInt  r)
+     | elem o compOps       = CBool $ (compOpF o) l r
+     | o == NDiv            = CInt $ l `quot` r
+     | o == NRem            = CInt $ l `rem` r
+     | otherwise            = CInt $ convert o l r
+evalBin (CReal l) o (CReal r)
+     | elem o compOps = CBool $ (compOpF o) l r
+     | otherwise      = CReal $ convertR o l r
 -- Numerical operators
-evalBin (CInt  l) NRem (CInt  r) = CInt  (l `mod`  r)
-evalBin (CInt  l) NDiv (CInt  r) = CInt  (l `quot` r)
-evalBin (CReal l) NDiv (CInt  r) = CReal (l / (fromIntegral r))
-evalBin (CInt  l) NDiv (CReal r) = CReal ((fromIntegral l) / r)
-evalBin (CInt  l) o    (CInt  r) = CInt  (convert o l r)
-evalBin (CReal l) o    (CReal r) = CReal (convert o l r)
-evalBin (CInt  l) o    (CReal r) = CReal (convert o (fromIntegral l) r)
-evalBin (CReal l) o    (CInt  r) = CReal (convert o l (fromIntegral r))
+evalBin l o r
+     | elem o compOps = CBool $ (compOpF o) (val l) (val r)
+     | otherwise      = CReal $ convertR o (val l) (val r)
 
-convert NAdd a b = (+) a b
-convert NSub a b = (-) a b
-convert NMul a b = (*) a b
+convertR NRem a b = mod' a b
+convertR NDiv a b = (/)  a b
+convertR o    a b = convert o a b
+
+convert NAdd a b = (+)  a b
+convert NSub a b = (-)  a b
+convert NMul a b = (*)  a b
+convert o    a b = error $ (show o) ++ " on " ++ (show a) ++ " and " ++ (show b) ++ " is impossible."
+
+-- Mod that works with (negative) reals the same way
+-- Java would work with them, but with arbitrary precision
+-- instead of the bad precision that Java has.
+mod' x y = do
+     let a = toRational x
+     let b = toRational y
+     let c = a - (b * (toRational $ truncate (a / b)))
+     fromRational c

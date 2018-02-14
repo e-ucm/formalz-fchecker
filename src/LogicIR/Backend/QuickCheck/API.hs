@@ -13,7 +13,7 @@ import qualified Data.Map.Lazy as M
 -- | Determine the equality of two method's pre/post conditions.
 equivalentTo :: LExpr -> LExpr -> IO Z3Response
 equivalentTo lexpr lexpr' = do
-    (eq, testModel) <- testEquality 10000 lexpr lexpr'
+    (eq, testModel) <- testEquality 1000 lexpr lexpr'
     if eq
     then
         return $ Equivalent
@@ -37,9 +37,3 @@ toModelVal (LConst (CReal r)) = RealVal r
 
 toModelVals :: [LExpr] -> ModelVal
 toModelVals es@(x:xs) = ManyVal $ map toModelVal es
-
---data ModelVal = BoolVal Bool
---              | IntVal Integer
---              | RealVal Double
---              | ManyVal [ModelVal]
---              deriving Eq

@@ -3,6 +3,7 @@ module SimpleFormulaChecker where
 import Control.Exception.Base (catch)
 import Control.Monad (when)
 import Control.Monad.Trans (liftIO)
+import Control.Concurrent
 import qualified Data.Map as M
 import Data.Maybe
 import Data.String
@@ -40,27 +41,73 @@ instance Show Response where
   show Timeout = "Timeout occured"
   show (NotEquivalent model) = "Not equivalent: " ++ show model
 
--- Whether to print debug messages.
-debug = False
+-- | Mode type.
+
+data Mode = Debug | Release
+            deriving (Eq)
+
+instance Show Mode where
+    show Debug   = "Debug"
+    show Release = "Release"
+
+-- | Calls proveSpec and testSpec on different threads and returns
+--   their response. If the function is called in debug mode, it
+--   compares the result of testSpec and proveSpec. Otherwise, it 
+--   returns the answer of the fastest method of the two.
+compareSpec :: Mode               -- ^ The execution mode
+            -> (FilePath, String) -- ^ Specification 1
+            -> (FilePath, String) -- ^ Specification 2
+            -> IO Response        -- ^ Result of spec comparison.
+compareSpec m m1 m2 = do
+    mv1 <- newEmptyMVar
+    mv2 <- if m == Debug then newEmptyMVar else return mv1
+    a <- compareSpecHelper m mv1 testSpec m1 m2
+    b <- compareSpecHelper m mv2 testSpec m1 m2
+    res1 <- readMVar mv1
+    res2 <- readMVar mv2 -- if Release then mv1 == mv2 and this won't block.
+    return $ getRes m res1 res2
+
+-- | Makes sure that both Responses are the same, otherwise, if we
+--   run in debug mode, an error will be thrown. If not in debug mode,
+--   the first given Response (that of the theorem prover) will be
+--   returned because the mistake will generally be in testSpec.
+getRes :: Mode     -- ^ True if debug mode, False otherwise
+       -> Response -- ^ The response from proveSpec
+       -> Response -- ^ The response from testSpec
+       -> Response -- ^ The final response.
+getRes _        Timeout           testRes          = testRes
+getRes _        Undefined         testRes          = testRes
+getRes _        Equivalent        Equivalent       = Equivalent
+getRes _       (NotEquivalent m) (NotEquivalent _) = NotEquivalent m
+getRes Release  a                 b                = a
+getRes Debug    a                 b                = error m
+    where m = "proveSpec says " ++ (show a) ++ ", testSpec says " ++ (show b)
+
+-- | Runs f on a separate thread and stores the result in mv.
+compareSpecHelper m mv f m1 m2 = forkIO $ do
+    res <- f m1 m2 m
+    res `seq` putMVar mv res
 
 -- Function that compares both the pre and the post condition for two methods.
 -- It is assumed that both methods have the same environment (parameter names, class member names, etc).
-compareSpec :: (FilePath, String) -> (FilePath, String) -> IO Response
-compareSpec method1@(_, name1) method2@(_, name2) = do
+proveSpec :: (FilePath, String) -> (FilePath, String) -> Mode -> IO Response
+proveSpec method1@(_, name1) method2@(_, name2) mode = do
+    let debug = mode == Debug
     -- load the methods
     m1@(decls1, mbody1, env1) <- parseMethod method1
     m2@(decls2, mbody2, env2) <- parseMethod method2
     when (decls1 /= decls2) $ fail "inconsistent class declarations"
     -- when (env1 /= env2) $ fail "inconsistent environments"
     when debug $ putStrLn $ "----PRE---- (" ++ name1 ++ " vs " ++ name2 ++ ")"
-    preAns <- determineFormulaEq m1 m2 "pre"
+    preAns <- determineFormulaEq m1 m2 "pre" mode
     when debug $ putStrLn "\n----POST---"
-    postAns <- determineFormulaEq m1 m2 "post"
+    postAns <- determineFormulaEq m1 m2 "post" mode
     return $ preAns <> postAns
 
 -- Determine the equality of two method's pre/post conditions.
-determineFormulaEq :: MethodDef -> MethodDef -> String -> IO Response
-determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name = do
+determineFormulaEq :: MethodDef -> MethodDef -> String -> Mode -> IO Response
+determineFormulaEq m1@(decls1, mbody1, env1) m2@(decls2, mbody2, env2) name mode = do
+    let debug = mode == Debug
     -- get pre/post condition
     let (e1, e2) = (extractCond m1 name, extractCond m2 name)
     when debug $ putStrLn $ "e1:\n" ++ prettyPrint e1 ++ "\n\ne2:\n" ++ prettyPrint e2 ++ "\n"
@@ -103,15 +150,6 @@ extractExpr call = combineExprs $ map (\(MethodCall (Name [Ident _]) [a]) -> a) 
           combineExprs [e]    = e
           combineExprs (e:es) = e &* combineExprs es
 
-parse :: (FilePath, String) -> (FilePath, String) -> IO (MethodDef, MethodDef)
-parse method1@(_, name1) method2@(_, name2) = do
-    -- load the methods
-    m1@(decls1, mbody1, env1) <- parseMethod method1
-    m2@(decls2, mbody2, env2) <- parseMethod method2
-    when (env1 /= env2) $ fail "inconsistent method parameters"
-    when (decls1 /= decls2) $ fail "inconsistent class declarations (TODO)"
-    return (m1, m2)
-
 methodDefToLExpr :: MethodDef -> MethodDef -> String -> (LExpr, LExpr)
 methodDefToLExpr m1@(decls1, _, env1) m2@(decls2, _, env2) name = do
     -- get pre/post condition
@@ -122,9 +160,11 @@ methodDefToLExpr m1@(decls1, _, env1) m2@(decls2, _, env2) name = do
     (lExpr1, lExpr2)
         where extractCond m n = extractExpr $ getMethodCalls m n
 
-testSpec :: (FilePath, String) -> (FilePath, String) -> IO Response
-testSpec method1@(_, name1) method2@(_, name2) = do
-    (m1, m2) <- parse method1 method2
+testSpec :: (FilePath, String) -> (FilePath, String) -> Mode -> IO Response
+testSpec method1@(_, name1) method2@(_, name2) mode = do
+    let debug = mode == Debug
+    m1 <- parseMethod method1
+    m2 <- parseMethod method2
     when debug $ putStrLn $ "----PRE---- (" ++ name1 ++ " vs " ++ name2 ++ ")"
     let (l, l') = methodDefToLExpr m1 m2 "pre"
     preRes <- l `Test.equivalentTo` l'

@@ -14,7 +14,7 @@ import SimpleFormulaChecker
 
 testEquiv :: Response -> String -> String -> String -> Assertion
 testEquiv b src s s' =
-  (case unsafePerformIO (silence $ compareSpec (src, s) (src, s')) of
+  (case unsafePerformIO (silence $ compareSpec Debug (src, s) (src, s')) of
     NotEquivalent x -> NotEquivalent emptyZ3Model
     x               -> x
    ) @?= b

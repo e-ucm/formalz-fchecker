@@ -3,7 +3,7 @@ module Main where
 import Control.Monad
 import Data.Semigroup ((<>))
 import Options.Applicative
-import SimpleFormulaChecker (compareSpec)
+import SimpleFormulaChecker (compareSpec, Mode (..))
 
 import Server (runApi)
 
@@ -74,5 +74,5 @@ runMain (Options srcA srcB methodA methodB runServer port) =
     runApi
   else do
     when (methodA == "_default_") $ fail "No files given."
-    response <- compareSpec (srcA, methodA) (srcB, methodB)
+    response <- compareSpec Release (srcA, methodA) (srcB, methodB)
     print response
