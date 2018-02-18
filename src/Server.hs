@@ -1,68 +1,91 @@
-{-# LANGUAGE DataKinds     #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE DeriveGeneric         #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedLists       #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE UndecidableInstances  #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Server (runApi) where
 
-import Data.Maybe
-import qualified Data.Map as Map
-import Data.List.Split (splitOn)
 import Control.Monad.Trans (liftIO)
-import Data.Vector (fromList)
-import Data.ByteString.Lazy (ByteString)
-import Data.Proxy
-import Data.Text.Lazy.Encoding (encodeUtf8)
-import Data.Text.Lazy (pack)
 import Data.Aeson
+import Data.ByteString.Lazy (ByteString)
+import Data.List.Split (splitOn)
+import qualified Data.Map as Map
+import Data.Proxy
+import Data.Text.Lazy (pack)
+import Data.Text.Lazy.Encoding (encodeUtf8)
+import Data.Vector (fromList)
 
-import Control.Monad.Trans.Except
-import System.IO
 import GHC.Generics
+import System.IO
 
 import Network.HTTP.Types
-import Network.Wai.Handler.Warp
 import Network.Wai
+import Network.Wai.Handler.Warp
 import Servant
-import Servant.Server
 import Servant.Docs
 
-import API (compareSpec, Mode (..), ParseMode (..))
+import Data.Swagger hiding (port)
+import Servant.Swagger
+import Servant.Swagger.UI
+
+import API (Mode (..), ParseMode (..), compareSpec)
 import Model
+
 
 -- | Data types.
 data ApiReqBody = ApiReqBody
   { sourceA :: String
   , sourceB :: String
-  } deriving Generic
+  } deriving (Eq, Show, Generic)
 instance FromJSON ApiReqBody
 instance ToJSON ApiReqBody
 
 data ApiResponseType = Equiv | NotEquiv | Undef
-  deriving Generic
+  deriving (Eq, Show, Generic)
+
 data ApiResponse = ApiResponse
   { responseType :: ApiResponseType
-  , model :: Maybe Model
+  , model        :: Maybe Model
   }
-  deriving Generic
+  deriving (Eq, Show, Generic)
 instance ToJSON ApiResponseType
 instance ToJSON ApiResponse
 instance ToJSON ModelVal where
-  toJSON (BoolVal b) = toJSON b
-  toJSON (IntVal n) = toJSON n
-  toJSON (RealVal n) = toJSON n
+  toJSON (BoolVal b)  = toJSON b
+  toJSON (IntVal n)   = toJSON n
+  toJSON (RealVal n)  = toJSON n
   toJSON (ManyVal vs) = Array $ fromList $ map toJSON vs
 
 type CompareApi = "compare"
   :> ReqBody '[JSON] ApiReqBody
   :> Post '[JSON] ApiResponse
 
-compareApi :: Proxy CompareApi
-compareApi = Proxy
+serverCompare :: Server CompareApi
+serverCompare = getCompareResponse
 
--- | API documentation.
+getCompareResponse :: ApiReqBody -> Handler ApiResponse
+getCompareResponse ApiReqBody {sourceA = srcA, sourceB = srcB} = do
+    resp <- liftIO $ compareSpec Release Raw (wrap srcA) (wrap srcB)
+    return $ case resp of
+                  Equivalent ->
+                    ApiResponse { responseType = Equiv, model = Nothing }
+                  NotEquivalent m ->
+                    ApiResponse { responseType = NotEquiv, model = Just m }
+                  _ -> ApiResponse { responseType = Undef, model = Nothing }
+    where
+      wrap s = ( "public class Main {" ++ s ++ "}"
+               , last $ splitOn " " $ head $ splitOn "(" s
+               )
+
+-- | API documentation (Markdown).
 instance ToSample ApiReqBody where
-  toSamples _ = singleSample $ ApiReqBody srcA srcA
+  toSamples _ = singleSample $ ApiReqBody srcA srcB
     where srcA = "public static float real1(float a) {\
                   \ pre(a >= (2 - 1 + 1));\
                   \ a += a;\
@@ -85,27 +108,24 @@ docsBS :: ByteString
 docsBS = encodeUtf8
        . pack
        . markdown
-       $ docsWithIntros [intro] compareApi
+       $ docsWith opts [intro] mempty (Proxy :: Proxy CompareApi)
   where intro = DocIntro "Welcome" ["This is our webservice's API.", "Enjoy!"]
+        opts = DocOptions 1
 
-apiDocs :: API
-apiDocs = docs compareApi
+-- | API documentation (Swagger).
+instance ToSchema ApiReqBody
+instance ToSchema ApiResponseType
+instance ToSchema ApiResponse
+instance ToSchema ModelVal where
+  declareNamedSchema _ = return $ NamedSchema Nothing $
+    sketchSchema (ManyVal [BoolVal False, IntVal 23, RealVal 7.5])
 
-type DocsApi = CompareApi :<|> Raw
+type SwagApi = SwaggerSchemaUI "api-swagger" "swagger.json"
 
-docsApi :: Proxy DocsApi
-docsApi = Proxy
+serverSwagger :: Server SwagApi
+serverSwagger = swaggerSchemaUIServer (toSwagger (Proxy :: Proxy CompareApi))
 
-server :: Server DocsApi
-server = server' :<|> Tagged serveDocs where
-    serveDocs _ respond =
-        respond $ responseLBS ok200 [plain] docsBS
-    plain = ("Content-Type", "text/plain")
-
-app :: Application
-app = serve docsApi server
-
--- | Server implementation.
+-- | Server.
 runApi :: IO ()
 runApi = do
   let port = 8888
@@ -115,19 +135,10 @@ runApi = do
         defaultSettings
   runSettings settings app
 
-server' :: Server CompareApi
-server' = getCompareResponse
+type WholeApi = CompareApi :<|> SwagApi :<|> Raw
 
-getCompareResponse :: ApiReqBody -> Handler ApiResponse
-getCompareResponse (ApiReqBody srcA srcB) = do
-    response <- liftIO $ compareSpec Release Raw (wrap srcA) (wrap srcB)
-    return $ case response of
-                  Equivalent ->
-                    ApiResponse { responseType = Equiv, model = Nothing }
-                  NotEquivalent model ->
-                    ApiResponse { responseType = NotEquiv, model = Just model }
-                  _ -> ApiResponse { responseType = Undef, model = Nothing }
-    where
-      wrap s = ( "public class Main {" ++ s ++ "}"
-               , last $ splitOn " " $ head $ splitOn "(" s
-               )
+app :: Application
+app = serve (Proxy :: Proxy WholeApi) $
+        serverCompare :<|> serverSwagger :<|> Tagged serveDocs
+      where serveDocs _ respond = respond $
+              responseLBS ok200 [("Content-Type", "text/plain")] docsBS

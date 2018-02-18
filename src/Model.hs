@@ -1,13 +1,14 @@
+{-# LANGUAGE DeriveGeneric        #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 module Model where
 
+import Data.List (isSuffixOf)
 import qualified Data.Map as M
 import Data.String
-import Data.List (isSuffixOf)
+import GHC.Generics
 import Text.Parsec hiding (runP)
-import Text.Parsec.Expr
 import Text.Parsec.Language
 import Text.Parsec.String
 import qualified Text.Parsec.Token as Tokens
@@ -36,10 +37,12 @@ data ModelVal = BoolVal Bool
               | IntVal Integer
               | RealVal Double
               | ManyVal [ModelVal]
-              deriving Eq
+              deriving (Eq, Generic)
 
 type Model = M.Map String ModelVal
-emptyModel = M.empty :: Model
+
+emptyModel :: Model
+emptyModel = M.empty
 
 -- | Pretty-printing.
 instance Show ModelVal where
