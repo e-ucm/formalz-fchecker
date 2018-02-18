@@ -71,7 +71,7 @@ main = runMain =<< execParser (parseOptions `withInfo` "Java WLP")
 runMain :: Options -> IO ()
 runMain (Options srcA srcB methodA methodB runServer port) =
   if runServer then
-    runApi
+    runApi port
   else do
     when (methodA == "_default_") $ fail "No files given."
     response <- compareSpec Release File (srcA, methodA) (srcB, methodB)

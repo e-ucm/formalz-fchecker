@@ -126,10 +126,9 @@ serverSwagger :: Server SwagApi
 serverSwagger = swaggerSchemaUIServer (toSwagger (Proxy :: Proxy CompareApi))
 
 -- | Server.
-runApi :: IO ()
-runApi = do
-  let port = 8888
-      settings =
+runApi :: Int -> IO ()
+runApi port = do
+  let settings =
         setPort port $
         setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show port))
         defaultSettings
