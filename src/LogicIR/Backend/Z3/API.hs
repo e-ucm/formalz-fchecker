@@ -1,6 +1,7 @@
 module LogicIR.Backend.Z3.API where
 
-import Z3.Monad
+import Z3.Monad hiding (Model)
+import qualified Z3.Base as Z3
 import Z3.Opts
 
 import Data.String
@@ -11,15 +12,12 @@ import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
 import qualified Data.Map as M
 
+import Model
 import LogicIR.Expr (LExpr)
-import LogicIR.Backend.Z3.Model
 import LogicIR.Backend.Z3.Z3
 
--- | Z3 Response type.
-data Z3Response = Equivalent | NotEquivalent Z3Model | Timeout | Undefined
-
 -- | Determine the equality of two method's pre/post conditions.
-equivalentTo :: LExpr -> LExpr -> IO Z3Response
+equivalentTo :: LExpr -> LExpr -> IO Response
 equivalentTo lexpr lexpr' = do
     let fv = freeVars2 lexpr lexpr'
     let (ast, ast') = (lExprToZ3Ast lexpr, lExprToZ3Ast lexpr')
@@ -35,7 +33,7 @@ equivalentTo lexpr lexpr' = do
           _            -> Nothing
 
 -- | Check if two Z3 AST's are equivalent.
-equivalentToZ3 :: Z3 FreeVars -> Z3 AST -> Z3 AST -> IO Z3Response
+equivalentToZ3 :: Z3 FreeVars -> Z3 AST -> Z3 AST -> IO Response
 equivalentToZ3 freeVars ast1' ast2' =
   tryZ3 $ do
     -- Setup
@@ -56,7 +54,6 @@ equivalentToZ3 freeVars ast1' ast2' =
 
     -- Get model
     (r, model) <- solverCheckAndGetModel
-
     response <- case r of
       Unsat -> return Equivalent
       Undef -> return Undefined
@@ -67,7 +64,7 @@ equivalentToZ3 freeVars ast1' ast2' =
     return response
     where
       -- Construct model values
-      evalAST :: FreeVars -> Model -> (String, AST) -> Z3 (String, ModelVal)
+      evalAST :: FreeVars -> Z3.Model -> (String, AST) -> Z3 (String, ModelVal)
       evalAST fv m (k, ast) = do
         v <- fromJust <$> modelEval m ast True
         sortKind <- getSort v >>= getSortKind
@@ -96,7 +93,7 @@ tryZ3 = evalZ3With Nothing (  opt "timeout" (5000 :: Integer)
                            +? opt "auto_config" True
                            -- +? opt "unsat_core" True
                            )
-                           
+
 -- | Sequence tactics.
 (-->) t t' = do
   tt <- mkTactic t

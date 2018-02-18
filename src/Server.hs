@@ -6,7 +6,7 @@
 module Server (runApi) where
 
 import Data.Maybe
-import qualified Data.Map as M
+import qualified Data.Map as Map
 import Data.List.Split (splitOn)
 import Control.Monad.Trans (liftIO)
 import Data.Vector (fromList)
@@ -27,17 +27,22 @@ import Servant
 import Servant.Server
 import Servant.Docs
 
-import SimpleFormulaChecker (compareSpec, Mode (..))
-import qualified SimpleFormulaChecker as S
-import LogicIR.Backend.Z3.Model
+import API (compareSpec, Mode (..), ParseMode (..))
+import Model
 
 -- | Data types.
-type ApiArg = String
-data ApiResponseType = Equivalent | NotEquivalent | Undefined
+data ApiReqBody = ApiReqBody
+  { sourceA :: String
+  , sourceB :: String
+  } deriving Generic
+instance FromJSON ApiReqBody
+instance ToJSON ApiReqBody
+
+data ApiResponseType = Equiv | NotEquiv | Undef
   deriving Generic
 data ApiResponse = ApiResponse
   { responseType :: ApiResponseType
-  , model :: Maybe Z3Model
+  , model :: Maybe Model
   }
   deriving Generic
 instance ToJSON ApiResponseType
@@ -49,29 +54,28 @@ instance ToJSON ModelVal where
   toJSON (ManyVal vs) = Array $ fromList $ map toJSON vs
 
 type CompareApi = "compare"
-  :> QueryParam "a" ApiArg
-  :> QueryParam "b" ApiArg
-  :> Get '[JSON] ApiResponse
+  :> ReqBody '[JSON] ApiReqBody
+  :> Post '[JSON] ApiResponse
 
 compareApi :: Proxy CompareApi
 compareApi = Proxy
 
 -- | API documentation.
-instance ToParam (QueryParam "a" String) where
-  toParam _ =
-    DocQueryParam "a" ["examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java:real1", "..."]
-                  "Method location formatted as: <java_source_file>:<method_name>"
-                  Normal
-
-instance ToParam (QueryParam "b" String) where
-  toParam _ =
-    DocQueryParam "b" ["examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java:real2", "..."]
-                  "Method location formatted as: <java_source_file>:<method_name>" Normal
+instance ToSample ApiReqBody where
+  toSamples _ = singleSample $ ApiReqBody srcA srcA
+    where srcA = "public static float real1(float a) {\
+                  \ pre(a >= (2 - 1 + 1));\
+                  \ a += a;\
+                  \ post(a >= (4 - 3 + 3));}"
+          srcB = "public static float real2(float a) {\
+                  \ pre(a > 2 || a == 2);\
+                  \ a = a * 2;\
+                  \ post(a > 4 || a == 4);}"
 
 instance ToSample ApiResponse where
   toSamples _ = singleSample ApiResponse
-    { responseType = NotEquivalent
-    , model = Just $ M.fromList
+    { responseType = NotEquiv
+    , model = Just $ Map.fromList
       [ ("a", ManyVal [RealVal 0.0, RealVal (-0.5)])
       , ("i", IntVal 10)
       ]
@@ -114,14 +118,16 @@ runApi = do
 server' :: Server CompareApi
 server' = getCompareResponse
 
-getCompareResponse :: Maybe String -> Maybe String -> Handler ApiResponse
-getCompareResponse a b = do
-    let [srcA, methodA] = splitOn ":" (fromJust a)
-    let [srcB, methodB] = splitOn ":" (fromJust b)
-    response <- liftIO $ compareSpec Release (srcA, methodA) (srcB, methodB)
+getCompareResponse :: ApiReqBody -> Handler ApiResponse
+getCompareResponse (ApiReqBody srcA srcB) = do
+    response <- liftIO $ compareSpec Release Raw (wrap srcA) (wrap srcB)
     return $ case response of
-                  S.Equivalent ->
-                    ApiResponse { responseType = Equivalent, model = Nothing }
-                  S.NotEquivalent model ->
-                    ApiResponse { responseType = NotEquivalent, model = Just model }
-                  _ -> ApiResponse { responseType = Undefined, model = Nothing }
+                  Equivalent ->
+                    ApiResponse { responseType = Equiv, model = Nothing }
+                  NotEquivalent model ->
+                    ApiResponse { responseType = NotEquiv, model = Just model }
+                  _ -> ApiResponse { responseType = Undef, model = Nothing }
+    where
+      wrap s = ( "public class Main {" ++ s ++ "}"
+               , last $ splitOn " " $ head $ splitOn "(" s
+               )

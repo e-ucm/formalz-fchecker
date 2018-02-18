@@ -3,19 +3,19 @@ import System.IO.Unsafe (unsafePerformIO)
 import System.IO.Silently (silence)
 import Test.HUnit
 
-import LogicIR.Backend.Z3.Model
-import SimpleFormulaChecker
+import Model
+import API
 
 src = "examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
 
 testEquiv :: Response -> String -> String -> Assertion
 testEquiv b s s' =
-  (case unsafePerformIO (silence $ compareSpec Debug (src, s) (src, s')) of
-    NotEquivalent _ -> NotEquivalent emptyZ3Model
+  (case unsafePerformIO (silence $ compareSpec Debug File (src, s) (src, s')) of
+    NotEquivalent _ -> NotEquivalent emptyModel
     x -> x
    ) @?= b
 (.==) = testEquiv Equivalent
-(.!=) = testEquiv $ NotEquivalent emptyZ3Model
+(.!=) = testEquiv $ NotEquivalent emptyModel
 (.??) = testEquiv Timeout
 
 examples =

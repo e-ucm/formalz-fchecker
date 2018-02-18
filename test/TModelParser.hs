@@ -3,7 +3,7 @@ module TModelParser where
 import Test.HUnit
 
 import Data.String
-import LogicIR.Backend.Z3.Model
+import Model
 
 modelParserTests =
   [ "true" @?= BoolVal True

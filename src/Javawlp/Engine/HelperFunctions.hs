@@ -397,12 +397,23 @@ parseMethodIds src = do
   -- get the names of all the class methods
   return $ map (\x -> case x of Ident s -> s) (getMethodIds decls)
 
+parseDeclsRaw :: String -> IO [TypeDecl]
+parseDeclsRaw src = do
+  compilationUnit <- parseJavaRaw src
+  return $ getDecls compilationUnit
+  where
+    -- parse a Java source file, and extracts the necessary information from the compilation unit
+    parseJavaRaw :: String -> IO CompilationUnit
+    parseJavaRaw source =
+      case parser compilationUnit source of
+          Left parseError -> error (show parseError)
+          Right compUnit  -> return compUnit
+
 -- | Get all the class declarations in the Java source file.
 parseDecls :: FilePath -> IO [TypeDecl]
 parseDecls src = do
   compilationUnit <- parseJava src
-  let decls = getDecls compilationUnit
-  return decls
+  return $ getDecls compilationUnit
   where
     -- parse a Java source file, and extracts the necessary information from the compilation unit
     parseJava :: FilePath -> IO CompilationUnit

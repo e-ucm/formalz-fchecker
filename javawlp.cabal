@@ -22,6 +22,9 @@ library
                      , Javawlp.Engine.Folds
                      -- Server
                      , Server
+                     -- Checker
+                     , Model
+                     , API
                      -- LIR
                      , LogicIR.Expr
                      , LogicIR.Fold
@@ -31,12 +34,9 @@ library
                      , LogicIR.Frontend.Java
                      , LogicIR.Eval
                      , LogicIR.ParserUtils
-                     -- Checker
-                     , SimpleFormulaChecker
                      -- Z3
                      , LogicIR.Backend.Z3.Z3
                      , LogicIR.Backend.Z3.API
-                     , LogicIR.Backend.Z3.Model
                      -- QuickCheck
                      , LogicIR.Backend.QuickCheck.API
                      , LogicIR.Backend.QuickCheck.Test
@@ -60,6 +60,7 @@ library
                      , servant
                      , servant-server
                      , servant-docs
+                     , servant-swagger-ui
                      , transformers
                      , aeson
                      , wai

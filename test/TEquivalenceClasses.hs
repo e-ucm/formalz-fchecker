@@ -9,17 +9,17 @@ import System.IO.Unsafe (unsafePerformIO)
 import Test.HUnit
 
 import Javawlp.Engine.HelperFunctions (parseMethodIds)
-import LogicIR.Backend.Z3.Model
-import SimpleFormulaChecker
+import Model
+import API
 
 testEquiv :: Response -> String -> String -> String -> Assertion
 testEquiv b src s s' =
-  (case unsafePerformIO (silence $ compareSpec Debug (src, s) (src, s')) of
-    NotEquivalent x -> NotEquivalent emptyZ3Model
+  (case unsafePerformIO (silence $ compareSpec Debug File (src, s) (src, s')) of
+    NotEquivalent x -> NotEquivalent emptyModel
     x               -> x
    ) @?= b
 (.==) = testEquiv Equivalent
-(.!=) = testEquiv $ NotEquivalent emptyZ3Model
+(.!=) = testEquiv $ NotEquivalent emptyModel
 
 genEquivTests edslSrc =
   let methodIds = unsafePerformIO (silence $ parseMethodIds edslSrc)

@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-module LogicIR.Backend.Z3.Model where
+module Model where
 
 import qualified Data.Map as M
 import Data.String
@@ -14,15 +14,32 @@ import qualified Text.Parsec.Token as Tokens
 
 import LogicIR.ParserUtils
 
--- | Data type.
+-- | Response type.
+data Response = Equivalent | NotEquivalent Model | Undefined | Timeout
+                deriving (Eq)
+
+(<>) :: Response -> Response -> Response
+Equivalent <> r = r
+NotEquivalent s <> _ = NotEquivalent s
+Timeout <> _ = Timeout
+Undefined <> _ = Undefined
+
+instance Show Response where
+  show Equivalent = "Formulas are equivalent"
+  show Undefined = "Oops... could not determine if formulas are equivalent"
+  show Timeout = "Timeout occured"
+  show (NotEquivalent model) = "Not equivalent: " ++ show model
+
+
+-- | Model type.
 data ModelVal = BoolVal Bool
               | IntVal Integer
               | RealVal Double
               | ManyVal [ModelVal]
               deriving Eq
 
-type Z3Model = M.Map String ModelVal
-emptyZ3Model = M.empty :: Z3Model
+type Model = M.Map String ModelVal
+emptyModel = M.empty :: Model
 
 -- | Pretty-printing.
 instance Show ModelVal where
@@ -32,7 +49,7 @@ instance Show ModelVal where
   show (ManyVal vs) = show vs
 
 -- | Crop arrays until their specified length.
-sanitize :: Z3Model -> Z3Model
+sanitize :: Model -> Model
 sanitize model =
   M.filterWithKey isNotLen $ M.filterWithKey isNotNull $ M.mapWithKey f model
   where f k (ManyVal array) = ManyVal $ take (counts k) array
