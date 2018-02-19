@@ -37,10 +37,15 @@ To run the server API at port 8080:
 > stack exec javawlp -- -p 8080 --runServer
 ```
 
-To query the server (see [API.md](https://git.science.uu.nl/impresshs/javawlp/blob/master/API.md) for available options):
+To query the server (see  for available options):
 ```
-> curl localhost:8080/compare?a="examples/Main.java:real1"&b="examples/Main.java:real2"
+> curl -X POST -d <json_object> <server_url>:8080/compare
 ```
+
+To get the API docs from the server:
+- Markdown: Visit `<server_url>:8080/docs`
+- Swagger: Visit ``<server_url>:8080/api-swagger`
+- [API.md](https://git.science.uu.nl/impresshs/javawlp/blob/master/API.md)
 
 To run the tests:
 ```
