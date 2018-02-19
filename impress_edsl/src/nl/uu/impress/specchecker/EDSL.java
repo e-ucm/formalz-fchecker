@@ -36,7 +36,7 @@ public class EDSL {
     }
 
     public static boolean imp(boolean p, boolean q) {
-    	return !p || p ;
+    	return !p || q;
     }
     public static boolean forall(Object[] array, IntPred pred) {
         return g_forall(array.length, 0, array.length, pred);
