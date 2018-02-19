@@ -39,7 +39,7 @@ To run the server API at port 8080:
 
 To query the server (see  for available options):
 ```
-> curl -X POST -d <json_object> <server_url>:8080/compare
+> curl -X POST -d <json_object> -H 'Content-type: application/json' <server_url>:8080/compare
 ```
 
 To get the API docs from the server:
