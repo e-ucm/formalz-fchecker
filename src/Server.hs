@@ -37,7 +37,6 @@ import Servant.Swagger.UI
 import API (Mode (..), ParseMode (..), compareSpec)
 import Model
 
-
 -- | Data types.
 data ApiReqBody = ApiReqBody
   { sourceA :: String
@@ -46,12 +45,13 @@ data ApiReqBody = ApiReqBody
 instance FromJSON ApiReqBody
 instance ToJSON ApiReqBody
 
-data ApiResponseType = Equiv | NotEquiv | Undef
+data ApiResponseType = Equiv | NotEquiv | Undef | ResponseErr
   deriving (Eq, Show, Generic)
 
 data ApiResponse = ApiResponse
   { responseType :: ApiResponseType
   , model        :: Maybe Model
+  , err          :: Maybe String
   }
   deriving (Eq, Show, Generic)
 instance ToJSON ApiResponseType
@@ -74,10 +74,13 @@ getCompareResponse ApiReqBody {sourceA = srcA, sourceB = srcB} = do
     resp <- liftIO $ compareSpec Release Raw (wrap srcA) (wrap srcB)
     return $ case resp of
                   Equivalent ->
-                    ApiResponse { responseType = Equiv, model = Nothing }
+                    ApiResponse { responseType = Equiv, model = Nothing, err = Nothing }
                   NotEquivalent m ->
-                    ApiResponse { responseType = NotEquiv, model = Just m }
-                  _ -> ApiResponse { responseType = Undef, model = Nothing }
+                    ApiResponse { responseType = NotEquiv, model = Just m, err = Nothing }
+                  ErrorResponse e ->
+                    ApiResponse { responseType = ResponseErr, model = Nothing, err = Just e }
+                  _ ->
+                    ApiResponse { responseType = Undef, model = Nothing, err = Nothing }
     where
       wrap s = ( "public class Main {" ++ s ++ "}"
                , last $ splitOn " " $ head $ splitOn "(" s
@@ -102,6 +105,7 @@ instance ToSample ApiResponse where
       [ ("a", ManyVal [RealVal 0.0, RealVal (-0.5)])
       , ("i", IntVal 10)
       ]
+    , err = Nothing
     }
 
 docsBS :: ByteString
@@ -127,12 +131,10 @@ serverSwagger = swaggerSchemaUIServer (toSwagger (Proxy :: Proxy CompareApi))
 
 -- | Server.
 runApi :: Int -> IO ()
-runApi port = do
-  let settings =
-        setPort port $
-        setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show port))
-        defaultSettings
-  runSettings settings app
+runApi port = runSettings settings app
+  where settings = ( setPort port
+                   . setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show port))
+                   ) defaultSettings
 
 type WholeApi = CompareApi :<|> SwagApi :<|> Raw
 

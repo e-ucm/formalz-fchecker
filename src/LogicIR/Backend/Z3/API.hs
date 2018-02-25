@@ -1,20 +1,17 @@
 module LogicIR.Backend.Z3.API where
 
-import Z3.Monad hiding (Model)
 import qualified Z3.Base as Z3
-import Z3.Opts
+import Z3.Monad hiding (Model)
 
-import Data.String
 import Control.Exception.Base (tryJust)
-import Control.Monad (forM, forM_, when)
-import Control.Monad.Trans (liftIO)
+import Control.Monad (forM)
+import Data.String
 import Data.Maybe (fromJust)
-import Data.Monoid ((<>))
 import qualified Data.Map as M
 
-import Model
-import LogicIR.Expr (LExpr)
 import LogicIR.Backend.Z3.Z3
+import LogicIR.Expr (LExpr)
+import Model
 
 -- | Determine the equality of two method's pre/post conditions.
 equivalentTo :: LExpr -> LExpr -> IO Response
@@ -34,10 +31,10 @@ equivalentTo lexpr lexpr' = do
 
 -- | Check if two Z3 AST's are equivalent.
 equivalentToZ3 :: Z3 FreeVars -> Z3 AST -> Z3 AST -> IO Response
-equivalentToZ3 freeVars ast1' ast2' =
+equivalentToZ3 fVars ast1' ast2' =
   tryZ3 $ do
     -- Setup
-    fv <- freeVars
+    fv <- fVars
     ast1 <- ast1'
     ast2 <- ast2'
     astEq <- mkEq ast1 ast2
@@ -74,7 +71,7 @@ equivalentToZ3 freeVars ast1' ast2' =
           f <- snd <$> evalAST fv m (k ++ "?length", lenName)
           let len = case f of
                 (IntVal i) -> i
-                _ -> error "non-int length"
+                _          -> error "non-int length"
           -- Iterate array "points"
           modelVals <- forM [0..(len-1)] (\i -> do
             indexAST <- mkInteger $ toInteger i
@@ -87,6 +84,7 @@ equivalentToZ3 freeVars ast1' ast2' =
           return (k, fromString v' :: ModelVal)
 
 -- | Z3 try evaluation with timeout.
+tryZ3 :: Z3 a -> IO a
 tryZ3 = evalZ3With Nothing (  opt "timeout" (5000 :: Integer)
                            +? opt "model_validate" True
                            +? opt "well_sorted_check" True
@@ -95,6 +93,7 @@ tryZ3 = evalZ3With Nothing (  opt "timeout" (5000 :: Integer)
                            )
 
 -- | Sequence tactics.
+(-->) :: String -> String -> Z3 Z3.Tactic
 (-->) t t' = do
   tt <- mkTactic t
   tt' <- mkTactic t'

@@ -1,26 +1,29 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric  #-}
 module LogicIR.Expr where
 
-import Data.String
+import GHC.Generics
+import Control.DeepSeq
 
 -- | The primitive types are bool and int32.
 data Primitive = PBool
                | PInt
                | PReal
-               deriving (Show, Eq, Read)
+               deriving (Show, Eq, Read, Generic, NFData)
 
 -- | A Type can either be a primitive or an array type.
 data Type = TPrim Primitive
           | TArray Type
-          deriving (Show, Eq, Read)
+          deriving (Show, Eq, Read, Generic, NFData)
 
 -- | Typed + named variable.
 data Var = Var Type String
-         deriving (Show, Eq, Read)
+         deriving (Show, Eq, Read, Generic, NFData)
 
 -- | Unary operators.
 data LUnop = NNeg -- -n (numeric negation)
            | LNot -- !n (logical not)
-           deriving (Show, Eq, Read)
+           deriving (Show, Eq, Read, Generic, NFData)
 
 -- | Binary operators.
 data LBinop =
@@ -38,18 +41,18 @@ data LBinop =
             | CEqual -- a == b
             | CLess -- a < b
             | CGreater -- a > b
-            deriving (Show, Eq, Read)
+            deriving (Show, Eq, Read, Generic, NFData)
 
 -- | Quantifier operators.
 data QOp = QAll | QAny
-         deriving (Show, Eq, Read)
+         deriving (Show, Eq, Read, Generic, NFData)
 
 -- | Constants.
 data LConst = CBool Bool
             | CInt Int
             | CReal Double
             | CNil
-            deriving (Show, Eq, Read)
+            deriving (Show, Eq, Read, Generic, NFData)
 
 -- | Logical expressions.
 data LExpr = LConst LConst -- constant
@@ -61,7 +64,7 @@ data LExpr = LConst LConst -- constant
            | LArray Var LExpr -- array access
            | LIsnull Var -- var == null
            | LLen Var -- len(array)
-           deriving (Show, Eq, Read)
+           deriving (Show, Eq, Read, Generic, NFData)
 
 -- Needed for the ArrayModel key ordering in the Map in LogicIR.Backend.ModelGenerator
 instance Ord Var where

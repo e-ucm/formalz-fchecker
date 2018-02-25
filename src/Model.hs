@@ -16,10 +16,12 @@ import qualified Text.Parsec.Token as Tokens
 import LogicIR.ParserUtils
 
 -- | Response type.
-data Response = Equivalent | NotEquivalent Model | Undefined | Timeout
+data Response = Equivalent | NotEquivalent Model | ErrorResponse String | Undefined | Timeout
                 deriving (Eq)
 
 (<>) :: Response -> Response -> Response
+ErrorResponse e <> _ = ErrorResponse e
+_ <> ErrorResponse e = ErrorResponse e
 Equivalent <> r = r
 NotEquivalent s <> _ = NotEquivalent s
 Timeout <> _ = Timeout
@@ -27,9 +29,10 @@ Undefined <> _ = Undefined
 
 instance Show Response where
   show Equivalent = "Formulas are equivalent"
+  show (NotEquivalent model) = "Not equivalent: " ++ show model
+  show (ErrorResponse e) = "*** Error: " ++ show e
   show Undefined = "Oops... could not determine if formulas are equivalent"
   show Timeout = "Timeout occured"
-  show (NotEquivalent model) = "Not equivalent: " ++ show model
 
 
 -- | Model type.

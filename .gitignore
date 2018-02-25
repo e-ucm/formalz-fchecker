@@ -12,3 +12,5 @@ tests/org/
 .stack-work/
 # Intellij IDEA
 .idea/
+# Z3
+z3.log

@@ -1,13 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 module LogicIR.Backend.Z3.Z3 where
 
-import Control.Monad.Trans (liftIO)
 import qualified Data.Map as M
 import Z3.Monad
 
 import LogicIR.Expr
 import LogicIR.Fold
-import LogicIR.Parser
+import LogicIR.Parser ()
 
 lExprToZ3Ast :: LExpr -> Z3 AST
 lExprToZ3Ast = foldLExpr lExprToZ3AstAlgebra

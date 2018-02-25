@@ -1,11 +1,4 @@
--- Very crude pretty printer for debugging, should not be used in production!
 module LogicIR.Pretty (prettyLExpr) where
-
-import Data.List
-import Data.Maybe
-import qualified Data.Map as M
-import Z3.Monad
-import Z3.Opts
 
 import LogicIR.Expr
 import LogicIR.Fold

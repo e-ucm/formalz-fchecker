@@ -4,15 +4,12 @@ module LogicIR.Frontend.Java (javaExpToLExpr) where
 import Javawlp.Engine.Folds
 import Javawlp.Engine.HelperFunctions
 
-import Language.Java.Parser
 import Language.Java.Pretty
 import Language.Java.Syntax
-import Language.Java.Syntax.Types
 
 import Data.String
-import Data.Typeable
 import LogicIR.Expr
-import LogicIR.Parser
+import LogicIR.Parser ()
 
 javaExpToLExpr :: Exp -> TypeEnv -> [TypeDecl] -> LExpr
 javaExpToLExpr = foldExp javaExpToLExprAlgebra
@@ -89,7 +86,7 @@ javaExpToLExprAlgebra =
                           _ -> error $ "Unimplemented fMethodInv: " ++ show inv
               quantr method name rbegin rend bound expr =
                 let (begin, end) = (refold rbegin, refold rend)
-                    (i, arr) = (Var (TPrim PInt) bound, nameToVar name env decls)
+                    (i, _) = (Var (TPrim PInt) bound, nameToVar name env decls)
                 in case method of
                           "forallr" -> lquantr QAll i begin end expr
                           "existsr" -> lquantr QAny i begin end expr
@@ -99,13 +96,13 @@ javaExpToLExprAlgebra =
               refold expr =
                 foldExp javaExpToLExprAlgebra expr env decls
     fArrayAccess arrayIndex env decls =
-      case arrayIndex of -- TODO: type checking
+      case arrayIndex of
         ArrayIndex (ExpName name) [expr]
           -> LArray (nameToVar name env decls) (javaExpToLExpr expr env decls)
         _
           -> error $ "Multidimensional arrays are not supported: " ++ show arrayIndex
     fExpName name env decls =
-      case name of -- TODO: type checking + check implicit `this.name`
+      case name of
         Name [Ident a, Ident "length"] -> LLen $ nameToVar (Name [Ident a]) env decls
         _ -> LVar $ nameToVar name env decls
     fPostIncrement = error "fPostIncrement has side effects..."
@@ -114,7 +111,7 @@ javaExpToLExprAlgebra =
     fPreDecrement = error "fPreDecrement has side effects..."
     fPrePlus e = e
     fPreMinus e env decls = LUnop NNeg (e env decls)
-    fPreBitCompl e env decls = error "Bitwise operations not supported..."
+    fPreBitCompl _ _ _ = error "Bitwise operations not supported..."
     fPreNot e env decls = LUnop LNot (e env decls)
     fCast = error "fCast is not supported..." -- TODO: perhaps support cast for some types?
     fBinOp e1 op e2 env decls = -- TODO: type checking?
@@ -139,9 +136,9 @@ javaExpToLExprAlgebra =
             GThanE  -> (.>=)
             Equal   -> (.==)
             NotEq   -> (.!=)
-            _ -> error $ "Unsupported operation: " ++ show op
+            _       -> error $ "Unsupported operation: " ++ show op
     fInstanceOf = error "fInstanceOf is not supported..."
-    fCond c a b env decls = LIf (c env decls) (a env decls) (b env decls)
+    fCond c a b_ env decls = LIf (c env decls) (a env decls) (b_ env decls)
     fAssign = error "fAssign has side effects..."
     fLambda = error "fLambda should be handled by fMethodInv..."
     fMethodRef = undefined

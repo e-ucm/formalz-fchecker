@@ -1,7 +1,9 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module API where
 
 import Control.Concurrent
 import Data.Maybe
+import Data.List.Split (splitOn)
 
 import Javawlp.Engine.HelperFunctions
 import Javawlp.Engine.Types
@@ -13,6 +15,9 @@ import LogicIR.Expr
 import LogicIR.Frontend.Java (javaExpToLExpr)
 import LogicIR.Null (lExprPreprocessNull)
 import Model
+
+import Control.DeepSeq
+import Control.Exception.Base
 
 -- | Data types.
 data Mode = Debug | Release deriving (Eq, Show)
@@ -66,11 +71,19 @@ getRes Debug    resp              resp'             =
 checkSpec :: ParseMode -> EquivImpl -> (Source, String) -> (FilePath, String) -> IO Response
 checkSpec pMode equivTo methodA methodB = do
     [m1, m2] <- mapM (parseMethod pMode) [methodA, methodB]
-    let (preL, preL') = methodDefToLExpr m1 m2 "pre"
-    preRes <- preL `equivTo` preL'
-    let (postL, postL') = methodDefToLExpr m1 m2 "post"
-    postRes <- postL `equivTo` postL'
-    return $ preRes <> postRes
+    res <- methodDefToLExpr m1 m2 "pre"
+    case res of
+      Left e ->
+        return $ ErrorResponse $ head $ splitOn "CallStack" e
+      Right (preL, preL') -> do
+        preRes <- preL `equivTo` preL'
+        res' <- methodDefToLExpr m1 m2 "post"
+        case res' of
+          Left e' ->
+            return $ ErrorResponse e'
+          Right (postL, postL') -> do
+            postRes <- postL `equivTo` postL'
+            return $ preRes <> postRes
 
 --------------------------------------------------------------------------------
 
@@ -88,16 +101,19 @@ parseMethod pMode (src, name) = do
     -- return the relevant data
     return (decls, mbody, env)
 
-methodDefToLExpr :: MethodDef -> MethodDef -> String -> (LExpr, LExpr)
+methodDefToLExpr :: MethodDef -> MethodDef -> String -> IO (Either String (LExpr, LExpr))
 methodDefToLExpr m1@(decls1, _, env1) m2@(decls2, _, env2) name = do
     -- get pre/post condition
     let (e1, e2) = (extractCond m1 name, extractCond m2 name)
-    let (l1, l2) = (javaExpToLExpr e1 env1 decls1, javaExpToLExpr e2 env2 decls2)
-    -- preprocess "a == null" to "isNull(a)"
-    let (l, l') = (lExprPreprocessNull l1, lExprPreprocessNull l2)
-    (l, l')
-        where extractCond :: MethodDef -> String -> Exp
-              extractCond m n = extractExpr $ getMethodCalls m n
+    res :: Either SomeException (LExpr, LExpr) <-
+      try . evaluate . force $ (javaExpToLExpr e1 env1 decls1, javaExpToLExpr e2 env2 decls2)
+    return $ case res of
+      Left e ->
+        Left $ show e
+      Right (l, l') ->
+        Right (lExprPreprocessNull l, lExprPreprocessNull l')
+    where extractCond :: MethodDef -> String -> Exp
+          extractCond m n = extractExpr $ getMethodCalls m n
 
 -- Get a list of all calls to a method of a specific name from a method definition.
 getMethodCalls :: MethodDef -> String -> [MethodInvocation]

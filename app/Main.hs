@@ -3,16 +3,16 @@ module Main where
 import Control.Monad
 import Data.Semigroup ((<>))
 import Options.Applicative
-import API (compareSpec, Mode (..), ParseMode (..))
 
+import API (Mode (..), ParseMode (..), compareSpec)
 import Server (runApi)
 
 -- | Command-line options.
 data Options = Options
-  { srcA      :: String
-  , srcB      :: String
-  , method1   :: String
-  , method2   :: String
+  { sourceA   :: String
+  , sourceB   :: String
+  , methodA   :: String
+  , methodB   :: String
   , runServer :: Bool
   , port      :: Int
   }
@@ -69,10 +69,10 @@ main = runMain =<< execParser (parseOptions `withInfo` "Java WLP")
 
 -- | Run.
 runMain :: Options -> IO ()
-runMain (Options srcA srcB methodA methodB runServer port) =
-  if runServer then
-    runApi port
+runMain (Options srcA srcB methA methB serverFlag portNo) =
+  if serverFlag then
+    runApi portNo
   else do
-    when (methodA == "_default_") $ fail "No files given."
-    response <- compareSpec Release File (srcA, methodA) (srcB, methodB)
+    when (methA == "_default_") $ fail "No files given."
+    response <- compareSpec Release File (srcA, methA) (srcB, methB)
     print response
