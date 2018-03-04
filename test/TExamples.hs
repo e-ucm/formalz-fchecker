@@ -1,18 +1,19 @@
 module TExamples where
-import System.IO.Unsafe (unsafePerformIO)
-import System.IO.Silently (silence)
+import System.IO          (stderr, stdout)
+import System.IO.Silently (hSilence)
+import System.IO.Unsafe   (unsafePerformIO)
 import Test.HUnit
 
-import Model
 import API
+import Model
 
 src = "examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
 
 testEquiv :: Response -> String -> String -> Assertion
 testEquiv b s s' =
-  (case unsafePerformIO (silence $ compareSpec Debug File (src, s) (src, s')) of
+  (case unsafePerformIO (hSilence [stdout, stderr] $ compareSpec Debug File (src, s) (src, s')) of
     NotEquivalent _ -> NotEquivalent emptyModel
-    x -> x
+    x               -> x
    ) @?= b
 (.==) = testEquiv Equivalent
 (.!=) = testEquiv $ NotEquivalent emptyModel

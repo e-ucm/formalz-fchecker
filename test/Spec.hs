@@ -10,8 +10,8 @@ main = defaultMain
   [ constructTestSuite testName testSuite
   | (testName, testSuite) <- [
         ("LIR_PARSER", parserTests)
-      , ("EXAMPLES", examples)
       , ("MODEL_PARSER", modelParserTests)
+      , ("EXAMPLES", examples)
       , ("EQUIV_REAL", genEquivTests "examples/test_equiv/Reals.java")
       , ("EQUIV_ARRAY", genEquivTests "examples/test_equiv/Arrays.java")
       ]
