@@ -14,11 +14,11 @@ import Javawlp.Engine.HelperFunctions (parseMethodIds)
 import Model
 
 testEquiv :: Response -> String -> String -> String -> Assertion
-testEquiv b src s s' =
-  (case unsafePerformIO (hSilence [stdout, stderr] $ compareSpec Debug File (src, s) (src, s')) of
+testEquiv b src s s' = do
+  res <- hSilence [stdout, stderr] $ compareSpec Debug File (src, s) (src, s')
+  (case res of
     NotEquivalent x -> NotEquivalent emptyModel
-    x               -> x
-   ) @?= b
+    x               -> x) @?= b
 (.==) = testEquiv Equivalent
 (.!=) = testEquiv $ NotEquivalent emptyModel
 

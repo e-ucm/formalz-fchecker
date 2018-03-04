@@ -1,6 +1,6 @@
 module LogicIR.Backend.QuickCheck.API (equivalentTo) where
 
-import Control.Arrow (second)
+import Control.Arrow ((***))
 import Data.Map (Map)
 import qualified Data.Map.Lazy as M
 import Data.Maybe (fromJust, fromMaybe, isNothing)
@@ -16,17 +16,13 @@ equivalentTo lexpr lexpr' = do
     (eq, testModel) <- testEquality 1000 lexpr lexpr'
     if eq
     then return Equivalent
-    else return $ NotEquivalent $ toModel testModel
+    else return $ NotEquivalent $ toZ3Model testModel
 
-toModel :: (QC.Model, QC.ArrayModel) -> Model
-toModel (m, arrayM) = do
-    let arrayKeys = map LVar $ M.keys arrayM
-    let arrayVals = map (map LConst) $ M.elems arrayM
-    let arrayKVs = zip arrayKeys (map toModelVals arrayVals)
-    let modelKVs = map (second toModelVal) m
-    let model = arrayKVs ++ modelKVs
-    M.fromList $ map makePretty model
-    where makePretty (k,v) = (prettyLExpr k, v)
+toZ3Model :: (QC.Model, QC.ArrayModel) -> Model
+toZ3Model (m, arrayM) =
+    M.fromList $
+      map (prettyLExpr *** toModelVal) m ++
+      map ((prettyLExpr *** toModelVals) . (LVar *** fmap LConst)) (M.toList arrayM)
 
 toModelVal :: LExpr -> ModelVal
 toModelVal (LConst (CBool b)) = BoolVal b
@@ -34,4 +30,4 @@ toModelVal (LConst (CInt  i)) = IntVal  $ toInteger i
 toModelVal (LConst (CReal r)) = RealVal r
 
 toModelVals :: [LExpr] -> ModelVal
-toModelVals es@(x:xs) = ManyVal $ map toModelVal es
+toModelVals = ManyVal . map toModelVal

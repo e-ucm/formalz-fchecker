@@ -71,15 +71,15 @@ compareSpec m pMode methodA methodB = do
 
             mv1 <- newEmptyMVar
             mv2 <- if m == Debug then newEmptyMVar else return mv1
-            mapM_ (compareSpecHelper mv1) [ ("Z3", Z3.equivalentTo)
-                                          , ("Test", Test.equivalentTo)
-                                          ]
+            mapM_ compareSpecHelper [ (mv1, "Z3", Z3.equivalentTo)
+                                    , (mv2, "Test", Test.equivalentTo)
+                                    ]
             res1 <- readMVar mv1
             res2 <- readMVar mv2 -- if Release, this won't block
             return $ getRes m res1 res2
             where -- | Runs f on a separate thread and stores the result in mv.
-                  compareSpecHelper mv (name, impl) = forkIO $ do
-                    res <- checkSpec name impl (preL, preL') (postL, postL')
+            compareSpecHelper (mv, name, impl) = forkIO $ do
+                    res <- checkSpec name impl (preL, preL') (postL, postL') 
                     res `seq` putMVar mv res
 
 -- | Makes sure that both Responses are the same, otherwise, if we
