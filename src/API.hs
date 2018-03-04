@@ -2,19 +2,24 @@
 module API where
 
 import Control.Concurrent
+import Data.List          (intercalate)
+import Data.List.Split    (splitOn)
 import Data.Maybe
-import Data.List.Split (splitOn)
+import Prelude            hiding (log)
+import System.IO
 
 import Javawlp.Engine.HelperFunctions
 import Javawlp.Engine.Types
+import Language.Java.Pretty
 import Language.Java.Syntax
 
 import qualified LogicIR.Backend.QuickCheck.API as Test
-import qualified LogicIR.Backend.Z3.API as Z3
-import LogicIR.Expr
-import LogicIR.Frontend.Java (javaExpToLExpr)
-import LogicIR.Null (lExprPreprocessNull)
-import Model
+import qualified LogicIR.Backend.Z3.API         as Z3
+import           LogicIR.Expr
+import           LogicIR.Frontend.Java          (javaExpToLExpr)
+import           LogicIR.Null                   (lExprPreprocessNull)
+import           LogicIR.Pretty
+import           Model
 
 import Control.DeepSeq
 import Control.Exception.Base
@@ -40,17 +45,42 @@ compareSpec :: Mode               -- ^ The execution mode
             -> (FilePath, String) -- ^ Specification 2
             -> IO Response        -- ^ Result of spec comparison.
 compareSpec m pMode methodA methodB = do
-    mv1 <- newEmptyMVar
-    mv2 <- if m == Debug then newEmptyMVar else return mv1
-    _ <- compareSpecHelper mv1 (checkSpec pMode Z3.equivalentTo)
-    _ <- compareSpecHelper mv2 (checkSpec pMode Test.equivalentTo)
-    res1 <- readMVar mv1
-    res2 <- readMVar mv2 -- if Release then mv1 == mv2 and this won't block
-    return $ getRes m res1 res2
-    where -- | Runs f on a separate thread and stores the result in mv.
-          compareSpecHelper mv f = forkIO $ do
-            res <- f methodA methodB
-            res `seq` putMVar mv res
+    -- Parsing.
+    [mA, mB] <- mapM (parseMethod pMode) [methodA, methodB]
+    log "\n********************************************************************"
+    log $ "MethodA:\n" ++ ppMethodDef mA ++ "\n"
+    log $ "MethodB:\n" ++ ppMethodDef mB ++ "\n"
+    res <- methodDefToLExpr mA mB "pre"
+    case res of
+      Left e -> do
+        log $ "*** ERROR: " ++ show e
+        return $ mkErrorResponse e
+      Right (preL, preL') -> do
+        log $ "Pre\n" ++ "~~~\n"
+        log $ "LExprA:\n" ++ prettyLExpr preL ++ "\n"
+        log $ "LExprB:\n" ++ prettyLExpr preL' ++ "\n"
+        res' <- methodDefToLExpr mA mB "post"
+        case res' of
+          Left e' -> do
+            log $ "*** ERROR: " ++ show e'
+            return $ mkErrorResponse e'
+          Right (postL, postL') -> do
+            log $ "Post\n" ++ "~~~~\n"
+            log $ "LExprA:\n" ++ prettyLExpr postL ++ "\n"
+            log $ "LExprB:\n" ++ prettyLExpr postL' ++ "\n"
+
+            mv1 <- newEmptyMVar
+            mv2 <- if m == Debug then newEmptyMVar else return mv1
+            mapM_ (compareSpecHelper mv1) [ ("Z3", Z3.equivalentTo)
+                                          , ("Test", Test.equivalentTo)
+                                          ]
+            res1 <- readMVar mv1
+            res2 <- readMVar mv2 -- if Release, this won't block
+            return $ getRes m res1 res2
+            where -- | Runs f on a separate thread and stores the result in mv.
+                  compareSpecHelper mv (name, impl) = forkIO $ do
+                    res <- checkSpec name impl (preL, preL') (postL, postL')
+                    res `seq` putMVar mv res
 
 -- | Makes sure that both Responses are the same, otherwise, if we
 --   run in debug mode, an error will be thrown. If not in debug mode,
@@ -68,22 +98,13 @@ getRes Release  resp              _                 = resp
 getRes Debug    resp              resp'             =
     error $ "proveSpec says " ++ show resp ++ ", testSpec says " ++ show resp'
 
-checkSpec :: ParseMode -> EquivImpl -> (Source, String) -> (FilePath, String) -> IO Response
-checkSpec pMode equivTo methodA methodB = do
-    [m1, m2] <- mapM (parseMethod pMode) [methodA, methodB]
-    res <- methodDefToLExpr m1 m2 "pre"
-    case res of
-      Left e ->
-        return $ ErrorResponse $ head $ splitOn "CallStack" e
-      Right (preL, preL') -> do
-        preRes <- preL `equivTo` preL'
-        res' <- methodDefToLExpr m1 m2 "post"
-        case res' of
-          Left e' ->
-            return $ ErrorResponse e'
-          Right (postL, postL') -> do
-            postRes <- postL `equivTo` postL'
-            return $ preRes <> postRes
+checkSpec :: String -> EquivImpl -> (LExpr, LExpr) -> (LExpr, LExpr) -> IO Response
+checkSpec name equivTo (preL, preL') (postL, postL') = do
+    preRes <- preL `equivTo` preL'
+    log $ "PreResponse (" ++ name ++ "):\n" ++ show preRes ++ "\n"
+    postRes <- postL `equivTo` postL'
+    log $ "PostResponse (" ++ name ++ "):\n" ++ show postRes ++ "\n"
+    return $ preRes <> postRes
 
 --------------------------------------------------------------------------------
 
@@ -130,3 +151,18 @@ extractExpr call = combineExprs $ map (\(MethodCall (Name [Ident _]) [a]) -> a) 
           combineExprs []     = true
           combineExprs [e]    = e
           combineExprs (e:es) = e &* combineExprs es
+
+--------------------------------- Debugging ------------------------------------
+log :: String -> IO ()
+log = hPutStrLn stderr
+
+mkErrorResponse :: String -> Response
+mkErrorResponse = ErrorResponse . head . splitOn "\nCallStack"
+
+ppMethodDef :: MethodDef -> String
+ppMethodDef (typeDecls, stmt, typeEnv) =
+  ppTypeEnv typeEnv ++ "\n" ++ prettyPrint stmt
+
+ppTypeEnv :: TypeEnv -> String
+ppTypeEnv = intercalate ", " . map ppNT
+  where ppNT (n, t) = prettyPrint t ++ " " ++ prettyPrint n

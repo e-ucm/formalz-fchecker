@@ -17,7 +17,7 @@ javaExpToLExpr = foldExp javaExpToLExprAlgebra
 -- Converts a name to a LogicIR.Var, it queries the type environment to find the correct type.
 nameToVar :: Name -> TypeEnv -> [TypeDecl] -> Var
 nameToVar name env decls =
-    case arrayType of
+    case type_ of
         PrimType BooleanT                       -> fromString(symbol ++ ":bool")
         PrimType ShortT                         -> fromString(symbol ++ ":int")
         PrimType IntT                           -> fromString(symbol ++ ":int")
@@ -29,9 +29,9 @@ nameToVar name env decls =
         RefType (ArrayType (PrimType LongT))    -> fromString(symbol ++ ":[int]")
         RefType (ArrayType (PrimType FloatT))   -> fromString(symbol ++ ":[real]")
         RefType (ArrayType (PrimType DoubleT))  -> fromString(symbol ++ ":[real]")
-        _ -> error $ "Unimplemented nameToVar: " ++ show (name, arrayType)
+        _ -> error $ "Unsupported type: " ++ prettyPrint type_ ++ " " ++ prettyPrint name
     where
-      (arrayType, symbol) = (lookupType decls env name, prettyPrint name)
+      (type_, symbol) = (lookupType decls env name, prettyPrint name)
 
 javaExpToLExprAlgebra :: ExpAlgebra (TypeEnv -> [TypeDecl] -> LExpr)
 javaExpToLExprAlgebra =
@@ -76,21 +76,21 @@ javaExpToLExprAlgebra =
         MethodCall (Name [Ident method]) [ExpName name, rbegin, rend, Lambda (LambdaSingleParam (Ident bound)) (LambdaBlock (Block [BlockStmt (Return (Just expr))]))]
             -> quantr method name rbegin rend bound expr
         _
-            -> error $ "Unimplemented fMethodInv: " ++ show inv
+            -> error $ "Unimplemented fMethodInv: " ++ prettyPrint inv
         where quant method name bound expr =
                 let i = Var (TPrim PInt) bound
                     (zero, len) = (LConst (CInt 0), LLen (nameToVar name env decls))
                 in case method of
                           "forall" -> lquantr QAll i zero len expr
                           "exists" -> lquantr QAny i zero len expr
-                          _ -> error $ "Unimplemented fMethodInv: " ++ show inv
+                          _ -> error $ "Unimplemented fMethodInv: " ++ prettyPrint inv
               quantr method name rbegin rend bound expr =
                 let (begin, end) = (refold rbegin, refold rend)
                     (i, _) = (Var (TPrim PInt) bound, nameToVar name env decls)
                 in case method of
                           "forallr" -> lquantr QAll i begin end expr
                           "existsr" -> lquantr QAny i begin end expr
-                          _ -> error $ "Unimplemented fMethodInv: " ++ show inv
+                          _ -> error $ "Unimplemented fMethodInv: " ++ prettyPrint inv
               lquantr op i begin end expr =
                 LQuant op i (LBinop (v i .>= begin) LAnd (LBinop (LVar i) CLess end)) (refold expr)
               refold expr =
@@ -100,7 +100,7 @@ javaExpToLExprAlgebra =
         ArrayIndex (ExpName name) [expr]
           -> LArray (nameToVar name env decls) (javaExpToLExpr expr env decls)
         _
-          -> error $ "Multidimensional arrays are not supported: " ++ show arrayIndex
+          -> error $ "Multidimensional arrays are not supported: " ++ prettyPrint arrayIndex
     fExpName name env decls =
       case name of
         Name [Ident a, Ident "length"] -> LLen $ nameToVar (Name [Ident a]) env decls
@@ -136,7 +136,7 @@ javaExpToLExprAlgebra =
             GThanE  -> (.>=)
             Equal   -> (.==)
             NotEq   -> (.!=)
-            _       -> error $ "Unsupported operation: " ++ show op
+            _       -> error $ "Unsupported operation: " ++ prettyPrint op
     fInstanceOf = error "fInstanceOf is not supported..."
     fCond c a b_ env decls = LIf (c env decls) (a env decls) (b_ env decls)
     fAssign = error "fAssign has side effects..."

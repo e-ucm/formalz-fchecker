@@ -16,10 +16,10 @@ equivalentTo lexpr lexpr' = do
     (eq, testModel) <- testEquality 1000 lexpr lexpr'
     if eq
     then return Equivalent
-    else return $ NotEquivalent $ toZ3Model testModel
+    else return $ NotEquivalent $ toModel testModel
 
-toZ3Model :: (QC.Model, QC.ArrayModel) -> Model
-toZ3Model (m, arrayM) = do
+toModel :: (QC.Model, QC.ArrayModel) -> Model
+toModel (m, arrayM) = do
     let arrayKeys = map LVar $ M.keys arrayM
     let arrayVals = map (map LConst) $ M.elems arrayM
     let arrayKVs = zip arrayKeys (map toModelVals arrayVals)
