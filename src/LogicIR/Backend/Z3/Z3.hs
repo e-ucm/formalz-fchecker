@@ -18,7 +18,7 @@ lExprToZ3AstAlgebra =
     CBool b -> mkBool b
     CInt n -> mkInteger $ toInteger n
     CReal f -> mkRealNum f
-    CNil -> error "null constants cannot be used directly with Z3 (use LogicIR.Backend.Null)"
+    CNil -> error "null constants cannot be used directly with Z3 (see LogicIR.Null)"
   fUnop o a' = do
     a <- a'
     case o of

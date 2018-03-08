@@ -11,12 +11,12 @@ src = "examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
 
 testEquiv :: Response -> String -> String -> Assertion
 testEquiv b s s' = do
-  res <- hSilence [stdout, stderr] $ compareSpec Debug File (src, s) (src, s')
+  res <- hSilence [stdout, stderr] $ compareSpec Release File (src, s) (src, s')
   (case res of
-    NotEquivalent _ -> NotEquivalent emptyModel
-    x               -> x) @?= b
+    NotEquivalent _ _ -> NotEquivalent emptyModel emptyFeedback
+    x                 -> x) @?= b
 (.==) = testEquiv Equivalent
-(.!=) = testEquiv $ NotEquivalent emptyModel
+(.!=) = testEquiv $ NotEquivalent emptyModel emptyFeedback
 (.??) = testEquiv Timeout
 
 examples =

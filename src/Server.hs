@@ -52,8 +52,10 @@ data ApiResponse = ApiResponse
   { responseType :: ApiResponseType
   , model        :: Maybe Model
   , err          :: Maybe String
+  , feedback     :: Maybe (Feedback, Feedback)
   }
   deriving (Eq, Show, Generic)
+instance ToJSON Feedback
 instance ToJSON ApiResponseType
 instance ToJSON ApiResponse
 instance ToJSON ModelVal where
@@ -61,6 +63,13 @@ instance ToJSON ModelVal where
   toJSON (IntVal n)   = toJSON n
   toJSON (RealVal n)  = toJSON n
   toJSON (ManyVal vs) = Array $ fromList $ map toJSON vs
+
+-- | Default API response.
+defResp = ApiResponse { responseType = Undef
+                      , model = Nothing
+                      , err = Nothing
+                      , feedback = Nothing
+                      }
 
 type CompareApi = "compare"
   :> ReqBody '[JSON] ApiReqBody
@@ -74,13 +83,16 @@ getCompareResponse ApiReqBody {sourceA = srcA, sourceB = srcB} = do
     resp <- liftIO $ compareSpec Release Raw (wrap srcA) (wrap srcB)
     return $ case resp of
                   Equivalent ->
-                    ApiResponse { responseType = Equiv, model = Nothing, err = Nothing }
-                  NotEquivalent m ->
-                    ApiResponse { responseType = NotEquiv, model = Just m, err = Nothing }
+                    defResp { responseType = Equiv }
+                  NotEquivalent m f ->
+                    defResp { responseType = NotEquiv
+                            , model = Just m
+                            , feedback = Just f
+                            }
                   ErrorResponse e ->
-                    ApiResponse { responseType = ResponseErr, model = Nothing, err = Just e }
+                    defResp { responseType = ResponseErr, err = Just e }
                   _ ->
-                    ApiResponse { responseType = Undef, model = Nothing, err = Nothing }
+                    defResp { responseType = Undef }
     where
       wrap s = ( "public class Main {" ++ s ++ "}"
                , last $ splitOn " " $ head $ splitOn "(" s
@@ -106,6 +118,7 @@ instance ToSample ApiResponse where
       , ("i", IntVal 10)
       ]
     , err = Nothing
+    , feedback = Just (NoFeedback, Stronger)
     }
 
 docsBS :: ByteString
@@ -117,6 +130,7 @@ docsBS = encodeUtf8
         opts = DocOptions 1
 
 -- | API documentation (Swagger).
+instance ToSchema Feedback
 instance ToSchema ApiReqBody
 instance ToSchema ApiResponseType
 instance ToSchema ApiResponse

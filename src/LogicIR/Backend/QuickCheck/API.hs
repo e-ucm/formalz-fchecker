@@ -14,9 +14,10 @@ import Model
 equivalentTo :: LExpr -> LExpr -> IO Response
 equivalentTo lexpr lexpr' = do
     (eq, testModel) <- testEquality 1000 lexpr lexpr'
+    let feedback = NoFeedback -- TODO check implication (stronger + weaker)
     if eq
     then return Equivalent
-    else return $ NotEquivalent $ toZ3Model testModel
+    else return $ NotEquivalent (toZ3Model testModel) (feedback, NoFeedback)
 
 toZ3Model :: (QC.Model, QC.ArrayModel) -> Model
 toZ3Model (m, arrayM) =

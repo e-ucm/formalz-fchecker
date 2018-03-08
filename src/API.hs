@@ -31,9 +31,9 @@ data ParseMode = Raw | File
 
 type Source = String
 
-type EquivImpl = LExpr -> LExpr -> IO Response
-
 type MethodDef = ([TypeDecl], Stmt, TypeEnv)
+
+type EquivImpl = LExpr -> LExpr -> IO Response
 
 -- | Calls proveSpec and testSpec on different threads and returns
 --   their response. If the function is called in debug mode, it
@@ -71,15 +71,15 @@ compareSpec m pMode methodA methodB = do
 
             mv1 <- newEmptyMVar
             mv2 <- if m == Debug then newEmptyMVar else return mv1
-            mapM_ compareSpecHelper [ (mv1, "Z3", Z3.equivalentTo)
+            mapM_ compareSpecHelper [ (mv1, "Z3", Test.equivalentTo)
                                     , (mv2, "Test", Test.equivalentTo)
                                     ]
             res1 <- readMVar mv1
             res2 <- readMVar mv2 -- if Release, this won't block
             return $ getRes m res1 res2
             where -- | Runs f on a separate thread and stores the result in mv.
-            compareSpecHelper (mv, name, impl) = forkIO $ do
-                    res <- checkSpec name impl (preL, preL') (postL, postL') 
+                  compareSpecHelper (mv, name, impl) = forkIO $ do
+                    res <- checkEquiv name impl (preL, preL') (postL, postL')
                     res `seq` putMVar mv res
 
 -- | Makes sure that both Responses are the same, otherwise, if we
@@ -90,16 +90,17 @@ getRes :: Mode     -- ^ True if debug mode, False otherwise
        -> Response -- ^ The response from proveSpec
        -> Response -- ^ The response from testSpec
        -> Response -- ^ The final response.
-getRes _        Timeout           testRes           = testRes
-getRes _        Undefined         testRes           = testRes
-getRes _        Equivalent        Equivalent        = Equivalent
-getRes _        (NotEquivalent m) (NotEquivalent _) = NotEquivalent m
-getRes Release  resp              _                 = resp
-getRes Debug    resp              resp'             =
-    error $ "proveSpec says " ++ show resp ++ ", testSpec says " ++ show resp'
+getRes _        Timeout             testRes             = testRes
+getRes _        Undefined           testRes             = testRes
+getRes _        Equivalent          Equivalent          = Equivalent
+getRes _        (NotEquivalent m f) (NotEquivalent _ _) = NotEquivalent m f
+getRes Release  resp                _                   = resp
+getRes Debug    resp                resp'               =
+  error $ "proveSpec says " ++ show resp ++ ", testSpec says " ++ show resp'
 
-checkSpec :: String -> EquivImpl -> (LExpr, LExpr) -> (LExpr, LExpr) -> IO Response
-checkSpec name equivTo (preL, preL') (postL, postL') = do
+-- | Check if two logic statements are equivalent.
+checkEquiv :: String -> EquivImpl -> (LExpr, LExpr) -> (LExpr, LExpr) -> IO Response
+checkEquiv name equivTo (preL, preL') (postL, postL') = do
     preRes <- preL `equivTo` preL'
     log $ "PreResponse (" ++ name ++ "):\n" ++ show preRes ++ "\n"
     postRes <- postL `equivTo` postL'

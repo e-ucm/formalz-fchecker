@@ -86,7 +86,7 @@ infix 1 .: ; infix 1 .!
 (.!) = LArray
 
 binOp op e = LBinop e op
-infix 2 .==> ; infix 3 .&& ; infix 3 .||
+infix 2 .<==> ; infix 2 .==> ; infix 3 .&& ; infix 3 .||
 infix 4 .== ; infix 4 .!= ; infix 4 .> ; infix 4 .< ; infix 4 .<= ; infix 4 .>=
 infix 5 .* ; infix 5 ./ ; infix 5 .%
 infix 6 .+ ; infix 6 .-
@@ -95,4 +95,5 @@ infix 6 .+ ; infix 6 .-
 (.==) = binOp CEqual ; (.!=) x y = lnot $ x .== y
 (.<) = binOp CLess ; (.<=) x y = x .< y .|| x.== y
 (.>) = binOp CGreater ; (.>=) x y = x .> y .|| x.== y
-(.&&) = binOp LAnd ; (.||) = binOp LOr ; (.==>) = binOp LImpl
+(.&&) = binOp LAnd ; (.||) = binOp LOr
+(.==>) = binOp LImpl ; (.<==>) = (.==)

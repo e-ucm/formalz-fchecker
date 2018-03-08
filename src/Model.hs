@@ -4,36 +4,39 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 module Model where
 
-import Data.List (isSuffixOf)
-import qualified Data.Map as M
-import Data.String
-import GHC.Generics
-import Text.Parsec hiding (runP)
-import Text.Parsec.Language
-import Text.Parsec.String
-import qualified Text.Parsec.Token as Tokens
+import           Data.List            (isSuffixOf)
+import qualified Data.Map             as M
+import           Data.String
+import           GHC.Generics
+import           Text.Parsec          hiding (runP)
+import           Text.Parsec.Language
+import           Text.Parsec.String
+import qualified Text.Parsec.Token    as Tokens
 
 import LogicIR.ParserUtils
 
+-- | Feedback type.
+data Feedback = Stronger   -- A ==> B
+              | Weaker     -- A <== B
+              | NoFeedback -- A ??? B
+                deriving (Eq, Show, Generic)
+
 -- | Response type.
-data Response = Equivalent | NotEquivalent Model | ErrorResponse String | Undefined | Timeout
-                deriving (Eq)
+data Response = Equivalent
+              | NotEquivalent Model (Feedback, Feedback)
+              | ErrorResponse String
+              | Undefined
+              | Timeout
+                deriving (Eq, Show)
 
 (<>) :: Response -> Response -> Response
-ErrorResponse e <> _ = ErrorResponse e
-_ <> ErrorResponse e = ErrorResponse e
-Equivalent <> r = r
-NotEquivalent s <> _ = NotEquivalent s
-Timeout <> _ = Timeout
-Undefined <> _ = Undefined
-
-instance Show Response where
-  show Equivalent = "Formulas are equivalent"
-  show (NotEquivalent model) = "Not equivalent: " ++ show model
-  show (ErrorResponse e) = "*** Error: " ++ show e
-  show Undefined = "Oops... could not determine if formulas are equivalent"
-  show Timeout = "Timeout occured"
-
+ErrorResponse e        <> _                       = ErrorResponse e
+_                      <> ErrorResponse e         = ErrorResponse e
+Timeout                <> _                       = Timeout
+Undefined              <> _                       = Undefined
+Equivalent             <> r                       = r
+NotEquivalent s (f, _) <> NotEquivalent _ (f', _) = NotEquivalent s (f, f')
+r                      <> _                       = r
 
 -- | Model type.
 data ModelVal = BoolVal Bool
@@ -46,6 +49,8 @@ type Model = M.Map String ModelVal
 
 emptyModel :: Model
 emptyModel = M.empty
+emptyFeedback :: (Feedback, Feedback)
+emptyFeedback = (NoFeedback, NoFeedback)
 
 -- | Pretty-printing.
 instance Show ModelVal where

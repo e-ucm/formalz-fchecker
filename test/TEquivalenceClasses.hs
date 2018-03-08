@@ -17,10 +17,10 @@ testEquiv :: Response -> String -> String -> String -> Assertion
 testEquiv b src s s' = do
   res <- hSilence [stdout, stderr] $ compareSpec Debug File (src, s) (src, s')
   (case res of
-    NotEquivalent x -> NotEquivalent emptyModel
+    NotEquivalent _ _ -> NotEquivalent emptyModel emptyFeedback
     x               -> x) @?= b
 (.==) = testEquiv Equivalent
-(.!=) = testEquiv $ NotEquivalent emptyModel
+(.!=) = testEquiv $ NotEquivalent emptyModel emptyFeedback
 
 genEquivTests edslSrc =
   let methodIds = unsafePerformIO (hSilence [stdout, stderr] $ parseMethodIds edslSrc)
