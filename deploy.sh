@@ -2,16 +2,16 @@
 # $1: port number to run the server
 # $2: filename to log output
 
+PORT="${1:-8080}"
+LOG="${2:-out.log}"
+
 # Get latest HEAD
 git pull origin master
 # Build project
 stack build
 # Kill previous process
 pkill javawlp
-# Backup previous log
-if [ -f $2 ]
-then
-    mv $2 "$2".backup
-fi
- # Run server
-nohup stack exec javawlp -- --runServer -p $1 > $2 &
+# Backup previous log if it exists by appending it to a backup file.
+[[ -f $LOG ]] && cat $LOG >> "$LOG".backup
+# Run server
+nohup stack exec javawlp -- --runServer -p $PORT > $LOG &
