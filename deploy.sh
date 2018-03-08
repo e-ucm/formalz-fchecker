@@ -14,7 +14,7 @@ stack build
 # Kill previous process
 pkill javawlp
 # Backup previous log if it exists by appending it to a backup file.
-if [[ -f "$LOGPATH" ]]
+if [ -f "$LOGPATH" ]
 then
 	cat "$LOGPATH" >> "$BACKUPPATH"
 	rm "$LOGPATH"
