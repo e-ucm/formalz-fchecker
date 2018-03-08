@@ -4,7 +4,7 @@ image: haskell:8.0
 cache:
   paths:
   - ~/.stack
-  - ~/JavaWlp/.stack-work
+  - /builds/impresshs/javawlp/.stack-work
   # Dirs where Z3 stuff is stored.
   - usr/bin
   - usr/lib
@@ -12,9 +12,6 @@ cache:
 
 before_script:
   # Just to know how everything's set up by gitlab
-  - pwd
-  - ls -a
-  - cd ~
   - pwd
   - ls -a
   # Install Stack and Z3
