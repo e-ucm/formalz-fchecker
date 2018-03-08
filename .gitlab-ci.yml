@@ -1,5 +1,4 @@
-# Do not choose a language; we provide our own build tools.
-# language: generic
+image: haskell:8.0
 
 # Caching so the next build will be fast too.
 cache:
@@ -7,13 +6,9 @@ cache:
   - $HOME/.stack
   - $HOME/.stack-work
 
-before_script:
-  # Install system libraries
-  - apt-get update -qq && apt-get install -y -qq libgmp-dev libz3-dev z3
-  # Download and unpack the stack executable
-  - mkdir -p ~/.local/bin
-  - export PATH=$HOME/.local/bin:$PATH
-  - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+build:
+  script:
+    - stack --no-terminal --install-ghc build --only-dependencies
 
 test:
   script:
