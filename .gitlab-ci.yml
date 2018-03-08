@@ -10,7 +10,7 @@ cache:
 
 before_script:
   # Install Stack and Z3 if they aren't already.
-  - if [ -z "$(which z3)" ]; then                  \
+  - if [ -z "$(which z3)" ]; then                     \
       apt-get update                               && \
       apt-get install curl unzip -y                && \
       curl -sSL https://get.haskellstack.org/ | sh && \
@@ -22,7 +22,7 @@ before_script:
       mv z3/bin/libz3.so /usr/lib                  && \
       rm    z3.zip                                 && \
       rm -r z3;                                       \
-    fi
+    fi;
 
 build:
   script:
