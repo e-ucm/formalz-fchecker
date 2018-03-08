@@ -3,16 +3,34 @@ image: haskell:8.0
 # Caching so the next build will be fast too.
 cache:
   paths:
-  - $HOME/.stack
-  - $HOME/.stack-work
+  - ~/.stack
+  - ~/JavaWlp/.stack-work
+  # Dirs where Z3 stuff is stored.
+  - usr/bin
+  - usr/lib
+  - usr/include
+
+before_script:
+  # Just to know how everything's set up by gitlab
+  - pwd
+  - ls -a
+  # Install Stack and Z3
+  - apt-get update
+  - apt-get install curl -y
+  - curl -sSL https://get.haskellstack.org/ | sh
+  - curl -L https://github.com/Z3Prover/z3/releases/download/z3-4.6.0/z3-4.6.0-x64-ubuntu-16.04.zip -o z3.zip && \
+    unzip z3.zip && \
+    rm -r z3.zip && \
+    mv z3-4.6.0-x64-ubuntu-16.04 z3 && \
+    mv z3/bin/z3 /usr/bin && \
+    mv z3/include/* /usr/include && \
+    mv z3/bin/libz3.so /usr/lib
+    rm ~/z3
 
 build:
   script:
-    - stack --no-terminal --install-ghc build --only-dependencies
+    - stack build --no-terminal --only-dependencies --allow-different-user
 
 test:
   script:
-    # Build dependencies
-    - stack --no-terminal --install-ghc test --only-dependencies
-    # Build the package, its tests, and its docs and run the tests
-    - stack --no-terminal test --haddock --no-haddock-deps
+    - stack test --no-terminal --allow-different-user
