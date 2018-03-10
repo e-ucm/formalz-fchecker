@@ -71,7 +71,7 @@ compareSpec m pMode methodA methodB = do
 
             mv1 <- newEmptyMVar
             mv2 <- if m == Debug then newEmptyMVar else return mv1
-            mapM_ compareSpecHelper [ (mv1, "Z3", Test.equivalentTo)
+            mapM_ compareSpecHelper [ (mv1, "Z3", Z3.equivalentTo)
                                     , (mv2, "Test", Test.equivalentTo)
                                     ]
             res1 <- readMVar mv1
