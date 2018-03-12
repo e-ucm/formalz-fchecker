@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE OverloadedStrings #-}
 module LogicIR.Parser where
 
@@ -26,6 +27,7 @@ exprP =
                 , [ prefix "!" lnot]
                 , [ infix_ "/\\" (.&&), infix_ "\\/" (.||) ]
                 , [ infix_ "==>" (.==>) ]
+                , [ infix_ "<==>" (.<==>) ]
                 ]
         term = try (parens exprP) <|>
                try nullP <|>
@@ -39,15 +41,15 @@ exprP =
 -- | Sub-parsers.
 nullP, lenP, arrayP, quantP, iteP, varP, constP :: Parser LExpr
 nullP = do
-  v <- bvarP <~ "==" <~ "null"
-  return $ LIsnull v
+  x <- bvarP <~ "==" <~ "null"
+  return $ LIsnull x
 lenP = do
-  v <- "len(" ~> bvarP <~ ")"
-  return $ LLen v
+  x <- "len(" ~> bvarP <~ ")"
+  return $ LLen x
 arrayP = do
-  v <- bvarP <~ "["
+  x <- bvarP <~ "["
   e <- exprP <~ "]"
-  return $ v .! e
+  return $ x .! e
 quantP = try forallP <|> existsP
   where forallP = do
           bvar <- "forall " ~> bvarP <~ "::"

@@ -1,29 +1,37 @@
-module LogicIR.Fold where
+module LogicIR.Fold
+       ( LAlgebra (..)
+       , defLAlgebra
+       , foldLExpr
+       ) where
 
 import LogicIR.Expr
 
 -- | Fold algebra for logical expressions.
-type LExprAlgebra r = (LConst -> r, -- LConst
-                       Var -> r, -- LVar
-                       LUnop -> r -> r, -- LUnop
-                       r -> LBinop -> r -> r, -- LBinop
-                       r -> r -> r -> r, -- LIf
-                       QOp -> Var -> r -> r -> r, -- LQuant
-                       Var -> r -> r, -- LArray
-                       Var -> r, -- LIsnull
-                       Var -> r -- LLen
-                      )
+data LAlgebra r = LAlgebra
+  { cns :: LConst -> r
+  , var :: Var -> r
+  , uni :: LUnop -> r -> r
+  , bin :: r -> LBinop -> r -> r
+  , iff :: r -> r -> r -> r
+  , qnt :: QOp -> Var -> r -> r -> r
+  , arr :: Var -> r -> r
+  , nll :: Var -> r
+  , len :: Var -> r
+  }
+
+defLAlgebra :: LAlgebra LExpr
+defLAlgebra = LAlgebra LConst LVar LUnop LBinop LIf LQuant LArray LIsnull LLen
 
 -- | Fold for logical expressions.
-foldLExpr :: LExprAlgebra r -> LExpr -> r
-foldLExpr (fConst, fVar, fUnop, fBinop, fIf, fQuant, fArray, fIsnull, fLen) = fold where
-    fold e = case e of
-                  LConst c       -> fConst c
-                  LVar v         -> fVar v
-                  LUnop o a      -> fUnop o (fold a)
-                  LBinop a o b   -> fBinop (fold a) o (fold b)
-                  LIf c a b      -> fIf (fold c) (fold a) (fold b)
-                  LQuant o b d a -> fQuant o b (fold d) (fold a)
-                  LArray v a     -> fArray v (fold a)
-                  LIsnull v      -> fIsnull v
-                  LLen v         -> fLen v
+foldLExpr :: LAlgebra r -> LExpr -> r
+foldLExpr (LAlgebra fcns fvar funi fbin fiff fqnt farr fnll flen) = fold
+  where fold e = case e of
+                  LConst c       -> fcns c
+                  LVar x         -> fvar x
+                  LUnop o a      -> funi o (fold a)
+                  LBinop x o y   -> fbin (fold x) o (fold y)
+                  LIf c x y      -> fiff (fold c) (fold x) (fold y)
+                  LQuant o y d a -> fqnt o y (fold d) (fold a)
+                  LArray x a     -> farr x (fold a)
+                  LIsnull x      -> fnll x
+                  LLen x         -> flen x

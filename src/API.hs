@@ -79,8 +79,8 @@ compareSpec m pMode methodA methodB = do
             return $ getRes m res1 res2
             where -- | Runs f on a separate thread and stores the result in mv.
                   compareSpecHelper (mv, name, impl) = forkIO $ do
-                    res <- checkEquiv name impl (preL, preL') (postL, postL')
-                    res `seq` putMVar mv res
+                    resp <- checkEquiv name impl (preL, preL') (postL, postL')
+                    resp `seq` putMVar mv resp
 
 -- | Makes sure that both Responses are the same, otherwise, if we
 --   run in debug mode, an error will be thrown. If not in debug mode,
@@ -135,15 +135,16 @@ methodDefToLExpr m1@(decls1, _, env1) m2@(decls2, _, env2) name = do
       Right (l, l') ->
         Right (lExprPreprocessNull l, lExprPreprocessNull l')
     where extractCond :: MethodDef -> String -> Exp
-          extractCond m n = extractExpr $ getMethodCalls m n
+          extractCond m x = extractExpr $ getMethodCalls m x
 
 -- Get a list of all calls to a method of a specific name from a method definition.
 getMethodCalls :: MethodDef -> String -> [MethodInvocation]
 getMethodCalls (_, StmtBlock (Block bs), _) name = mapMaybe extractMethodInv bs
     where
         extractMethodInv :: BlockStmt -> Maybe MethodInvocation
-        extractMethodInv (BlockStmt (ExpStmt (MethodInv i@(MethodCall (Name [Ident n]) _)))) = if n == name then Just i else Nothing
+        extractMethodInv (BlockStmt (ExpStmt (MethodInv i@(MethodCall (Name [Ident x]) _)))) = if x == name then Just i else Nothing
         extractMethodInv _ = Nothing
+getMethodCalls _ _ = error "getMethodCalls: invalid arguments"
 
 -- [pre(a), pre(b), pre(c)] -> (a AND b AND c)
 extractExpr :: [MethodInvocation] -> Exp
@@ -161,9 +162,9 @@ mkErrorResponse :: String -> Response
 mkErrorResponse = ErrorResponse . head . splitOn "\nCallStack"
 
 ppMethodDef :: MethodDef -> String
-ppMethodDef (typeDecls, stmt, typeEnv) =
+ppMethodDef (_, stmt, typeEnv) =
   ppTypeEnv typeEnv ++ "\n" ++ prettyPrint stmt
 
 ppTypeEnv :: TypeEnv -> String
 ppTypeEnv = intercalate ", " . map ppNT
-  where ppNT (n, t) = prettyPrint t ++ " " ++ prettyPrint n
+  where ppNT (x, t) = prettyPrint t ++ " " ++ prettyPrint x

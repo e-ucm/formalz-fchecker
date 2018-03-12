@@ -2,11 +2,10 @@
 
 module LogicIR.Backend.QuickCheck.ModelGenerator (generateModel, generateArrayModel, generateEvalInfo, expandEvalInfo, findVariables, Model, ArrayModel, EvalInfo) where
 
-import Data.List (find, nub, (\\))
-import System.Random
-import Data.Maybe (isNothing, fromJust)
-import Data.Map (Map)
+import           Data.List     (nub, (\\))
+import           Data.Map      (Map)
 import qualified Data.Map.Lazy as M
+import           System.Random
 
 import LogicIR.Expr
 import LogicIR.Fold
@@ -24,13 +23,13 @@ type EvalInfo = (Model, ArrayModel, [LExpr])
 expandEvalInfo :: LExpr -> (Model, ArrayModel) -> IO EvalInfo
 expandEvalInfo e (m, arrM) = do
     (m', arrM', quantVs') <- generateEvalInfo e
-    let mFinal    = m    ++ filter (\(k,v) -> not $ elem k (fst $ unzip m)) m'
-    let arrMFinal = (M.toList arrM) ++ filter (\(k,v) -> not $ elem k (M.keys arrM)) (M.toList arrM')
+    let mFinal    = m    ++ filter (\(k,_) -> notElem k (map fst m)) m'
+    let arrMFinal = M.toList arrM ++ filter (\(k,_) -> notElem k (M.keys arrM)) (M.toList arrM')
     return (mFinal, M.fromList arrMFinal, quantVs')
 
 generateEvalInfo :: LExpr -> IO EvalInfo
 generateEvalInfo e = do
-    let vs@(regularVs, (arrayVs, arrayOpVs), quantVs) = findVariables e
+    let (regularVs, (arrayVs, arrayOpVs), quantVs) = findVariables e
     let isNullExprs   = filter sIsnullExpr arrayOpVs
     primitivesModel  <- generateModel (regularVs ++ isNullExprs)
     arrayModel       <- generateArrayModel arrayVs
@@ -43,12 +42,15 @@ generateModel :: [LExpr] -> IO Model
 generateModel = mapM generateModelEntry
 
 generateArrayModel :: [LExpr] -> IO ArrayModel
-generateArrayModel es = mapM generateArray es >>= \l -> return (M.fromList l)
-    where generateArray e@(LVar v@(Var (TArray (TPrim t)) _)) = do
-              len         <- (rnd (0,4)) :: IO Int
-              expArr      <- mapM (\x -> generatePrimitive t) [1..len]
-              let cnstArr  = map (\(LConst c) -> c) expArr
-              return (v, cnstArr)
+generateArrayModel es = M.fromList <$> mapM generateArray es
+    where
+      generateArray :: LExpr -> IO (Var, [LConst])
+      generateArray (LVar x@(Var (TArray (TPrim t)) _)) = do
+        l         <- rnd (0,4) :: IO Int
+        expArr      <- mapM (\_ -> generatePrimitive t) [1..l]
+        let cnstArr  = map (\(LConst c) -> c) expArr
+        return (x, cnstArr)
+      generateArray _ = error "generateArray: non-array argument"
 
 {- Generates an entry for the substitution Model for a given LExpr.
    Note that firstly:  LIsnull can only be applied to arrays since ints/bools
@@ -62,27 +64,26 @@ generateArrayModel es = mapM generateArray es >>= \l -> return (M.fromList l)
                        a.length if a == null... -}
 generateModelEntry :: LExpr -> IO (LExpr, LExpr)
 generateModelEntry e@(LVar (Var (TPrim t) _)) =
-    generatePrimitive t >>= \v -> return (e, v)
+    generatePrimitive t >>= \x -> return (e, x)
 generateModelEntry e@(LIsnull (Var (TArray _) _)) =
-    generatePrimitive PBool >>= \v -> return (e, v)
+    generatePrimitive PBool >>= \x -> return (e, x)
 generateModelEntry e =
     error $ "Cannot generate model entry for " ++ show e
 
 generatePrimitive :: Primitive -> IO LExpr
-generatePrimitive t@PBool = do
-    let b = (0,1) :: (Int,Int)
-    v <- rnd b
-    return $ LConst $ CBool $ v == 1
-generatePrimitive t@PInt = do
-    v <- rnd (-10,10)
-    return $ LConst $ CInt v
-generatePrimitive t@PReal = do
-    v <- rnd (-500,500)
-    let finalV = (v / 50) :: Double
+generatePrimitive PBool = do
+    x <- rnd ((0,1) :: (Int,Int))
+    return $ LConst $ CBool $ x == 1
+generatePrimitive PInt = do
+    x <- rnd (-10,10)
+    return $ LConst $ CInt x
+generatePrimitive PReal = do
+    x <- rnd (-500,500)
+    let finalV = (x / 50) :: Double
     return $ LConst $ CReal finalV
 
 rnd :: System.Random.Random a => (a, a) -> IO a
-rnd b = getStdRandom (randomR b)
+rnd = getStdRandom . randomR
 
 -- The first  list contains all regular var LExpr's.
 -- The second item contains a list of all arrays and a list of array operators (isnull / len).
@@ -90,22 +91,21 @@ rnd b = getStdRandom (randomR b)
 type VariableCollection = ([LExpr],([LExpr],[LExpr]),[LExpr])
 
 findVariables :: LExpr -> VariableCollection
-findVariables e = (a \\ c, b, c)
+findVariables e = (k \\ m, l, m)
     where merge :: VariableCollection -> VariableCollection -> VariableCollection
           merge (a1,(b1,c1),d1) (a2,(b2,c2),d2) = (a1++a2,(b1++b2,c1++c2),d1++d2)
 
-          algebra :: LExprAlgebra VariableCollection
-          algebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
-          cnst _           = ([],([],[]),[])
-          uni _ e          = e
-          bin le _ re      = merge le re
-          iff ge e1 e2     = merge ge $ merge e1 e2
-          var v            = ([LVar v],([],[]),[])
-          quant qt v e1 e2 = merge ([],([],[]),[LVar v]) $ merge e1 e2
-          arr v e          = merge ([],([LVar v],[]),[]) e
-          snull v          = ([],([LVar v],[LIsnull v]),[])
-          len v            = ([],([LVar v],[LLen v]),[])
+          algebra :: LAlgebra VariableCollection
+          algebra = LAlgebra fcns fvar funi fbin fiff fqnt farr fnll flen
+          fcns _         = ([],([],[]),[])
+          funi _ x       = x
+          fbin le _      = merge le
+          fiff ge e1 e2  = merge ge $ merge e1 e2
+          fvar x         = ([LVar x],([],[]),[])
+          fqnt _ x e1 e2 = merge ([],([],[]),[LVar x]) $ merge e1 e2
+          farr x         = merge ([],([LVar x],[]),[])
+          fnll x         = ([],([LVar x],[LIsnull x]),[])
+          flen x         = ([],([LVar x],[LLen x]),[])
 
           (afull,(bfull,cfull),dfull) = foldLExpr algebra e
-          (a,b,c) = (nub afull,(nub bfull,nub cfull),nub dfull)
-
+          (k,l,m) = (nub afull,(nub bfull,nub cfull),nub dfull)

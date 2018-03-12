@@ -14,76 +14,85 @@ evalIfPossible e = if evalPossible e then LConst (eval e) else e
 evalPossible :: LExpr -> Bool
 evalPossible = foldLExpr evalPossibleAlgebra
 
-evalPossibleAlgebra :: LExprAlgebra Bool
-evalPossibleAlgebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
-    where cnst _                   = True
-          uni _ c                  = c
-          bin le _ re              = le && re
-          iff ge e1 e2             = ge && e1 && e2
-          var v                    = False
-          quant _ _ a1 a2          = a1 && a2
-          arr v a                  = False
-          snull (Var (TPrim _) _)  = True -- Primitive type is never null.
-          snull (Var (TArray _) _) = False
-          len v                    = True -- This possibly needs to be changed. See evalAlgebra
+evalPossibleAlgebra :: LAlgebra Bool
+evalPossibleAlgebra = LAlgebra fcns fvar funi fbin fiff fqnt farr fnll flen
+    where fcns _                  = True
+          funi _ c                = c
+          fbin le _ re            = le && re
+          fiff ge e1 e2           = ge && e1 && e2
+          fvar _                  = False
+          fqnt _ _ a1 a2          = a1 && a2
+          farr _ _                = False
+          fnll (Var (TPrim _) _)  = True -- Primitive type is never null.
+          fnll (Var (TArray _) _) = False
+          flen _                  = True -- This possibly needs to be changed. See evalAlgebra
 
-evalAlgebra :: LExprAlgebra LConst
-evalAlgebra = (cnst, var, uni, bin, iff, quant, arr, snull, len)
-    where cnst = id
-          uni NNeg (CInt i)  = CInt (-i)
-          uni LNot (CBool b) = CBool (not b)
-          bin = evalBin
-          iff ge e1 e2    = if ge == CBool True then e1 else e2
+evalAlgebra :: LAlgebra LConst
+evalAlgebra = LAlgebra fcns fvar funi fbin fiff fqnt farr fnll flen
+    where fcns = id
+          funi NNeg (CInt i)  = CInt (-i)
+          funi LNot (CBool x) = CBool (not x)
+          funi _ _            = error "evalAlgebra: invalid argument to funi"
+          fbin                = evalBin
+          fiff ge e1 e2       = if ge == CBool True then e1 else e2
           -- This possibly needs to be changed.
-          len v           = CInt  10 -- error "Array length cannot yet be evaluated."
-          snull (Var (TPrim _) _)  = CBool False -- Primitive type is never null.
-          snull (Var (TArray _) _) = error "You can't call eval on an LExpr that has an (LIsnull someArrayVar) that wasn't converted to a boolean first."
+          flen _                  = CInt  10 -- error "Array length cannot yet be evaluated."
+          fnll (Var (TPrim _) _)  = CBool False -- Primitive type is never null.
+          fnll (Var (TArray _) _) = error "You can't call eval on an LExpr that has an (LIsnull someArrayVar) that wasn't converted to a boolean first."
           -- Things that should never happen.
-          quant _ _ e1 e2 = error "Quantifiers cannot be evaluated and should be replaced using LogicIR.Rewrite.replaceQuantifiers."
-          arr v a         = error "You can't call eval on an LExpr that contains uninstantiated arrays."
-          var v           = error "You can't call eval on an LExpr that contains uninstantiated vars."
+          fqnt _ _ _ _ = error "Quantifiers cannot be evaluated and should be replaced using LogicIR.Rewrite.replaceQuantifiers."
+          farr _ _     = error "You can't call eval on an LExpr that contains uninstantiated arrays."
+          fvar _       = error "You can't call eval on an LExpr that contains uninstantiated vars."
 
+compOps :: [LBinop]
 compOps = [CLess, CEqual, CGreater]
+compOpF :: Ord a => LBinop -> a -> a -> Bool
 compOpF CLess    = (<)
 compOpF CEqual   = (==)
 compOpF CGreater = (>)
+compOpF _        = error "compOpF: invalid binary operator"
 
-val (CInt  i) = fromIntegral i
-val (CReal r) = r
+val :: LConst -> Double
+val (CInt  x) = fromIntegral x
+val (CReal x) = x
+val _         = error "val: invalid constant"
 
 -- Evaluates a binary operator expression.
+evalBin :: LConst -> LBinop -> LConst -> LConst
 -- Logical operators
-evalBin (CBool l) LAnd  (CBool r) = CBool (l && r)
-evalBin (CBool l) LOr   (CBool r) = CBool (l || r)
-evalBin (CBool l) LImpl (CBool r) = CBool (not l || (l && r))
+evalBin (CBool x) LAnd  (CBool y) = CBool (x && y)
+evalBin (CBool x) LOr   (CBool y) = CBool (x || y)
+evalBin (CBool x) LImpl (CBool y) = CBool (not x || (x && y))
 -- Comparison operators
-evalBin (CInt  l) o (CInt  r)
-     | elem o compOps       = CBool $ (compOpF o) l r
-     | o == NDiv            = CInt $ l `quot` r
-     | o == NRem            = CInt $ l `rem` r
-     | otherwise            = CInt $ convert o l r
-evalBin (CReal l) o (CReal r)
-     | elem o compOps = CBool $ (compOpF o) l r
-     | otherwise      = CReal $ convertR o l r
+evalBin (CInt  x) o (CInt  y)
+     | o `elem` compOps     = CBool $ compOpF o x y
+     | o == NDiv            = CInt $ x `quot` y
+     | o == NRem            = CInt $ x `rem` y
+     | otherwise            = CInt $ convert o x y
+evalBin (CReal x) o (CReal y)
+     | o `elem` compOps = CBool $ compOpF o x y
+     | otherwise        = CReal $ convertR o x y
 -- Numerical operators
-evalBin l o r
-     | elem o compOps = CBool $ (compOpF o) (val l) (val r)
-     | otherwise      = CReal $ convertR o (val l) (val r)
+evalBin x o y
+     | o `elem` compOps = CBool $ compOpF o (val x) (val y)
+     | otherwise        = CReal $ convertR o (val x) (val y)
 
-convertR NRem a b = mod' a b
-convertR NDiv a b = (/)  a b
-convertR o    a b = convert o a b
+convertR :: (Show a, Fractional a, Real a) => LBinop -> a -> a -> a
+convertR NRem x y = mod' x y
+convertR NDiv x y = (/)  x y
+convertR o    x y = convert o x y
 
-convert NAdd a b = (+)  a b
-convert NSub a b = (-)  a b
-convert NMul a b = (*)  a b
-convert o    a b = error $ (show o) ++ " on " ++ (show a) ++ " and " ++ (show b) ++ " is impossible."
+convert :: (Show a, Num a) => LBinop -> a -> a -> a
+convert NAdd x y = (+) x y
+convert NSub x y = (-) x y
+convert NMul x y = (*) x y
+convert o    x y = error $ show o ++ " on " ++ show x ++ " and " ++ show y ++ " is impossible."
 
 -- Mod that works with (negative) reals the same way
 -- Java would work with them, but with arbitrary precision
 -- instead of the bad precision that Java has.
-mod' x y = do
-     let a = toRational x
-     let b = toRational y
-     let c = a - (b * (toRational $ truncate (a / b)))
-     fromRational c
+mod' :: (Real t, Fractional a) => t -> t -> a
+mod' x y =
+  let x' = toRational x
+      y' = toRational y
+  in  fromRational $ x' - (y' * toRational (truncate (x' / y') :: Integer))

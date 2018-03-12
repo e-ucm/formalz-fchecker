@@ -37,6 +37,7 @@ data LBinop =
             | LAnd -- a && b
             | LOr -- a || b
             | LImpl -- a ==> b
+            | LEqual -- a <==> b
             -- comparisons
             | CEqual -- a == b
             | CLess -- a < b
@@ -96,4 +97,4 @@ infix 6 .+ ; infix 6 .-
 (.<) = binOp CLess ; (.<=) x y = x .< y .|| x.== y
 (.>) = binOp CGreater ; (.>=) x y = x .> y .|| x.== y
 (.&&) = binOp LAnd ; (.||) = binOp LOr
-(.==>) = binOp LImpl ; (.<==>) = (.==)
+(.==>) = binOp LImpl ; (.<==>) = binOp LEqual

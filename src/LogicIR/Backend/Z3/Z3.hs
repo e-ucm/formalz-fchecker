@@ -11,57 +11,60 @@ import LogicIR.Parser ()
 lExprToZ3Ast :: LExpr -> Z3 AST
 lExprToZ3Ast = foldLExpr lExprToZ3AstAlgebra
 
-lExprToZ3AstAlgebra :: LExprAlgebra (Z3 AST)
-lExprToZ3AstAlgebra =
-  (fConst, genVar, fUnop, fBinop, fIf, fQuant, fArray, fIsnull, fLen) where
-  fConst c = case c of
-    CBool b -> mkBool b
-    CInt n -> mkInteger $ toInteger n
-    CReal f -> mkRealNum f
-    CNil -> error "null constants cannot be used directly with Z3 (see LogicIR.Null)"
-  fUnop o a' = do
-    a <- a'
-    case o of
-      NNeg -> mkUnaryMinus a
-      LNot -> mkNot a
-  fBinop a' o b' = do
-    a <- a'
-    b <- b'
-    case o of
-      NAdd     -> mkAdd [a, b]
-      NSub     -> mkSub [a, b]
-      NMul     -> mkMul [a, b]
-      NDiv     -> mkDiv a b
-      NRem     -> mkRem a b
-      LAnd     -> mkAnd [a, b]
-      LOr      -> mkOr [a, b]
-      LImpl    -> mkImplies a b
-      CEqual   -> mkEq a b
-      CLess    -> mkLt a b
-      CGreater -> mkGt a b
-  fIf c' a' b' = do
-    c <- c'
-    a <- a'
-    b <- b'
-    mkIte c a b
-  fQuant o v@(Var t n) d' a' = do
-    a <- a'
-    d <- d'
-    case t of
-      "int" -> do
-        vApp <- genVar v >>= toApp
-        case o of
-          QAll -> do e <- mkImplies d a
-                     mkForallConst [] [vApp] e
-          QAny -> do e <- mkAnd [d, a]
-                     mkExistsConst [] [vApp] e
-      _ -> error $ "unsupported quantifier domain type: " ++ show (o, v)
-  fArray v a' = do
-    v <- genVar v
-    a <- a'
-    mkSelect v a
-  fIsnull (Var (TArray _) n) = genNullVar n
-  fLen (Var (TArray _) n) = genLenVar n -- TODO: support proper array lengths
+lExprToZ3AstAlgebra :: LAlgebra (Z3 AST)
+lExprToZ3AstAlgebra = LAlgebra fConst genVar fUnop fBinop fIf fQuant fArray fIsnull fLen
+  where
+    fConst c = case c of
+      CBool x -> mkBool x
+      CInt x -> mkInteger $ toInteger x
+      CReal f -> mkRealNum f
+      CNil -> error "null constants cannot be used directly with Z3 (see LogicIR.Null)"
+    fUnop o a' = do
+      a <- a'
+      case o of
+        NNeg -> mkUnaryMinus a
+        LNot -> mkNot a
+    fBinop x' o y' = do
+      x <- x'
+      y <- y'
+      case o of
+        NAdd     -> mkAdd [x, y]
+        NSub     -> mkSub [x, y]
+        NMul     -> mkMul [x, y]
+        NDiv     -> mkDiv x y
+        NRem     -> mkRem x y
+        LAnd     -> mkAnd [x, y]
+        LOr      -> mkOr [x, y]
+        LImpl    -> mkImplies x y
+        LEqual   -> mkEq x y
+        CEqual   -> mkEq x y
+        CLess    -> mkLt x y
+        CGreater -> mkGt x y
+    fIf c' x' y' = do
+      c <- c'
+      x <- x'
+      y <- y'
+      mkIte c x y
+    fQuant o x@(Var t _) d' a' = do
+      a <- a'
+      d <- d'
+      case t of
+        "int" -> do
+          vApp <- genVar x >>= toApp
+          case o of
+            QAll -> do e <- mkImplies d a
+                       mkForallConst [] [vApp] e
+            QAny -> do e <- mkAnd [d, a]
+                       mkExistsConst [] [vApp] e
+        _ -> error $ "unsupported quantifier domain type: " ++ show (o, x)
+    fArray x' a' = do
+      x <- genVar x'
+      a <- a'
+      mkSelect x a
+    fIsnull (Var (TArray _) x) = genNullVar x
+    fIsnull _ = error "unsupported null check"
+    fLen (Var (TArray _) x) = genLenVar x -- TODO: support proper array lengths
+    fLen _ = error "unsupported length"
 
 -- | Get formula's free variables (to be included in model).
 type FreeVars = M.Map String AST
@@ -69,23 +72,25 @@ freeVars2 :: LExpr -> LExpr -> Z3 FreeVars
 freeVars2 l l' = M.unions <$> mapM (foldLExpr freeVarsAlgebra) [l, l']
 freeVars :: LExpr -> Z3 FreeVars
 freeVars = foldLExpr freeVarsAlgebra
-freeVarsAlgebra :: LExprAlgebra (Z3 FreeVars)
-freeVarsAlgebra =
-  (fConst, fVar, fUnop, fBinop, fIf, fQuant, fArray, fIsnull, fLen) where
-  fConst _ = return M.empty
-  fVar v@(Var t n) = M.singleton n <$> genVar v
-  fUnop _ r = r
-  fBinop r _ r' = M.unions <$> sequence [r, r']
-  fIf r r' r'' = M.unions <$> sequence [r, r', r'']
-  fQuant _ (Var _ n) d r = M.unions . fmap (M.delete n) <$> sequence [r, d]
-  fArray v _ = M.unions <$> sequence [fIsnull v, fLen v, fVar v]
-  fIsnull (Var (TArray _) n) = M.singleton (n ++ "?null") <$> genNullVar n
-  fLen (Var (TArray _) n) = M.singleton (n ++ "?length") <$> genLenVar n
+freeVarsAlgebra :: LAlgebra (Z3 FreeVars)
+freeVarsAlgebra = LAlgebra fConst fVar fUnop fBinop fIf fQuant fArray fIsnull fLen
+  where
+    fConst _ = return M.empty
+    fVar xVar@(Var _ x) = M.singleton x <$> genVar xVar
+    fUnop _ x = x
+    fBinop x _ y = M.unions <$> sequence [x, y]
+    fIf c x y = M.unions <$> sequence [c, x, y]
+    fQuant _ (Var _ x) d a = M.unions . fmap (M.delete x) <$> sequence [a, d]
+    fArray x _ = M.unions <$> sequence [fIsnull x, fLen x, fVar x]
+    fIsnull (Var (TArray _) x) = M.singleton (x ++ "?null") <$> genNullVar x
+    fIsnull _ = error "unsupported null check"
+    fLen (Var (TArray _) x) = M.singleton (x ++ "?length") <$> genLenVar x
+    fLen _ = error "unsupported length"
 
 -- | Generate a new Z3 variable, depending on the expression's type.
 genVar :: Var -> Z3 AST
-genVar (Var t n) =
-  mkStringSymbol n >>=
+genVar (Var t x) =
+  mkStringSymbol x >>=
     case t of
       "int"    -> mkIntVar
       "bool"   -> mkBoolVar

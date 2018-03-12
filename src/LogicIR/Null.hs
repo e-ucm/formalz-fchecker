@@ -6,12 +6,12 @@ import LogicIR.Fold
 -- | Replace all instances of "a ==/!= null" with (!)isNull(a).
 lExprPreprocessNull :: LExpr -> LExpr
 lExprPreprocessNull =
-  foldLExpr (LConst, LVar, LUnop, fBinop, LIf, LQuant, LArray, LIsnull, LLen)
+  foldLExpr (defLAlgebra {bin = fbin})
   where
-    fBinop a o b =
+    fbin x o y =
       case o of
-        CEqual -> nullCheck a b
-        _      -> LBinop a o b
-    nullCheck (LVar v@(Var (TArray _) _)) (LConst CNil) = LIsnull v
-    nullCheck (LConst CNil) (LVar v@(Var (TArray _) _)) = LIsnull v
-    nullCheck a b                                       = LBinop a CEqual b
+        CEqual -> nullCheck x y
+        _      -> LBinop x o y
+    nullCheck (LVar x@(Var (TArray _) _)) (LConst CNil) = LIsnull x
+    nullCheck (LConst CNil) (LVar x@(Var (TArray _) _)) = LIsnull x
+    nullCheck x y                                       = LBinop x CEqual y
