@@ -6,16 +6,18 @@ import TIRParser
 import TEquivalenceClasses
 import TModelParser
 import TFeedback
+import TNormalizer
 
 main = defaultMain
   [ constructTestSuite testName testSuite
   | (testName, testSuite) <- [
-        ("LIR_PARSER", parserTests)
-      , ("MODEL_PARSER", modelParserTests)
-      , ("EXAMPLES", examples)
-      , ("EQUIV_REAL", genEquivTests "examples/test_equiv/Reals.java")
-      , ("EQUIV_ARRAY", genEquivTests "examples/test_equiv/Arrays.java")
-      , ("FEEDBACK", feedbackTests)
+        ("NORMALIZER", normTests)
+      -- , ("LIR_PARSER", parserTests)
+      -- , ("MODEL_PARSER", modelParserTests)
+      -- , ("EXAMPLES", examples)
+      -- , ("EQUIV_REAL", genEquivTests "examples/test_equiv/Reals.java")
+      -- , ("EQUIV_ARRAY", genEquivTests "examples/test_equiv/Arrays.java")
+      -- , ("FEEDBACK", feedbackTests)
       ]
   ]
   where

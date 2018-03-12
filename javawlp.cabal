@@ -34,6 +34,7 @@ library
                      , LogicIR.Frontend.Java
                      , LogicIR.Eval
                      , LogicIR.ParserUtils
+                     , LogicIR.Normalizer
                      -- Z3
                      , LogicIR.Backend.Z3.Z3
                      , LogicIR.Backend.Z3.API
@@ -87,6 +88,7 @@ test-suite javawlp-tests
                      , TEquivalenceClasses
                      , TModelParser
                      , TFeedback
+                     , TNormalizer
   build-depends:       base
                      , javawlp
                      , test-framework

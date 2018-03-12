@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric  #-}
 module LogicIR.Expr where
@@ -81,20 +82,21 @@ n = LConst . CInt
 b = LConst . CBool
 nil = LConst CNil
 lnot = LUnop LNot
+binOp op e = LBinop e op
 
 infix 1 .: ; infix 1 .!
-(.:) x t = LVar $ Var t x
-(.!) = LArray
-
-binOp op e = LBinop e op
-infix 2 .<==> ; infix 2 .==> ; infix 3 .&& ; infix 3 .||
+infix 2 .<==> ; infix 2 .==>
+infix 3 .&& ; infix 3 .||
 infix 4 .== ; infix 4 .!= ; infix 4 .> ; infix 4 .< ; infix 4 .<= ; infix 4 .>=
 infix 5 .* ; infix 5 ./ ; infix 5 .%
 infix 6 .+ ; infix 6 .-
-(.+) = binOp NAdd ; (.-) = binOp NSub
-(.*) = binOp NMul ; (./) = binOp NDiv ; (.%) = binOp NRem
-(.==) = binOp CEqual ; (.!=) x y = lnot $ x .== y
-(.<) = binOp CLess ; (.<=) x y = x .< y .|| x.== y
-(.>) = binOp CGreater ; (.>=) x y = x .> y .|| x.== y
-(.&&) = binOp LAnd ; (.||) = binOp LOr
-(.==>) = binOp LImpl ; (.<==>) = binOp LEqual
+(.:) x t = LVar $ Var t x
+(.!)   = LArray
+(.+)   = binOp NAdd     ; (.-)      = binOp NSub
+(.*)   = binOp NMul     ; (./)      = binOp NDiv
+(.%)   = binOp NRem
+(.==)  = binOp CEqual   ; (.!=) x y = lnot $ x .== y
+(.<)   = binOp CLess    ; (.<=) x y = x .< y .|| x.== y
+(.>)   = binOp CGreater ; (.>=) x y = x .> y .|| x.== y
+(.&&)  = binOp LAnd     ; (.||)     = binOp LOr
+(.==>) = binOp LImpl    ; (.<==>)   = binOp LEqual
