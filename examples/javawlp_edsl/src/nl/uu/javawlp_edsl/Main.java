@@ -5,6 +5,13 @@ import static nl.uu.impress.EDSL.*;
 
 public class Main {
 
+    public static void empty1() {
+      pre();
+      post();
+    }
+
+    public static void empty2() {}
+
     public static void quickcheck_test1(int[] b) {
         pre(~(-a * c) == (79 & 41));
         pre(a > 0);

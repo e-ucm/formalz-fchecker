@@ -20,7 +20,8 @@ testEquiv b s s' = do
 (.??) = testEquiv Timeout
 
 examples =
-  [ "arr1" .!= "arr2"
+  [ "empty1" .== "empty2"
+  , "arr1" .!= "arr2"
   , "swap_spec1" .== "swap_spec1"
   , "swap_spec1" .!= "swap_spec2"
   , "getMax_spec1" .!= "getMax_spec2"

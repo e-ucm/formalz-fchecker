@@ -24,6 +24,8 @@ import           Model
 import Control.DeepSeq
 import Control.Exception.Base
 
+import Debug.Trace
+
 -- | Data types.
 data Mode = Debug | Release deriving (Eq, Show)
 
@@ -135,7 +137,8 @@ methodDefToLExpr m1@(decls1, _, env1) m2@(decls2, _, env2) name = do
       Right (l, l') ->
         Right (lExprPreprocessNull l, lExprPreprocessNull l')
     where extractCond :: MethodDef -> String -> Exp
-          extractCond m x = extractExpr $ getMethodCalls m x
+          extractCond m x = let tt = getMethodCalls m x
+                            in trace (show tt) (extractExpr tt)
 
 -- Get a list of all calls to a method of a specific name from a method definition.
 getMethodCalls :: MethodDef -> String -> [MethodInvocation]
@@ -148,11 +151,13 @@ getMethodCalls _ _ = error "getMethodCalls: invalid arguments"
 
 -- [pre(a), pre(b), pre(c)] -> (a AND b AND c)
 extractExpr :: [MethodInvocation] -> Exp
-extractExpr call = combineExprs $ map (\(MethodCall (Name [Ident _]) [a]) -> a) call
-    where combineExprs :: [Exp] -> Exp
-          combineExprs []     = true
-          combineExprs [e]    = e
-          combineExprs (e:es) = e &* combineExprs es
+extractExpr call =
+    combineExprs $ concatMap (\(MethodCall (Name [Ident _]) args) -> args) call
+    where
+      combineExprs :: [Exp] -> Exp
+      combineExprs []     = true
+      combineExprs [e]    = e
+      combineExprs (e:es) = e &* combineExprs es
 
 --------------------------------- Debugging ------------------------------------
 log :: String -> IO ()
