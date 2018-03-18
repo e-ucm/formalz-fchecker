@@ -8,14 +8,13 @@ import qualified Z3.Base  as Z3
 import           Z3.Monad hiding (Model)
 
 import           Control.Exception.Base (tryJust)
-import           Control.Monad          (forM, when)
+import           Control.Monad          (forM)
 import qualified Data.Map               as M
 import           Data.Maybe             (fromJust)
 import           Data.String
 
-import Control.Monad.Trans   (liftIO)
 import LogicIR.Backend.Z3.Z3
-import LogicIR.Expr          (LExpr, lnot, (.<==>), (.==>))
+import LogicIR.Expr          (LExpr, lnot, (.&&), (.<==>))
 import Model
 
 data Z3Response = Satisfiable Model | Unsatisfiable | Undecidable
@@ -27,18 +26,19 @@ equivalentTo l l' = do
   equiv <- checkZ3 $ lnot (l .<==> l')
   case equiv of
     Satisfiable m -> do
-      feedback <- do
-        stronger <- checkZ3 $ lnot (l .==> l')
-        case stronger of
-          Unsatisfiable -> return Stronger
-          _ -> do
-            weaker <- checkZ3 $ lnot (l' .==> l)
-            case weaker of
-              Unsatisfiable -> return Weaker
-              _             -> return NoFeedback
-      return $ NotEquivalent m (feedback, NoFeedback)
+      res <- sequence $ checkZ3 <$>
+        [l .&& l', l .&& lnot l', lnot l .&& l', lnot l .&& lnot l']
+      let feedback = mkFeedback $ toBool <$> res
+      return $ NotEquivalent m Feedback {pre = feedback, post = defFeedback}
     Unsatisfiable -> return Equivalent
     Undecidable -> return Undefined
+  where
+    mkFeedback :: [Bool] -> SingleFeedback
+    mkFeedback [b1, b2, b3, b4] = (b1, b2, b3, b4)
+    mkFeedback _                = defFeedback
+    toBool :: Z3Response -> Bool
+    toBool (Satisfiable _) = True
+    toBool _               = False
 
 -- | Checks the validity of a logical statement.
 checkZ3 :: LExpr -> IO Z3Response

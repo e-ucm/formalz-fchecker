@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -8,18 +9,17 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE UndecidableInstances  #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Server (runApi) where
 
-import Control.Monad.Trans (liftIO)
-import Data.Aeson
-import Data.ByteString.Lazy (ByteString)
-import Data.List.Split (splitOn)
-import qualified Data.Map as Map
-import Data.Proxy
-import Data.Text.Lazy (pack)
-import Data.Text.Lazy.Encoding (encodeUtf8)
-import Data.Vector (fromList)
+import           Control.Monad.Trans     (liftIO)
+import           Data.Aeson
+import           Data.ByteString.Lazy    (ByteString)
+import           Data.List.Split         (splitOn)
+import qualified Data.Map                as Map
+import           Data.Proxy
+import           Data.Text.Lazy          (pack)
+import           Data.Text.Lazy.Encoding (encodeUtf8)
+import           Data.Vector             (fromList)
 
 import GHC.Generics
 import System.IO
@@ -30,11 +30,11 @@ import Network.Wai.Handler.Warp
 import Servant
 import Servant.Docs
 
-import Data.Swagger hiding (port)
+import Data.Swagger       hiding (port)
 import Servant.Swagger
 import Servant.Swagger.UI
 
-import API (Mode (..), ParseMode (..), compareSpec)
+import API   (Mode (..), ParseMode (..), compareSpec)
 import Model
 
 -- | Data types.
@@ -52,7 +52,7 @@ data ApiResponse = ApiResponse
   { responseType :: ApiResponseType
   , model        :: Maybe Model
   , err          :: Maybe String
-  , feedback     :: Maybe (Feedback, Feedback)
+  , feedback     :: Maybe Feedback
   }
   deriving (Eq, Show, Generic)
 instance ToJSON Feedback
@@ -65,6 +65,7 @@ instance ToJSON ModelVal where
   toJSON (ManyVal vs) = Array $ fromList $ map toJSON vs
 
 -- | Default API response.
+defResp :: ApiResponse
 defResp = ApiResponse { responseType = Undef
                       , model = Nothing
                       , err = Nothing
@@ -118,7 +119,7 @@ instance ToSample ApiResponse where
       , ("i", IntVal 10)
       ]
     , err = Nothing
-    , feedback = Just (NoFeedback, Stronger)
+    , feedback = Just $ Feedback (True, True, False, True) (False, True, True, False)
     }
 
 docsBS :: ByteString

@@ -16,18 +16,30 @@ import qualified Text.Parsec.Token    as Tokens
 import LogicIR.ParserUtils
 
 -- | Feedback type.
-data Feedback = Stronger   -- A ==> B
-              | Weaker     -- A <== B
-              | NoFeedback -- A ??? B
-                deriving (Eq, Show, Generic)
+type SingleFeedback = ( Bool -- T-T
+                      , Bool -- T-F
+                      , Bool -- F-T
+                      , Bool -- F-F
+                      )
+
+defFeedback :: SingleFeedback
+defFeedback = (False, False, False, False)
+
+data Feedback = Feedback
+  { pre  :: SingleFeedback
+  , post :: SingleFeedback
+  } deriving (Eq, Show, Generic)
+
+defFeedback' :: Feedback
+defFeedback' = Feedback { pre = defFeedback, post = defFeedback }
 
 -- | Response type.
 data Response = Equivalent
-              | NotEquivalent Model (Feedback, Feedback)
+              | NotEquivalent Model Feedback
               | ErrorResponse String
               | Undefined
               | Timeout
-                deriving (Eq, Show)
+              deriving (Eq, Show)
 
 (<>) :: Response -> Response -> Response
 ErrorResponse e        <> _                       = ErrorResponse e
@@ -35,7 +47,7 @@ _                      <> ErrorResponse e         = ErrorResponse e
 Timeout                <> _                       = Timeout
 Undefined              <> _                       = Undefined
 Equivalent             <> r                       = r
-NotEquivalent s (f, _) <> NotEquivalent _ (f', _) = NotEquivalent s (f, f')
+NotEquivalent s (Feedback pre' _) <> NotEquivalent _ (Feedback _ post') = NotEquivalent s (Feedback pre' post')
 r                      <> _                       = r
 
 -- | Model type.
@@ -49,8 +61,8 @@ type Model = M.Map String ModelVal
 
 emptyModel :: Model
 emptyModel = M.empty
-emptyFeedback :: (Feedback, Feedback)
-emptyFeedback = (NoFeedback, NoFeedback)
+-- emptyFeedback :: (Feedback, Feedback)
+-- emptyFeedback = (NoFeedback, NoFeedback)
 
 -- | Pretty-printing.
 instance Show ModelVal where

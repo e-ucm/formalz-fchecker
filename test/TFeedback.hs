@@ -16,12 +16,13 @@ testEquiv b s s' = do
   (case res of
     NotEquivalent _ f -> NotEquivalent emptyModel f
     x                 -> x) @?= b
-(!!=) s s' f = testEquiv (NotEquivalent emptyModel (f, NoFeedback)) s s'
+(!!=) s s' f = testEquiv (NotEquivalent emptyModel (Feedback f defFeedback)) s s'
 
 feedbackTests =
-  [ ("true /\\ x:int == 1" !!= "false \\/ x:int >= 1") Stronger
-  , ("true /\\ x:int >= 1" !!= "false \\/ x:int == 1") Weaker
-  , ("x:int == 1 /\\ y:int == 1" !!= "x:int == 2 /\\ y:int == 1") NoFeedback
-  , ("x:[int][0] != 0 /\\ x:[int][1] != 0"
-      !!= "x:[int][0] != 0 \\/ x:[int][1] != 0") Stronger
+  [ ("true /\\ x:int == 1" !!= "false \\/ x:int >= 1") (True, False, True, True)
+  , ("true /\\ x:int >= 1" !!= "false \\/ x:int == 1") (True, True, False, True)
+  , ("x:int == 1 /\\ y:int == 1" !!= "x:int == 2 /\\ y:int == 1")
+      (False, True, True, True)
+  , ("x:[int][0] != 0 /\\ x:[int][1] != 0" !!= "x:[int][0] != 0 \\/ x:[int][1] != 0")
+      (True, False, True, True)
   ]
