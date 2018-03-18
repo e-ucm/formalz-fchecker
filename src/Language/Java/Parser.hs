@@ -1,3 +1,8 @@
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
+{-# OPTIONS_GHC -fno-warn-unused-binds #-}
+{-# OPTIONS_GHC -fno-warn-unused-matches #-}
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 {-# LANGUAGE CPP #-}
 module Language.Java.Parser (
     parser,
@@ -41,7 +46,7 @@ import Language.Java.Pretty (pretty)
 import Text.Parsec hiding ( Empty )
 import Text.Parsec.Pos
 
-import Prelude hiding ( exp, catch, (>>), (>>=) )
+import Prelude hiding ( exp, (>>), (>>=) )
 import qualified Prelude as P ( (>>), (>>=) )
 import Data.Maybe ( isJust, catMaybes )
 import Control.Monad ( ap )
@@ -203,7 +208,7 @@ interfaceBody = InterfaceBody . catMaybes <$>
 classBodyStatement :: P (Maybe Decl)
 classBodyStatement =
     (try $ do
-       list1 semiColon
+       _ <- list1 semiColon
        return Nothing) <|>
     (try $ do
        mst <- bopt (tok KW_Static)
@@ -412,7 +417,7 @@ varInit =
 arrayInit :: P ArrayInit
 arrayInit = braces $ do
     vis <- seplist varInit comma
-    opt comma
+    _ <- opt comma
     return $ ArrayInit vis
 
 ----------------------------------------------------------------------------
@@ -801,13 +806,13 @@ lambdaParams = try (LambdaSingleParam <$> ident)
                <|> (parens $ LambdaInferredParams <$> (seplist ident comma))
 
 lambdaExp :: P Exp
-lambdaExp = Lambda 
+lambdaExp = Lambda
             <$> (lambdaParams <* (tok LambdaArrow))
             <*> ((LambdaBlock <$> (try block))
                  <|> (LambdaExpression <$> exp))
 
 methodRef :: P Exp
-methodRef = MethodRef 
+methodRef = MethodRef
             <$> (name <*  (tok MethodRefSep))
             <*> ident
 
@@ -1046,24 +1051,24 @@ infixOperators =
   , (tok Op_Caret   >> return Xor       )
 
   , (tok Op_And     >> return And       )
-  
+
   , (tok Op_Equals  >> return Equal     ) <|>
     (tok Op_BangE   >> return NotEq     )
 
   , (tok Op_LThan   >> return LThan     ) <|>
-    (tok Op_GThan   >> return GThan     ) <|>                                          
+    (tok Op_GThan   >> return GThan     ) <|>
     (tok Op_LThanE  >> return LThanE    ) <|>
     (tok Op_GThanE  >> return GThanE    )
 
   , (tok Op_LShift  >> return LShift    ) <|>
     (try $ do
-       tok Op_GThan   
-       tok Op_GThan   
+       tok Op_GThan
+       tok Op_GThan
        tok Op_GThan
        return RRShift   ) <|>
-           
+
     (try $ do
-       tok Op_GThan 
+       tok Op_GThan
        tok Op_GThan
        return RShift    )
 
@@ -1214,7 +1219,7 @@ seplist1 :: P a -> P sep -> P [a]
 --seplist1 = sepBy1
 seplist1 p sep =
     p >>= \a ->
-        try (do sep
+        try (do _ <- sep
                 as <- seplist1 p sep
                 return (a:as))
         <|> return [a]

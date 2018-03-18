@@ -1,6 +1,5 @@
 name:                javawlp
 version:             0.1.0.0
--- synopsis: description: author: maintainer:
 homepage:            https://git.science.uu.nl/impresshs/javawlp
 build-type:          Simple
 extra-source-files:  README.md

@@ -1,17 +1,19 @@
 -- Copyright (c) 2017 Utrecht University
 -- Author: Koen Wermer
 
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
+{-# OPTIONS_GHC -fno-warn-unused-binds #-}
+{-# OPTIONS_GHC -fno-warn-unused-matches #-}
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
+
 -- Helper functions for the Java data structure
 module Javawlp.Engine.HelperFunctions where
-
-import Javawlp.Engine.Folds
 
 import Data.IORef
 import Data.List
 import Data.Maybe
-import Debug.Trace
 import Language.Java.Parser
-import Language.Java.Pretty
 import Language.Java.Syntax
 import System.IO.Unsafe
 
@@ -24,8 +26,8 @@ prettyprintTypeEnv env = intercalate "\n" $ map show env
 
 -- | Retrieves the type from the environment
 lookupType :: [TypeDecl] -> TypeEnv -> Name -> Type
-lookupType decls env (Name (Ident s@('$':_) : idents)) = getFieldType decls (getReturnVarType decls s) (Name idents) -- Names starting with a '$' symbol are generated and represent the return variable of a function
-lookupType decls env (Name (Ident s@('#':_) : idents)) = PrimType undefined -- Names starting with a '#' symbol are generated and represent a variable introduced by handling operators
+lookupType decls _ (Name (Ident s@('$':_) : idents)) = getFieldType decls (getReturnVarType decls s) (Name idents) -- Names starting with a '$' symbol are generated and represent the return variable of a function
+lookupType _ _ (Name (Ident ('#':_) : _)) = PrimType undefined -- Names starting with a '#' symbol are generated and represent a variable introduced by handling operators
 lookupType decls env (Name idents) = case lookup (Name [head idents]) env of
                                         Just t  -> getFieldType decls t (Name (tail idents))
                                         Nothing -> PrimType IntT -- For now we assume library variables to be ints      error ("can't find type of " ++ prettyPrint (Name idents) ++ "\r\n TypeEnv: " ++ show env)

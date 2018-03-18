@@ -42,13 +42,14 @@ data Response = Equivalent
               deriving (Eq, Show)
 
 (<>) :: Response -> Response -> Response
-ErrorResponse e        <> _                       = ErrorResponse e
-_                      <> ErrorResponse e         = ErrorResponse e
-Timeout                <> _                       = Timeout
-Undefined              <> _                       = Undefined
-Equivalent             <> r                       = r
-NotEquivalent s (Feedback pre' _) <> NotEquivalent _ (Feedback _ post') = NotEquivalent s (Feedback pre' post')
-r                      <> _                       = r
+NotEquivalent s (Feedback pre' _) <>
+  NotEquivalent _ (Feedback _ post') = NotEquivalent s (Feedback pre' post')
+ErrorResponse e <> _               = ErrorResponse e
+_               <> ErrorResponse e = ErrorResponse e
+Timeout         <> _               = Timeout
+Undefined       <> _               = Undefined
+Equivalent      <> r               = r
+r               <> _               = r
 
 -- | Model type.
 data ModelVal = BoolVal Bool

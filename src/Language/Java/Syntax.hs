@@ -1,3 +1,8 @@
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
+{-# OPTIONS_GHC -fno-warn-unused-binds #-}
+{-# OPTIONS_GHC -fno-warn-unused-matches #-}
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 {-# LANGUAGE DeriveDataTypeable, DeriveGeneric #-}
 module Language.Java.Syntax
     ( CompilationUnit(..)
@@ -210,7 +215,7 @@ data Modifier
   deriving (Eq,Read,Typeable,Generic,Data)
 
 instance Show Modifier where
-   show Public = "public" 
+   show Public = "public"
    show Private = "private"
    show Protected = "protected"
    show Abstract = "abstract"

@@ -1,6 +1,12 @@
 -- Copyright (c) 2017 Utrecht University
 -- Author: Koen Wermer
 
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
+{-# OPTIONS_GHC -fno-warn-unused-binds #-}
+{-# OPTIONS_GHC -fno-warn-unused-matches #-}
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
+
 module Javawlp.Engine.Types where
 
 import Language.Java.Syntax
@@ -21,7 +27,7 @@ typesStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanc
                                         _ -> s
     fEnhancedFor                    = error "EnhancedFor"
     fEmpty                          = []
-    fExpStmt e                      = []    
+    fExpStmt e                      = []
     fAssert e _                     = []
     fSwitch e bs                    = concatMap envSwitch bs
     fDo s e                         = s
@@ -30,31 +36,31 @@ typesStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhanc
     fReturn me                      = []
     fSynchronized _ _               = []
     fThrow e                        = []
-    fTry b cs f                     = envBlock b ++ concatMap envCatch cs ++ 
+    fTry b cs f                     = envBlock b ++ concatMap envCatch cs ++
                                         (case f of
                                             Just b  -> envBlock b
                                             _       -> [])
     fLabeled _ s                    = s
-    
-                                                        
+
+
     -- Adds declarations within a block to a type environment
     envBlock :: Block -> TypeEnv
-    envBlock (Block bs) = foldl f [] bs 
+    envBlock (Block bs) = foldl f [] bs
         where f env (LocalVars mods t vars)  = foldr (\v env' -> (varName v, t):env') env vars
               f env (BlockStmt s)            = foldStmt typesStmtAlgebra s ++ env
               f env _                        = env
-              
+
     varName (VarDecl (VarId id) _) = Name [id]
-                                                        
+
     -- Adds declarations within a switchblock block to a type environment
     envSwitch :: SwitchBlock -> TypeEnv
     envSwitch (SwitchBlock _ bs) = envBlock (Block bs)
-    
+
     -- Adds declarations within a catchblock block to a type environment
     envCatch :: Catch -> TypeEnv
     envCatch (Catch (FormalParam _ t _ varId) b) = (Name [getId varId], t) : envBlock b
 
-    
+
 -- Gets the types of all variables that are declared in a statement
 getStmtTypeEnv :: Stmt -> TypeEnv
 getStmtTypeEnv = foldStmt typesStmtAlgebra
@@ -74,7 +80,7 @@ getStaticVarsTypeEnv compUnit = concatMap fromTypeDecls (getDecls compUnit) wher
     fromMemberDecl (MemberDecl (FieldDecl mods t varDecls)) = if Static `elem` mods then map (fromVarDecl t) varDecls else []
     fromMemberDecl _                                        = []
     fromVarDecl t (VarDecl varId _) = (Name [getId varId], t)
-    
+
 -- Gets the type env for a compilation unit
 getTypeEnv :: CompilationUnit -> [TypeDecl] -> [Ident] -> TypeEnv
 getTypeEnv compUnit decls methods = getStaticVarsTypeEnv compUnit ++ concatMap (getMethodTypeEnv decls) methods ++ concatMap (getStmtTypeEnv . fromJust . getMethod decls) methods

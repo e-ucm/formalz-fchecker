@@ -1,6 +1,8 @@
 -- Copyright (c) 2017 Utrecht University
 -- Author: Koen Wermer
 
+{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
+
 -- Folds over Java data structures
 module Javawlp.Engine.Folds where
 
@@ -10,11 +12,11 @@ type StmtAlgebra r = (Block -> r, -- StmtBlock
                       Exp -> r -> r, -- IfThen
                       Exp -> r -> r -> r, -- IfThenElse
                       Exp -> r -> r,  -- While
-                      (Maybe ForInit) -> (Maybe Exp) -> (Maybe [Exp]) -> r -> r,  -- BasicFor
+                      Maybe ForInit -> Maybe Exp -> Maybe [Exp] -> r -> r,  -- BasicFor
                       [Modifier] -> Type -> Ident -> Exp -> r -> r,  -- EnhancedFor
                       r, -- Empty
                       Exp -> r, -- ExpStmt
-                      Exp -> (Maybe Exp) -> r, -- Assert
+                      Exp -> Maybe Exp -> r, -- Assert
                       Exp -> [SwitchBlock] -> r, -- Switch
                       r -> Exp -> r, -- Do
                       Maybe Ident -> r, -- Break
@@ -22,16 +24,16 @@ type StmtAlgebra r = (Block -> r, -- StmtBlock
                       Maybe Exp -> r, -- Return
                       Exp -> Block -> r, -- Synchronized
                       Exp -> r, -- Throw
-                      Block -> [Catch] -> (Maybe Block) -> r, -- Try
+                      Block -> [Catch] -> Maybe Block -> r, -- Try
                       Ident -> r -> r -- Labeled
                       )
-                      
+
 type ExpAlgebra r  = (Literal -> r, -- Lit
                       Maybe Type -> r, -- ClassLit
                       r, -- This
                       Name -> r, -- ThisClass
-                      [TypeArgument] -> TypeDeclSpecifier -> [Argument] -> (Maybe ClassBody) -> r, -- InstanceCreation
-                      r -> [TypeArgument] -> Ident -> [Argument] -> (Maybe ClassBody) -> r, -- QualInstanceCreation
+                      [TypeArgument] -> TypeDeclSpecifier -> [Argument] -> Maybe ClassBody -> r, -- InstanceCreation
+                      r -> [TypeArgument] -> Ident -> [Argument] -> Maybe ClassBody -> r, -- QualInstanceCreation
                       Type -> [r] -> Int -> r, -- ArrayCreate
                       Type -> Int -> ArrayInit -> r, -- ArrayCreateInit
                       FieldAccess -> r, -- FieldAccess
@@ -54,11 +56,11 @@ type ExpAlgebra r  = (Literal -> r, -- Lit
                       LambdaParams -> LambdaExpression -> r, -- Lambda
                       Name -> Ident -> r -- MethodRef
                       )
-                      
+
 
 -- | A fold function over a java statement.
 foldStmt :: StmtAlgebra r -> Stmt -> r
-foldStmt (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhancedFor, fEmpty, fExpStmt, fAssert, fSwitch, fDo, fBreak, fContinue, fReturn, fSynchronized, fThrow, fTry, fLabeled) s = fold s where
+foldStmt (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhancedFor, fEmpty, fExpStmt, fAssert, fSwitch, fDo, fBreak, fContinue, fReturn, fSynchronized, fThrow, fTry, fLabeled) = fold where
     fold s = case s of
                   StmtBlock b -> fStmtBlock b
                   IfThen e stmt -> fIfThen e (fold stmt)
@@ -78,10 +80,10 @@ foldStmt (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhancedFor, fEm
                   Throw e -> fThrow e
                   Try b cs f -> fTry b cs f
                   Labeled l stmt -> fLabeled l (fold stmt)
-                  
+
 -- | A fold function over a java expression.
 foldExp :: ExpAlgebra r -> Exp -> r
-foldExp (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualInstanceCreation, fArrayCreate, fArrayCreateInit, fFieldAccess, fMethodInv, fArrayAccess, fExpName, fPostIncrement, fPostDecrement, fPreIncrement, fPreDecrement, fPrePlus, fPreMinus, fPreBitCompl, fPreNot, fCast, fBinOp, fInstanceOf, fCond, fAssign, fLambda, fMethodRef) e = fold e where
+foldExp (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualInstanceCreation, fArrayCreate, fArrayCreateInit, fFieldAccess, fMethodInv, fArrayAccess, fExpName, fPostIncrement, fPostDecrement, fPreIncrement, fPreDecrement, fPrePlus, fPreMinus, fPreBitCompl, fPreNot, fCast, fBinOp, fInstanceOf, fCond, fAssign, fLambda, fMethodRef) = fold where
     fold e = case e of
                   Lit lit -> fLit lit
                   ClassLit mt -> fClassLit mt
@@ -110,4 +112,3 @@ foldExp (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualInstanceCre
                   Assign lhs assOp e -> fAssign lhs assOp (fold e)
                   Lambda lParams lExp -> fLambda lParams lExp
                   MethodRef className methodName -> fMethodRef className methodName
-                  
