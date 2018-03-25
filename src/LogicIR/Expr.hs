@@ -96,7 +96,7 @@ infix 6 .+ ; infix 6 .-
 (.*)   = binOp NMul     ; (./)      = binOp NDiv
 (.%)   = binOp NRem
 (.==)  = binOp CEqual   ; (.!=) x y = lnot $ x .== y
-(.<)   = binOp CLess    ; (.<=) x y = x .< y .|| x.== y
-(.>)   = binOp CGreater ; (.>=) x y = x .> y .|| x.== y
+(.<)   = binOp CLess    ; (.<=) x y = x .< y .|| x .== y
+(.>)   = binOp CGreater ; (.>=) x y = x .> y .|| x .== y
 (.&&)  = binOp LAnd     ; (.||)     = binOp LOr
 (.==>) = binOp LImpl    ; (.<==>)   = binOp LEqual

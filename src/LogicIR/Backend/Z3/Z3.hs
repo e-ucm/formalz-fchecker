@@ -2,17 +2,15 @@
 module LogicIR.Backend.Z3.Z3 where
 
 import qualified Data.Map as M
-import Z3.Monad
+import           Z3.Monad
 
 import LogicIR.Expr
 import LogicIR.Fold
 import LogicIR.Parser ()
 
 lExprToZ3Ast :: LExpr -> Z3 AST
-lExprToZ3Ast = foldLExpr lExprToZ3AstAlgebra
-
-lExprToZ3AstAlgebra :: LAlgebra (Z3 AST)
-lExprToZ3AstAlgebra = LAlgebra fConst genVar fUnop fBinop fIf fQuant fArray fIsnull fLen
+lExprToZ3Ast =
+  foldLExpr (LAlgebra fConst genVar fUnop fBinop fIf fQuant fArray fIsnull fLen)
   where
     fConst c = case c of
       CBool x -> mkBool x
@@ -62,9 +60,9 @@ lExprToZ3AstAlgebra = LAlgebra fConst genVar fUnop fBinop fIf fQuant fArray fIsn
       a <- a'
       mkSelect x a
     fIsnull (Var (TArray _) x) = genNullVar x
-    fIsnull _ = error "unsupported null check"
+    fIsnull _                  = error "unsupported null check"
     fLen (Var (TArray _) x) = genLenVar x -- TODO: support proper array lengths
-    fLen _ = error "unsupported length"
+    fLen _                  = error "unsupported length"
 
 -- | Get formula's free variables (to be included in model).
 type FreeVars = M.Map String AST
@@ -83,9 +81,9 @@ freeVarsAlgebra = LAlgebra fConst fVar fUnop fBinop fIf fQuant fArray fIsnull fL
     fQuant _ (Var _ x) d a = M.unions . fmap (M.delete x) <$> sequence [a, d]
     fArray x _ = M.unions <$> sequence [fIsnull x, fLen x, fVar x]
     fIsnull (Var (TArray _) x) = M.singleton (x ++ "?null") <$> genNullVar x
-    fIsnull _ = error "unsupported null check"
+    fIsnull _                  = error "unsupported null check"
     fLen (Var (TArray _) x) = M.singleton (x ++ "?length") <$> genLenVar x
-    fLen _ = error "unsupported length"
+    fLen _                  = error "unsupported length"
 
 -- | Generate a new Z3 variable, depending on the expression's type.
 genVar :: Var -> Z3 AST

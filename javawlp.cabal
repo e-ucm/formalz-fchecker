@@ -28,7 +28,7 @@ library
                      , LogicIR.Expr
                      , LogicIR.Fold
                      , LogicIR.Parser
-                     , LogicIR.Null
+                     , LogicIR.Preprocess
                      , LogicIR.Pretty
                      , LogicIR.Frontend.Java
                      , LogicIR.Eval

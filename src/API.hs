@@ -17,7 +17,7 @@ import qualified LogicIR.Backend.QuickCheck.API as Test
 import qualified LogicIR.Backend.Z3.API         as Z3
 import           LogicIR.Expr
 import           LogicIR.Frontend.Java          (javaExpToLExpr)
-import           LogicIR.Null                   (lExprPreprocessNull)
+import           LogicIR.Preprocess             (preprocess)
 import           LogicIR.Pretty
 import           Model
 
@@ -133,7 +133,7 @@ methodDefToLExpr m1@(decls1, _, env1) m2@(decls2, _, env2) name = do
     Left e ->
       Left $ show e
     Right (l, l') ->
-      Right (lExprPreprocessNull l, lExprPreprocessNull l')
+      Right (preprocess l, preprocess l')
   where extractCond :: MethodDef -> String -> Exp
         extractCond m x = extractExpr $ getMethodCalls m x
 
