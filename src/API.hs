@@ -18,6 +18,7 @@ import qualified LogicIR.Backend.Z3.API         as Z3
 import           LogicIR.Expr
 import           LogicIR.Frontend.Java          (javaExpToLExpr)
 import           LogicIR.Preprocess             (preprocess)
+import           LogicIR.TypeChecker            (typeCheck)
 import           LogicIR.Pretty
 import           Model
 
@@ -132,10 +133,14 @@ methodDefToLExpr m1@(decls1, _, env1) m2@(decls2, _, env2) name = do
   return $ case res of
     Left e ->
       Left $ show e
-    Right (l, l') ->
-      Right (preprocess l, preprocess l')
+    Right (l, l') -> do
+      -- TODO propagate error to API call
+      tl <- typeCheck $ preprocess l
+      tl' <- typeCheck $ preprocess l'
+      return (tl, tl')
   where extractCond :: MethodDef -> String -> Exp
         extractCond m x = extractExpr $ getMethodCalls m x
+
 
 -- Get a list of all calls to a method of a specific name from a method definition.
 getMethodCalls :: MethodDef -> String -> [MethodInvocation]

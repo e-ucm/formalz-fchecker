@@ -28,6 +28,7 @@ library
                      , LogicIR.Expr
                      , LogicIR.Fold
                      , LogicIR.Parser
+                     , LogicIR.TypeChecker
                      , LogicIR.Preprocess
                      , LogicIR.Pretty
                      , LogicIR.Frontend.Java
