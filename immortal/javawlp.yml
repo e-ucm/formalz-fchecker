@@ -1,0 +1,6 @@
+cwd: /root/javawlp
+cmd: stack exec javawlp -- --runServer -p 8080
+log:
+    file: /root/javawlp/output.log
+    age: 86400
+    num: 7
