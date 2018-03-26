@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module LogicIR.TypeChecker (typeCheck) where
 
+import Control.Monad.Except
 import Control.Monad (unless)
 
 import LogicIR.Expr
@@ -18,13 +19,13 @@ typeOf lexp = case lexp of
     CBool _ -> return "bool"
     CInt _  -> return "int"
     CReal _ -> return "real"
-    CNil    -> fail "Type-checking before preprocessing null checks"
+    CNil    -> throwError "Type-checking before preprocessing null checks"
   LArray (Var t _) e -> case t of
     TArray t' -> do
       te <- typeOf e
       te == "int" ?? "(indexing): non-integer index"
       return t'
-    _ -> fail "(indexing): non-array variable"
+    _ -> throwError "(indexing): non-array variable"
   LIsnull (Var t _) -> do
     isArray t ??  "(isNull): non-array argument"
     return "bool"
@@ -96,7 +97,7 @@ typeOf lexp = case lexp of
   where
     infix 2 ??
     (??) :: Bool -> String -> Either String ()
-    predicate ?? err = unless predicate $ fail err
+    predicate ?? err = unless predicate $ throwError err
     isNum :: Type -> Bool
     isNum t = t `elem` ["int", "real"]
     isArray :: Type -> Bool
