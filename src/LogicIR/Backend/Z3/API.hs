@@ -1,6 +1,7 @@
 module LogicIR.Backend.Z3.API
        ( equivalentTo
        , showZ3AST
+       , timeoutTime
        )
        where
 
@@ -16,6 +17,10 @@ import           Data.String
 import LogicIR.Backend.Z3.Z3
 import LogicIR.Expr          (LExpr, lnot, (.&&), (.<==>))
 import Model
+
+-- The timeout time in milliseconds.
+timeoutTime :: Integer
+timeoutTime = 5000
 
 data Z3Response = Satisfiable Model | Unsatisfiable | Undecidable
                   deriving Show
@@ -100,7 +105,7 @@ catchTimeout prog = do
 -- | Z3 try evaluation with timeout.
 tryZ3 :: Z3 a -> IO a
 tryZ3 prog = do
-  env <- newEnv Nothing (  opt "timeout" (5000 :: Integer)
+  env <- newEnv Nothing (  opt "timeout" timeoutTime
                         +? opt "model_validate" True
                         +? opt "well_sorted_check" True
                         +? opt "auto_config" True

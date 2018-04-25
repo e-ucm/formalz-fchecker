@@ -22,7 +22,7 @@ Command-line usage:
 ```
 stack exec javawlp --
   [--srcA STRING] [--srcB STRING] [-a STRING] [-b STRING]
-  [-w|--runServer] [-p|--port INT]
+  [-w|--runServer] [-p|--port INT] [-d|--debugMode]
 ```
 
 To run a comparison between two methods:
@@ -31,6 +31,7 @@ To run a comparison between two methods:
   --srcA 'examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java' -a 'real1' \
   --srcB 'examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java' -b 'real2'
 ```
+The command shown above will compare the "real1" method from Main.java with the "real2" method from Main.java using both an SMT solver (Z3) and a brute-force testing approach concurrently. The result from whoever finishes first will be returned. To see the results from both the Z3 and testing approach, use the `-d` flag to run in debug mode.
 
 To run the server API at port 8080:
 ```
@@ -44,7 +45,7 @@ To query the server (see  for available options):
 
 To get the API docs from the server:
 - Markdown: Visit `<server_url>:8080/docs`
-- Swagger: Visit ``<server_url>:8080/api-swagger`
+- Swagger: Visit `<server_url>:8080/api-swagger`
 - [API.md](https://git.science.uu.nl/impresshs/javawlp/blob/master/API.md)
 
 To run the tests:

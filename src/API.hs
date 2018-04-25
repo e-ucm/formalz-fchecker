@@ -7,6 +7,7 @@ import Data.List.Split    (splitOn)
 import Data.Maybe
 import Prelude            hiding (log)
 import System.IO
+import System.Timeout
 
 import Javawlp.Engine.HelperFunctions
 import Javawlp.Engine.Types
@@ -70,18 +71,52 @@ compareSpec m pMode methodA methodB = do
           log $ "LExprA:\n" ++ prettyLExpr postL ++ "\n"
           log $ "LExprB:\n" ++ prettyLExpr postL' ++ "\n"
 
+          -- Run Z3 with mv1 and Test with mv2. If Release, they both get the same
+          -- mvar and whoever finishes first will therefore write to both
+          -- mv1 and mv2. If Debug, they both get a different MVar, we wait for
+          -- both and then compare their results.
           mv1 <- newEmptyMVar
           mv2 <- if m == Debug then newEmptyMVar else return mv1
-          mapM_ compareSpecHelper [ (mv1, "Z3", Z3.equivalentTo)
+          mapM_ compareSpecHelper [ (mv1, "Z3",   Z3.equivalentTo)
                                   , (mv2, "Test", Test.equivalentTo)
                                   ]
-          res1 <- readMVar mv1
-          res2 <- readMVar mv2 -- if Release, this won't block
-          return $ getRes m res1 res2
+          waitForResult m mv1 mv2
           where -- | Runs f on a separate thread and stores the result in mv.
+                compareSpecHelper :: (MVar Response, String, EquivImpl) -> IO ThreadId
                 compareSpecHelper (mv, name, impl) = forkIO $ do
                   resp <- checkEquiv name impl (preL, preL') (postL, postL')
                   resp `seq` putMVar mv resp
+
+-- Waits (blocking) until it has a Response to return.
+waitForResult :: Mode -> MVar Response -> MVar Response -> IO Response
+waitForResult Debug   = waitForResultDebug
+waitForResult Release = waitForResultRelease
+
+-- | Run both `Z3` and `Test`, wait for their responses (no matter how slow they
+--   are) and compare them.
+waitForResultDebug :: MVar Response -> MVar Response -> IO Response
+waitForResultDebug z3mv testmv = do
+  z3res   <- readMVar z3mv
+  testres <- readMVar testmv
+  return $ getRes Debug z3res testres
+
+-- | Try to compare using Z3 first. If timeout is reached, fall back on Test. If
+--   test is too slow as well, give up.
+waitForResultRelease :: MVar Response -> MVar Response -> IO Response
+waitForResultRelease z3mv testmv = do
+      let t      = fromIntegral (Z3.timeoutTime * 1000) -- one second in microseconds
+      maybeZ3Res <- timeout t (readMVar z3mv)
+      -- Z3 is too slow.
+      if maybeZ3Res == Nothing then do
+          maybeTestRes <- timeout t (readMVar testmv)
+          -- Test is too slow as well.
+          if maybeTestRes == Nothing then
+            return Timeout
+          else
+            return $ fromJust maybeTestRes
+      -- Z3 was fast enough
+      else
+        return $ fromJust maybeZ3Res
 
 -- | Makes sure that both Responses are the same, otherwise, if we
 --   run in debug mode, an error will be thrown. If not in debug mode,

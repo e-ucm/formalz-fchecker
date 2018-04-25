@@ -1,4 +1,9 @@
-module LogicIR.Backend.QuickCheck.Test (testEquality) where
+module LogicIR.Backend.QuickCheck.Test ( testEquality
+                                       , LExprTeacher
+                                       , LExprStudent
+                                       , FeedbackCount
+                                       , equal
+                                       ) where
 
 import LogicIR.Expr
 import LogicIR.Fold
@@ -8,25 +13,59 @@ import Data.Maybe (fromMaybe, isNothing, fromJust)
 import Data.List (find, (\\))
 import qualified Data.Map.Lazy as M
 
-test :: LExpr -> LExpr -> IO (Bool, Model, ArrayModel)
-test e1 e2 = do
-    (res1,(m,arrM,_)) <- testLExpr e1
-    evalInfo'         <- expandEvalInfo e2 (m, arrM)
-    res2              <- testModel e2 evalInfo'
-    let (primitivesModel, arrayModel, _) = evalInfo'
-    return (res1 == res2, primitivesModel, arrayModel)
+type LExprTeacher = LExpr
+type LExprStudent = LExpr
+
+-- | Contains how often any type of feedback occured over x runs (where x is
+--   obviously the sum of the four integers). Order of Integers in tuple
+--   is the same as in Model.SingleFeedback
+type FeedbackCount = ( Int -- T-T
+                     , Int -- T-F
+                     , Int -- F-T
+                     , Int -- F-F
+                     )
+
+defFbCount :: FeedbackCount
+defFbCount = (0,0,0,0)
+
+add :: FeedbackCount -> FeedbackCount -> FeedbackCount
+add (w,x,y,z) (w',x',y',z') = (w+w',x+x',y+y',z+z')
+
+-- | Converts two Bools to FeedbackCount. First Bool is the Bool you get when
+--   the TeacherLExpr was evaluated using some Model+ArrayModel m, the second
+--   one the bool you get when you evaluate te StudentLExpr using m.
+toFeedbackCount :: Bool -> Bool -> FeedbackCount
+toFeedbackCount True  True  = (1,0,0,0)
+toFeedbackCount True  False = (0,1,0,0)
+toFeedbackCount False True  = (0,0,1,0)
+toFeedbackCount False False = (0,0,0,1)
+
+-- | Returns True if, on we have 0 TF or FT occurences (in other words: occurences
+--   where the teacher and student specification gave a different result)
+equal :: FeedbackCount -> Bool
+equal (_,tf,ft,_) = tf == 0 && ft == 0
 
 -- Calls 'test' multiple times.
-testEquality :: Int -> LExpr -> LExpr -> IO (Bool, (Model, ArrayModel))
-testEquality 0 _ _ =
-    return (True, ([], M.empty))
+testEquality :: Int -> LExprTeacher -> LExprStudent -> IO (FeedbackCount, (Model, ArrayModel))
+testEquality 0 _ _ = error "testEquality won't work with 0 iterations."
 testEquality x e1 e2 = do
-    (x',m1,m2) <- test e1 e2
-    if not x' then
-        return (False, (m1, m2))
-    else do
-        (rs, model) <- testEquality (x-1) e1 e2
-        return (x' && rs, model)
+  results <- mapM (const (test e1 e2)) [1..x]
+  let feedback = foldr add defFbCount (map fst results) -- sum of feedbacks
+  -- get list of counter models where
+  let counters = map snd (filter (not . equal . fst) results)
+  if null counters then
+    return (feedback, ([], M.empty))
+  else
+    return (feedback, head counters)
+
+test :: LExprTeacher -> LExprStudent -> IO (FeedbackCount, (Model, ArrayModel))
+test e1 e2 = do
+    ((CBool res1),(m,arrM,_)) <- testLExpr e1
+    evalInfo'                 <- expandEvalInfo e2 (m, arrM)
+    (CBool res2)              <- testModel e2 evalInfo'
+    let (primitivesModel, arrayModel, _) = evalInfo'
+    let fb = toFeedbackCount res1 res2
+    return (fb, (primitivesModel, arrayModel))
 
 -- Given an LExpr, generates a substitution model for all variables in it,
 -- and returns whether the formula evaluates to true or to false when that model

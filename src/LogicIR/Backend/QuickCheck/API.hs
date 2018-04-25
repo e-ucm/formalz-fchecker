@@ -4,20 +4,24 @@ import           Control.Arrow                             ((***))
 import qualified Data.Map.Lazy                             as M
 import qualified LogicIR.Backend.QuickCheck.ModelGenerator as QC
 import           LogicIR.Backend.QuickCheck.Test
-import           LogicIR.Expr                              hiding (b, r)
+import           LogicIR.Expr                              hiding (b,r,n)
 import           LogicIR.Pretty                            (prettyLExpr)
 import           Model
 
 -- | Determine the equality of two method's pre/post conditions.
-equivalentTo :: LExpr -> LExpr -> IO Response
+equivalentTo :: LExprTeacher -> LExprStudent -> IO Response
 equivalentTo lexpr lexpr' = do
-    (eq, testModel) <- testEquality 1000 lexpr lexpr'
-    let feedback = Feedback { pre = defFeedback -- TODO check which combinations are possible
-                            , post = defFeedback -- leave as is
-                            }
-    if eq
-    then return Equivalent
-    else return $ NotEquivalent (toZ3Model testModel) feedback
+    (feedbackCount, counterModel) <- testEquality 500 lexpr lexpr'
+    if equal feedbackCount then
+      return Equivalent
+    else do
+      let fb = toSingleFeedback feedbackCount
+      let feedback = Feedback { pre = fb, post = defFeedback }
+      return $ NotEquivalent (toZ3Model counterModel) feedback
+
+toSingleFeedback :: FeedbackCount -> SingleFeedback
+toSingleFeedback (a,b,c,d) = (n a, n b, n c, n d)
+  where n = (0<)
 
 toZ3Model :: (QC.Model, QC.ArrayModel) -> Model
 toZ3Model (m, arrayM) =

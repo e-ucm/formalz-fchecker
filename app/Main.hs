@@ -15,6 +15,7 @@ data Options = Options
   , methodB   :: String
   , runServer :: Bool
   , port      :: Int
+  , mode      :: Mode
   }
 
 -- | Parsing of command-line options.
@@ -59,6 +60,15 @@ parseOptions = Options
       <> value 8888
       <> help "Listening port"
       )
+  <*> (toMode <$> switch
+      (  short 'd'
+      <> long  "debugMode"
+      <> help "Run in debug mode (instead of release)"
+      ))
+
+toMode :: Bool -> Mode
+toMode False = Release
+toMode True  = Debug
 
 withInfo :: Parser a -> String -> ParserInfo a
 withInfo opts desc = info (helper <*> opts) $ progDesc desc
@@ -69,10 +79,10 @@ main = runMain =<< execParser (parseOptions `withInfo` "Java WLP")
 
 -- | Run.
 runMain :: Options -> IO ()
-runMain (Options srcA srcB methA methB serverFlag portNo) =
+runMain (Options srcA srcB methA methB serverFlag portNo runMode) =
   if serverFlag then
     runApi portNo
   else do
     when (methA == "_default_") $ fail "No files given."
-    response <- compareSpec Release File (srcA, methA) (srcB, methB)
+    response <- compareSpec runMode File (srcA, methA) (srcB, methB)
     print response
