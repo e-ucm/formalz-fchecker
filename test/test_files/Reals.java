@@ -1,5 +1,4 @@
-package nl.uu;
-import static nl.uu.impress.EDSL.*;
+import static nl.uu.impress.specchecker.EDSL.*;
 
 public class Reals {
 

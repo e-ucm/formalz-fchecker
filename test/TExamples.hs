@@ -1,13 +1,13 @@
 module TExamples where
 import System.IO          (stderr, stdout)
 import System.IO.Silently (hSilence)
-import System.IO.Unsafe   (unsafePerformIO)
 import Test.HUnit
 
 import API
 import Model
 
-src = "examples/javawlp_edsl/src/nl/uu/javawlp_edsl/Main.java"
+src :: String
+src = "impress_edsl/src/nl/uu/impress/Main.java"
 
 testEquiv :: Response -> String -> String -> Assertion
 testEquiv b s s' = do
@@ -15,10 +15,13 @@ testEquiv b s s' = do
   (case res of
     NotEquivalent _ _ -> NotEquivalent emptyModel defFeedback'
     x                 -> x) @?= b
+
+(.==), (.!=), (.??) :: String -> String -> Assertion
 (.==) = testEquiv Equivalent
 (.!=) = testEquiv $ NotEquivalent emptyModel defFeedback'
 (.??) = testEquiv Timeout
 
+examples :: [Assertion]
 examples =
   [ "empty1" .== "empty2"
   , "arr1" .!= "arr2"

@@ -16,8 +16,8 @@ main = defaultMain
         ("LIR_PARSER", parserTests)
       , ("MODEL_PARSER", modelParserTests)
       , ("EXAMPLES", examples)
-      , ("EQUIV_REAL", genEquivTests "examples/test_equiv/Reals.java")
-      , ("EQUIV_ARRAY", genEquivTests "examples/test_equiv/Arrays.java")
+      , ("EQUIV_REAL", genEquivTests "test/test_files/Reals.java")
+      , ("EQUIV_ARRAY", genEquivTests "test/test_files/Arrays.java")
       , ("FEEDBACK", feedbackTests)
       , ("NORMALIZER", normTests)
       ]

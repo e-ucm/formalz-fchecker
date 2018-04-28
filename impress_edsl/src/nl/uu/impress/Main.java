@@ -1,7 +1,7 @@
-package nl.uu.javawlp_edsl;
+package nl.uu.impress;
 
 //Importing the EDSL like this is required for the parser!
-import static nl.uu.impress.EDSL.*;
+import static nl.uu.impress.specchecker.EDSL.*;
 
 public class Main {
 
