@@ -9,8 +9,8 @@ import Prelude            hiding (log)
 import System.IO
 import System.Timeout
 
-import Javawlp.Engine.HelperFunctions
-import Javawlp.Engine.Types
+import JavaHelpers.HelperFunctions
+import JavaHelpers.Types
 import Language.Java.Pretty
 import Language.Java.Syntax
 

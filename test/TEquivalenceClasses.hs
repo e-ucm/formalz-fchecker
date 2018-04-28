@@ -10,7 +10,7 @@ import System.IO.Unsafe   (unsafePerformIO)
 import Test.HUnit
 
 import API
-import Javawlp.Engine.HelperFunctions (parseMethodIds)
+import JavaHelpers.HelperFunctions (parseMethodIds)
 import Model
 
 testEquiv :: Response -> String -> String -> String -> Assertion

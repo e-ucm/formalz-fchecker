@@ -6,9 +6,11 @@
 {-# OPTIONS_GHC -fno-warn-unused-binds #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
+{-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
+{-# OPTIONS_GHC -fno-warn-incomplete-uni-patterns #-}
 
 -- Helper functions for the Java data structure
-module Javawlp.Engine.HelperFunctions where
+module JavaHelpers.HelperFunctions where
 
 import Data.IORef
 import Data.List

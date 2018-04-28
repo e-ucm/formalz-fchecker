@@ -4,7 +4,7 @@
 {-# OPTIONS_GHC -fno-warn-name-shadowing #-}
 
 -- Folds over Java data structures
-module Javawlp.Engine.Folds where
+module JavaHelpers.Folds where
 
 import Language.Java.Syntax
 

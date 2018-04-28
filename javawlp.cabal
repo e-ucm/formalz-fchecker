@@ -16,9 +16,9 @@ executable javawlp
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Javawlp.Engine.Types
-                     , Javawlp.Engine.HelperFunctions
-                     , Javawlp.Engine.Folds
+  exposed-modules:     JavaHelpers.Types
+                     , JavaHelpers.HelperFunctions
+                     , JavaHelpers.Folds
                      -- Server
                      , Server
                      -- Checker

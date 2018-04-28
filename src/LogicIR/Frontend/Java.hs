@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 module LogicIR.Frontend.Java (javaExpToLExpr) where
 
-import Javawlp.Engine.Folds
-import Javawlp.Engine.HelperFunctions
+import JavaHelpers.Folds
+import JavaHelpers.HelperFunctions
 
 import Language.Java.Pretty
 import Language.Java.Syntax

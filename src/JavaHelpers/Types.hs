@@ -6,15 +6,17 @@
 {-# OPTIONS_GHC -fno-warn-unused-binds #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
+{-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
+{-# OPTIONS_GHC -fno-warn-incomplete-uni-patterns #-}
 
-module Javawlp.Engine.Types where
+module JavaHelpers.Types where
 
 import Language.Java.Syntax
 import Data.Maybe
 import Data.List
 
-import Javawlp.Engine.Folds
-import Javawlp.Engine.HelperFunctions
+import JavaHelpers.Folds
+import JavaHelpers.HelperFunctions
 
 typesStmtAlgebra :: StmtAlgebra TypeEnv
 typesStmtAlgebra = (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhancedFor, fEmpty, fExpStmt, fAssert, fSwitch, fDo, fBreak, fContinue, fReturn, fSynchronized, fThrow, fTry, fLabeled) where
