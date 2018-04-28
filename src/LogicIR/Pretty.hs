@@ -16,9 +16,9 @@ prettyLExpr =
     fBinop x o y = "(" ++ x ++ " " ++ prettyLBinop o ++ " " ++ y ++ ")"
     fIf c x y = parens c ++ "?" ++ parens x ++ ":" ++ parens y
     fQuant o x d a = parens $ prettyQuant o ++ prettyVar x ++ " :: " ++ d ++ " -> " ++ a
-    fArray x a = prettyVar x ++ "[" ++ a ++ "]"
-    fIsnull x = "isNull" ++ parens (prettyVar x)
-    fLen x = "len" ++ parens (prettyVar x)
+    fArray x a = parens (prettyLExpr x) ++ "[" ++ a ++ "]"
+    fIsnull x = "isNull" ++ parens (prettyLExpr x)
+    fLen x = "len" ++ parens (prettyLExpr x)
 
     parens s = "(" ++ s ++ ")"
     prettyVar :: Var -> String

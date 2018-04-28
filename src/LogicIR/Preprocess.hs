@@ -16,9 +16,9 @@ nullChecks =
       case o of
         CEqual -> nullCheck x y
         _      -> LBinop x o y
-    nullCheck (LVar x@(Var (TArray _) _)) (LConst CNil) = LIsnull x
-    nullCheck (LConst CNil) (LVar x@(Var (TArray _) _)) = LIsnull x
-    nullCheck x y                                       = LBinop x CEqual y
+    nullCheck x (LConst CNil) = LIsnull x
+    nullCheck (LConst CNil) x = LIsnull x
+    nullCheck x y             = LBinop x CEqual y
 
 -- | Add '!= 0' for all denominators.
 divisionByZero :: LExpr -> LExpr
@@ -46,9 +46,9 @@ containsVar x lexp =
     LBinop e _ e'   -> contains e || contains e'
     LIf c e e'      -> contains c || contains e || contains e'
     LQuant _ x' d e -> (x' /= x) && (contains d || contains e)
-    LArray x' e     -> x' == x || contains e
-    LIsnull x'      -> x' == x
-    LLen x'         -> x' == x
+    LArray x' e     -> contains x' || contains e
+    LIsnull x'      -> contains x'
+    LLen x'         -> contains x'
 
 -- | Get all denominators that do not contain scoped variables.
 getDenominators :: LExpr -> [LExpr]

@@ -20,16 +20,20 @@ typeOf lexp = case lexp of
     CInt _  -> return "int"
     CReal _ -> return "real"
     CNil    -> throwError "Type-checking before preprocessing null checks"
-  LArray (Var t _) e -> case t of
-    TArray t' -> do
-      te <- typeOf e
-      te == "int" ?? "(indexing): non-integer index"
-      return t'
-    _ -> throwError "(indexing): non-array variable"
-  LIsnull (Var t _) -> do
+  LArray e e' -> do
+    te <- typeOf e
+    case te of
+      TArray t' -> do
+        te' <- typeOf e'
+        te' == "int" ?? "(indexing): non-integer index"
+        return t'
+      _ -> throwError "(indexing): non-array variable"
+  LIsnull e -> do
+    t <- typeOf e
     isArray t ??  "(isNull): non-array argument"
     return "bool"
-  LLen (Var t _) -> do
+  LLen e -> do
+    t <- typeOf e
     isArray t ??  "(length): non-array argument"
     return "int"
   LUnop o e -> do

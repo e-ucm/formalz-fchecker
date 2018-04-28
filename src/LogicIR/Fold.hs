@@ -14,9 +14,9 @@ data LAlgebra r = LAlgebra
   , bin :: r -> LBinop -> r -> r
   , iff :: r -> r -> r -> r
   , qnt :: QOp -> Var -> r -> r -> r
-  , arr :: Var -> r -> r
-  , nll :: Var -> r
-  , len :: Var -> r
+  , arr :: r -> r -> r
+  , nll :: r -> r
+  , len :: r -> r
   }
 
 defLAlgebra :: LAlgebra LExpr
@@ -32,6 +32,6 @@ foldLExpr (LAlgebra fcns fvar funi fbin fiff fqnt farr fnll flen) = fold
                   LBinop x o y   -> fbin (fold x) o (fold y)
                   LIf c x y      -> fiff (fold c) (fold x) (fold y)
                   LQuant o y d a -> fqnt o y (fold d) (fold a)
-                  LArray x a     -> farr x (fold a)
-                  LIsnull x      -> fnll x
-                  LLen x         -> flen x
+                  LArray x a     -> farr (fold x) (fold a)
+                  LIsnull x      -> fnll (fold x)
+                  LLen x         -> flen (fold x)

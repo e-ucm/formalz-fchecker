@@ -41,13 +41,13 @@ exprP =
 -- | Sub-parsers.
 nullP, lenP, arrayP, quantP, iteP, varP, constP :: Parser LExpr
 nullP = do
-  x <- bvarP <~ "==" <~ "null"
+  x <- exprP <~ "==" <~ "null"
   return $ LIsnull x
 lenP = do
-  x <- "len(" ~> bvarP <~ ")"
+  x <- "len(" ~> exprP <~ ")"
   return $ LLen x
 arrayP = do
-  x <- bvarP <~ "["
+  x <- exprP <~ "["
   e <- exprP <~ "]"
   return $ x .! e
 quantP = try forallP <|> existsP

@@ -80,10 +80,8 @@ freeVarsAlgebra = LAlgebra fConst fVar fUnop fBinop fIf fQuant fArray fIsnull fL
     fIf c x y = M.unions <$> sequence [c, x, y]
     fQuant _ (Var _ x) d a = M.unions . fmap (M.delete x) <$> sequence [a, d]
     fArray x _ = M.unions <$> sequence [fIsnull x, fLen x, fVar x]
-    fIsnull (Var (TArray _) x) = M.singleton (x ++ "?null") <$> genNullVar x
-    fIsnull _                  = error "unsupported null check"
+    fIsnull x = M.singleton (x ++ "?null") <$> genNullVar x
     fLen (Var (TArray _) x) = M.singleton (x ++ "?length") <$> genLenVar x
-    fLen _                  = error "unsupported length"
 
 -- | Generate a new Z3 variable, depending on the expression's type.
 genVar :: Var -> Z3 AST
@@ -93,18 +91,15 @@ genVar (Var t x) =
       "int"    -> mkIntVar
       "bool"   -> mkBoolVar
       "real"   -> mkRealVar
-      "[int]"  -> mkIntArrayVar
-      "[real]" -> mkRealArrayVar
-      "[bool]" -> mkBoolArrayVar
+      "[int]"  -> mkArrayVar mkIntSort
+      "[real]" -> mkArrayVar mkRealSort
+      "[bool]" -> mkArrayVar mkBoolSort
       _        -> error $ "unsupported type: " ++ show t
   where mkArrayVar mkValSort symbol = do
           intSort <- mkIntSort
           valSort <- mkValSort
           arraySort <- mkArraySort intSort valSort
           mkVar symbol arraySort
-        mkRealArrayVar = mkArrayVar mkRealSort
-        mkIntArrayVar = mkArrayVar mkIntSort
-        mkBoolArrayVar = mkArrayVar mkBoolSort
 genNullVar :: String -> Z3 AST
 genNullVar s = genVar $ Var "bool" (s ++ "?null")
 genLenVar :: String -> Z3 AST

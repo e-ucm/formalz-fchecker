@@ -63,9 +63,9 @@ data LExpr = LConst LConst -- constant
            | LBinop LExpr LBinop LExpr -- binary operator
            | LIf LExpr LExpr LExpr -- if c then a else b (ternary operator)
            | LQuant QOp Var LExpr LExpr -- quantifier (op bound domain expr)
-           | LArray Var LExpr -- array access
-           | LIsnull Var -- var == null
-           | LLen Var -- len(array)
+           | LArray LExpr LExpr -- array access
+           | LIsnull LExpr -- var == null
+           | LLen LExpr -- len(array)
            deriving (Show, Eq, Read, Generic, NFData)
 
 -- Needed for the ArrayModel key ordering in the Map in LogicIR.Backend.ModelGenerator

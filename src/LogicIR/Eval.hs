@@ -23,8 +23,9 @@ evalPossibleAlgebra = LAlgebra fcns fvar funi fbin fiff fqnt farr fnll flen
           fvar _                  = False
           fqnt _ _ a1 a2          = a1 && a2
           farr _ _                = False
-          fnll (Var (TPrim _) _)  = True -- Primitive type is never null.
-          fnll (Var (TArray _) _) = False
+          fnll e                  = e
+          -- fnll (Var (TPrim _) _)  = True -- Primitive type is never null.
+          -- fnll (Var (TArray _) _) = False
           flen _                  = True -- This possibly needs to be changed. See evalAlgebra
 
 evalAlgebra :: LAlgebra LConst
@@ -37,8 +38,9 @@ evalAlgebra = LAlgebra fcns fvar funi fbin fiff fqnt farr fnll flen
           fiff ge e1 e2       = if ge == CBool True then e1 else e2
           -- This possibly needs to be changed.
           flen _                  = CInt  10 -- error "Array length cannot yet be evaluated."
-          fnll (Var (TPrim _) _)  = CBool False -- Primitive type is never null.
-          fnll (Var (TArray _) _) = error "You can't call eval on an LExpr that has an (LIsnull someArrayVar) that wasn't converted to a boolean first."
+          fnll e = e
+          -- fnll (Var (TPrim _) _)  = CBool False -- Primitive type is never null.
+          -- fnll (Var (TArray _) _) = error "You can't call eval on an LExpr that has an (LIsnull someArrayVar) that wasn't converted to a boolean first."
           -- Things that should never happen.
           fqnt _ _ _ _ = error "Quantifiers cannot be evaluated and should be replaced using LogicIR.Rewrite.replaceQuantifiers."
           farr _ _     = error "You can't call eval on an LExpr that contains uninstantiated arrays."
