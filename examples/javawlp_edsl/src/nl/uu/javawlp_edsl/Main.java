@@ -170,7 +170,7 @@ public class Main {
     }
 
     public static void test1_(int[] a) {
-        pre(exists(a, i -> a[i + 1] > a[i] && (a.length > i + 1)));
+        pre(exists(a, i -> a[i + 1] > a[i] && (a.length > (i + 1))));
         post(true);
     }
 
@@ -213,7 +213,7 @@ public class Main {
     public static void arr2(double[] a) {
         // pre(a.length == 2);
         // pre(forall(a, i -> forallr(a, i, a.length, j -> a[j] >= a[i])));
-        pre(a.length == 2 && forall(a, i -> forallr(a, i+1, a.length, j -> a[i] < a[j] + 1)));
+        pre(a.length == 2 && forall(a, i -> forallr(a, i+1, a.length, j -> a[i] < (a[j] + 1))));
         post(true);
     }
 }

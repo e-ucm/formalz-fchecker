@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 import Test.Framework (defaultMain, testGroup)
 import Test.Framework.Providers.HUnit
 
@@ -8,6 +9,7 @@ import TModelParser
 import TFeedback
 import TNormalizer
 
+main :: IO ()
 main = defaultMain
   [ constructTestSuite testName testSuite
   | (testName, testSuite) <- [
@@ -22,4 +24,4 @@ main = defaultMain
   ]
   where
     constructTestSuite s suite =
-      testGroup s [testCase (s ++ "_" ++ show i) t | (i, t) <- zip [1..] suite]
+      testGroup s [testCase (s ++ "_" ++ show i) t | (i :: Int, t) <- zip [1..] suite]

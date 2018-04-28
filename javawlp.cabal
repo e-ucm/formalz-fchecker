@@ -42,13 +42,6 @@ library
                      , LogicIR.Backend.QuickCheck.API
                      , LogicIR.Backend.QuickCheck.Test
                      , LogicIR.Backend.QuickCheck.ModelGenerator
-                     -- Java EDSL
-                     , Language.Java.Lexer
-                     , Language.Java.Parser
-                     , Language.Java.Pretty
-                     , Language.Java.Syntax
-                     , Language.Java.Syntax.Exp
-                     , Language.Java.Syntax.Types
   build-depends:       base >= 4.7 && < 5
                      , random
                      , parsec
@@ -76,6 +69,7 @@ library
                      , http-types
                      , lens
                      , deepseq
+                     , language-java ==0.2.9
   default-language:    Haskell2010
   ghc-options:         -Wall
 

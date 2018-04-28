@@ -32,21 +32,21 @@ public class Reals {
     }
     public static float real2_2(float a, double b) {
         pre(a % b == 0 || false);
-        pre(a == 3 * 10 - 23 && true);
+        pre(a == (3 * 10 - 23) && true);
         c = a / b;
-        post(c == 7/(1 + 5.1 - 5.1) || c == 1.0/(1.0 * 15 / 15));
+        post(c == (7/(1 + 5.1 - 5.1)) || c == (1.0/(1.0 * 15 / 15)));
     }
 
     // 3) Mix ints
     public static float real1_3(float a, int b) {
-        pre(a > b && a < b + .3);
+        pre(a > b && a < (b + .3));
         b += 1;
-        post(a < b - .7);
+        post(a < (b - .7));
     }
     public static float real2_3(float a, int b) {
         pre(a > b);
-        pre(a - (10 * .3 / 10) < b);
+        pre((a - (10 * .3 / 10)) < b);
         b += 1;
-        post(a + (.7 * (10 - 9.0)) < b);
+        post((a + (.7 * (10 - 9.0))) < b);
     }
 }

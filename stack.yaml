@@ -7,3 +7,4 @@ packages:
 
 extra-deps:
 - z3-4.1.2
+- language-java-0.2.9

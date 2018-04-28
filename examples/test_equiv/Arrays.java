@@ -27,7 +27,7 @@ public class Arrays {
     public static void max2_2(int[] a) {
         pre(a != null && a.length >= 1);
         int retval = getMax(a);
-        post(exists(a, i -> retval * 2 == a[i] + a[i]));
+        post(exists(a, i -> (retval * 2) == (a[i] + a[i])));
         post(!exists(a, i -> a[i] > retval));
     }
 
