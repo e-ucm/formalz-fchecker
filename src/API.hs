@@ -19,8 +19,8 @@ import qualified LogicIR.Backend.Z3.API         as Z3
 import           LogicIR.Expr
 import           LogicIR.Frontend.Java          (javaExpToLExpr)
 import           LogicIR.Preprocess             (preprocess)
-import           LogicIR.TypeChecker            (typeCheck)
 import           LogicIR.Pretty
+import           LogicIR.TypeChecker            (typeCheck)
 import           Model
 
 import Control.DeepSeq
@@ -80,12 +80,21 @@ compareSpec m pMode methodA methodB = do
           mapM_ compareSpecHelper [ (mv1, "Z3",   Z3.equivalentTo)
                                   , (mv2, "Test", Test.equivalentTo)
                                   ]
-          waitForResult m mv1 mv2
+          resp <- waitForResult m mv1 mv2
+          let ((_, _, tenvA), (_, _, tenvB)) = (mA, mB)
+          let minResp = minifyResponse (tenvA ++ tenvB) resp
+          log $ "FinalResponse: " ++ show minResp
+          return minResp
           where -- | Runs f on a separate thread and stores the result in mv.
                 compareSpecHelper :: (MVar Response, String, EquivImpl) -> IO ThreadId
                 compareSpecHelper (mv, name, impl) = forkIO $ do
                   resp <- checkEquiv name impl (preL, preL') (postL, postL')
                   resp `seq` putMVar mv resp
+
+-- Exclude internal variables in Response's model.
+minifyResponse :: TypeEnv -> Response -> Response
+minifyResponse tenv (NotEquivalent md fb) = NotEquivalent (minify tenv md) fb
+minifyResponse _    res                   = res
 
 -- Waits (blocking) until it has a Response to return.
 waitForResult :: Mode -> MVar Response -> MVar Response -> IO Response
@@ -104,19 +113,15 @@ waitForResultDebug z3mv testmv = do
 --   test is too slow as well, give up.
 waitForResultRelease :: MVar Response -> MVar Response -> IO Response
 waitForResultRelease z3mv testmv = do
-      let t      = fromIntegral (Z3.timeoutTime * 1000) -- one second in microseconds
+      let t      = fromIntegral (Z3.timeoutTime * 1000) -- 1 ms == 1000 μs
       maybeZ3Res <- timeout t (readMVar z3mv)
-      -- Z3 is too slow.
-      if maybeZ3Res == Nothing then do
+      case maybeZ3Res of
+        Nothing -> do -- Z3 too slow
           maybeTestRes <- timeout t (readMVar testmv)
-          -- Test is too slow as well.
-          if maybeTestRes == Nothing then
-            return Timeout
-          else
-            return $ fromJust maybeTestRes
-      -- Z3 was fast enough
-      else
-        return $ fromJust maybeZ3Res
+          case maybeTestRes of
+            Nothing -> return Timeout -- test too slow
+            Just m  -> return m -- test fast enough
+        Just m -> return m -- Z3 fast enough
 
 -- | Makes sure that both Responses are the same, otherwise, if we
 --   run in debug mode, an error will be thrown. If not in debug mode,

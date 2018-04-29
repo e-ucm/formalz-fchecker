@@ -13,6 +13,9 @@ import           Text.Parsec.Language
 import           Text.Parsec.String
 import qualified Text.Parsec.Token    as Tokens
 
+import Language.Java.Syntax
+import JavaHelpers.HelperFunctions
+
 import LogicIR.ParserUtils
 
 -- | Feedback type.
@@ -88,6 +91,11 @@ sanitize model =
             (BoolVal b) -> not b
             _           -> error "non-bool null"
         isNotLen k _ = not $ "?length" `isSuffixOf` k
+
+-- | Exclude model's variables that are not actual input arguments.
+minify :: TypeEnv -> Model -> Model
+minify typeEnv = M.filterWithKey (\k _ -> k `elem` vars)
+  where vars = concatMap (\(Name ids, _) -> (\(Ident s) -> s) <$> ids) typeEnv
 
 -- | Parsers.
 modelP :: Parser ModelVal

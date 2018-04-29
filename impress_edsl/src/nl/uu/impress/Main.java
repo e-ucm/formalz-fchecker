@@ -12,37 +12,37 @@ public class Main {
 
     public static void empty2() {}
 
-    public static void quickcheck_test1(int[] b) {
+    public static void quickcheck_test1(int[] b, int a, int c) {
         pre(~(-a * c) == (79 & 41));
         pre(a > 0);
         pre(forall(b, i -> b[i] > -10));
     }
 
-    public static void quickcheck_test2(int[] b) {
+    public static void quickcheck_test2(int[] b, int a, int c) {
         pre(~(-a * c) == (79 & 41));
         pre(a > 0);
         pre(forall(b, i -> b[i] >= -10)); // note the >=, whereas quickcheck_test1 has >.
     }
 
-    public static int simple_eval1() {
+    public static void simple_eval1() {
         pre(~(-5 * 2) == (79 & 41)); // evaluates to 9 == 9
     }
 
-    public static int simple_eval2() {
+    public static void simple_eval2() {
         pre(~(-5 * 2) == (79 & 40)); // evaluates to 9 == 8
     }
 
-    public static int simple_eval3(int a) {
+    public static void simple_eval3(int a) {
         pre(~(a * 2) == (79 & 40)); // can't evaluate due to undefined variable
     }
 
-    public static float real1(float a) {
+    public static void real1(float a) {
         pre(a >= (2 - 1 + 1));
         a += a;
         post(a >= (4 - 3 + 3));
     }
 
-    public static float real2(float a) {
+    public static void real2(float a) {
         pre(a > 2 || a == 2);
         a = a * 2;
         post(a > 4 || a == 4);
@@ -206,7 +206,7 @@ public class Main {
     }
 
     public static void arr1(double[] a) {
-        pre(a.length == 2 && forall(a, i -> forallr(a, i, a.length, j -> a[i] <= a[j])));
+        pre((a.length == 2) && forall(a, i -> forallr(a, i, a.length, j -> a[i] <= a[j])));
         post(true);
     }
 
@@ -216,4 +216,23 @@ public class Main {
         pre(a.length == 2 && forall(a, i -> forallr(a, i+1, a.length, j -> a[i] < (a[j] + 1))));
         post(true);
     }
+
+    public static void imp1(int[] b) {
+      pre(b.length == 5);
+      post(forall(b, i -> imp(i > 2, b[i] > 0)));
+    }
+    public static void imp2(int[] b) {
+      pre(b.length == 5);
+      post(forall(b, i -> imp(i > 3, b[i] > 0)));
+    }
+
+    public static void varIntro1(int[] b) {
+      pre(b.length == 5);
+      post(forall(b, i -> imp(i > 2, with(b[i], x -> x > 0))));
+    }
+    public static void varIntro2(int[] b) {
+      pre(b.length == 5);
+      post(forall(b, i -> imp(i > 3, with(b[i], x -> x > 0))));
+    }
+
 }

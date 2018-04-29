@@ -63,6 +63,12 @@ javaExpToLExprAlgebra =
                         ClassFieldAccess (Name name) id -> mkStringSymbol (prettyPrint (Name (name ++ [id]))) >>= mkIntVar -}
     fMethodInv inv env decls =
       case inv of -- TODO: very hardcoded EDSL + lambdas cannot be { return expr; } + ranged
+        -- Java: imp(exp1, exp2);
+        MethodCall (Name [Ident "imp"]) [exp1, exp2]
+            -> refold exp1 .==> refold exp2
+        -- Java: with(exp1, bound -> exp2);
+        MethodCall (Name [Ident "with"]) [exp1, Lambda (LambdaSingleParam bound) (LambdaExpression exp2)]
+            -> (LVar (nameToVar (Name [bound]) env decls) .== refold exp1) .==> refold exp2
         -- Java: method(name, bound -> expr);
         MethodCall (Name [Ident method]) [ExpName name, Lambda (LambdaSingleParam (Ident bound)) (LambdaExpression expr)]
             -> quant method name bound expr
