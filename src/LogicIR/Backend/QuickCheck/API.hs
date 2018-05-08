@@ -6,12 +6,14 @@ import qualified LogicIR.Backend.QuickCheck.ModelGenerator as QC
 import           LogicIR.Backend.QuickCheck.Test
 import           LogicIR.Expr                              hiding (b,r,n)
 import           LogicIR.Pretty                            (prettyLExpr)
+import           LogicIR.Backend.QuickCheck.Iterations     (iterations)
 import           Model
 
 -- | Determine the equality of two method's pre/post conditions.
 equivalentTo :: LExprTeacher -> LExprStudent -> IO Response
 equivalentTo lexpr lexpr' = do
-    (feedbackCount, counterModel) <- testEquality 500 lexpr lexpr'
+    let iters = max (iterations lexpr) (iterations lexpr')
+    (feedbackCount, counterModel) <- testEquality iters lexpr lexpr'
     if equal feedbackCount then
       return Equivalent
     else do

@@ -42,6 +42,7 @@ library
                      , LogicIR.Backend.QuickCheck.API
                      , LogicIR.Backend.QuickCheck.Test
                      , LogicIR.Backend.QuickCheck.ModelGenerator
+                     , LogicIR.Backend.QuickCheck.Iterations
   build-depends:       base >= 4.7 && < 5
                      , random
                      , parsec
@@ -70,6 +71,7 @@ library
                      , lens
                      , deepseq
                      , language-java ==0.2.9
+                     , async
   default-language:    Haskell2010
   ghc-options:         -Wall
 

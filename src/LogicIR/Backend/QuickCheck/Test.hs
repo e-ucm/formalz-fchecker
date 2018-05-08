@@ -12,6 +12,7 @@ import LogicIR.Backend.QuickCheck.ModelGenerator
 import Data.Maybe (fromMaybe, isNothing, fromJust)
 import Data.List (find, (\\))
 import qualified Data.Map.Lazy as M
+import Control.Concurrent.Async (mapConcurrently)
 
 type LExprTeacher = LExpr
 type LExprStudent = LExpr
@@ -48,8 +49,8 @@ equal (_,tf,ft,_) = tf == 0 && ft == 0
 -- Calls 'test' multiple times.
 testEquality :: Int -> LExprTeacher -> LExprStudent -> IO (FeedbackCount, (Model, ArrayModel))
 testEquality 0 _ _ = error "testEquality won't work with 0 iterations."
-testEquality x e1 e2 = do
-  results <- mapM (const (test e1 e2)) [1..x]
+testEquality iters e1 e2 = do
+  results <- testAsync iters e1 e2 --  mapM (const (test e1 e2)) [1..iters]
   let feedback = foldr add defFbCount (map fst results) -- sum of feedbacks
   -- get list of counter models where
   let counters = map snd (filter (not . equal . fst) results)
@@ -57,6 +58,14 @@ testEquality x e1 e2 = do
     return (feedback, ([], M.empty))
   else
     return (feedback, head counters)
+
+testAsync :: Int -> LExprTeacher -> LExprStudent -> IO [(FeedbackCount, (Model, ArrayModel))]
+testAsync iters e1 e2 = do
+  let granularity = 50 :: Double
+  let nrThreads = ceiling ((fromIntegral iters) / granularity) :: Integer
+  let threads = [1..nrThreads]
+  results <- mapConcurrently (const (mapM (const (test e1 e2)) [(1::Integer)..50])) threads
+  return $ concat results
 
 test :: LExprTeacher -> LExprStudent -> IO (FeedbackCount, (Model, ArrayModel))
 test e1 e2 = do
