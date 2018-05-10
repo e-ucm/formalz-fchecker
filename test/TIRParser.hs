@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 module TIRParser where
 
-import System.IO.Unsafe (unsafePerformIO)
 import Test.HUnit
 
 import LogicIR.Expr
-import LogicIR.Parser
+import LogicIR.Parser ()
 
+parserTests :: [Assertion]
 parserTests =
   [ "1 + 1" @?= n 1 .+ n 1
   , "(1 == 1 ? 1 : 2)" @?=

@@ -158,9 +158,7 @@ public class Main {
     }
 
     public static void blob1(int[] a) {
-        pre(forall(a, i -> {
-            return a[i] == 0;
-        }));
+        pre(forall(a, i -> a[i] == 0));
         post(true);
     }
 
@@ -226,13 +224,30 @@ public class Main {
       post(forall(b, i -> imp(i > 3, b[i] > 0)));
     }
 
-    public static void varIntro1(int[] b) {
+    public static void varIntro11(int[] b) {
       pre(b.length == 5);
-      post(forall(b, i -> imp(i > 2, with(b[i], x -> x > 0))));
+      post(forall(b, i -> imp(i > 3, with(b[i], y -> y >= 0))));
     }
-    public static void varIntro2(int[] b) {
+    public static void varIntro12(int[] b) {
       pre(b.length == 5);
       post(forall(b, i -> imp(i > 3, with(b[i], x -> x > 0))));
     }
 
+    public static void varIntro21(int y) {
+      pre(with(1, z -> (y == (z + 1))));
+      post();
+    }
+    public static void varIntro22(int y) {
+      pre(with(50 - 49 * (2/2), x -> (y == (x - 10 + 11))));
+      post();
+    }
+
+    public static void varIntro31(int y) {
+      pre(with(1, x -> x > 0));
+      post();
+    }
+    public static void varIntro32(int y) {
+      pre(with(10, x -> with(1, x -> with(0, y -> x > y))));
+      post();
+    }
 }

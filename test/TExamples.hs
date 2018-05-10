@@ -43,5 +43,7 @@ examples =
   , "sorted3" .!= "sorted4"
   , "sorted1" .== "sorted4"
   , "imp1" .!= "imp2"
-  , "varIntro1" .!= "varIntro2"
+  , "varIntro11" .!= "varIntro12"
+  , "varIntro21" .== "varIntro22"
+  , "varIntro31" .== "varIntro32"
   ]
