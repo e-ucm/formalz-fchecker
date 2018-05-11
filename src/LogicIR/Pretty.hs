@@ -39,7 +39,6 @@ prettyLExpr =
         LAnd     -> "/\\"
         LOr      -> "\\/"
         LImpl    -> "==>"
-        LEqual   -> "<==>"
         CEqual   -> "=="
         CLess    -> "<"
         CGreater -> ">"

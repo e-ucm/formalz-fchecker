@@ -1,4 +1,5 @@
-{-# LANGUAGE PostfixOperators #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PostfixOperators  #-}
 module LogicIR.Normalizer
       ( toCNF
       , toNNF
@@ -11,6 +12,8 @@ import Control.Arrow ((>>>))
 
 import LogicIR.Expr
 import LogicIR.Fold
+import LogicIR.Parser      ()
+import LogicIR.TypeChecker (typeOf)
 
 -- TODO rename variables
 -- TODO normalize inner arithmetic expressions
@@ -25,8 +28,10 @@ toNNF = elimEquiv >>* elimImpl >>* notInwards
   where
     elimEquiv :: LExpr -> LExpr
     elimEquiv = foldLExpr (defLAlgebra {bin = fBin})
-      where fBin x LEqual y = (x .==> y) .&& (y .==> x)
-            fBin x o y      = LBinop x o y
+      where fBin x op y
+              | op == CEqual && typeOf x == Right "bool" =
+                  (x .==> y) .&& (y .==> x)
+              | otherwise = LBinop x op y
     elimImpl :: LExpr -> LExpr
     elimImpl = foldLExpr (defLAlgebra {bin = fBin})
       where fBin x LImpl y = lnot x .|| y

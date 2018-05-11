@@ -6,7 +6,6 @@ import Test.HUnit
 import LogicIR.Expr       ()
 import LogicIR.Normalizer
 import LogicIR.Parser     ()
-import LogicIR.Pretty
 
 normTests :: [Assertion]
 normTests =

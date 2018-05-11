@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
-module LogicIR.TypeChecker (typeCheck) where
+module LogicIR.TypeChecker (typeCheck, typeOf) where
 
+import Control.Monad        (unless)
 import Control.Monad.Except
-import Control.Monad (unless)
 
 import LogicIR.Expr
 import LogicIR.Parser ()
@@ -61,7 +61,7 @@ typeOf lexp = case lexp of
         isNum t && isNum t' ?? "(%): non-numeric arguments"
         return $ coerce t t'
       CEqual -> do
-        isNum t && isNum t' ?? "(==): non-numeric arguments"
+        homotypes t t' ?? "(==): heterogeneous types"
         return "bool"
       CLess -> do
         isNum t && isNum t' ?? "(<): non-numeric arguments"
@@ -77,9 +77,6 @@ typeOf lexp = case lexp of
         return "bool"
       LImpl -> do
         t == "bool" && t' == "bool" ?? "(==>): non-boolean arguments"
-        return "bool"
-      LEqual -> do
-        t == "bool" && t' == "bool" ?? "(<==>): non-boolean arguments"
         return "bool"
   LIf c e e'     -> do
     ct <- typeOf c
@@ -104,4 +101,11 @@ typeOf lexp = case lexp of
     isArray (TArray _) = True
     isArray _          = False
     coerce :: Type -> Type -> Type
-    coerce t t' = if "real" `elem` [t, t'] then "real" else "int"
+    coerce t t'
+      | t == "bool" && t' == "bool" = "bool"
+      | isNum t && isNum t' = if "real" `elem` [t, t'] then "real" else "int"
+      | isArray t && isArray t' = TArray (coerce t t')
+      | otherwise = error "coerce: invalid types"
+    homotypes :: Type -> Type -> Bool
+    homotypes (TArray t) (TArray t') = homotypes t t'
+    homotypes t t' = (t == t') || (isNum t && isNum t')

@@ -34,7 +34,6 @@ lExprToZ3Ast =
         LAnd     -> mkAnd [x, y]
         LOr      -> mkOr [x, y]
         LImpl    -> mkImplies x y
-        LEqual   -> mkEq x y
         CEqual   -> mkEq x y
         CLess    -> mkLt x y
         CGreater -> mkGt x y
@@ -87,24 +86,20 @@ freeVarsAlgebra = LAlgebra fConst fVar fUnop fBinop fIf fQuant fArray fIsnull fL
 
 -- | Generate a new Z3 variable, depending on the expression's type.
 genVar :: Var -> Z3 AST
-genVar (Var t x) =
-  mkStringSymbol x >>=
-    case t of
-      "int"    -> mkIntVar
-      "bool"   -> mkBoolVar
-      "real"   -> mkRealVar
-      "[int]"  -> mkIntArrayVar
-      "[real]" -> mkRealArrayVar
-      "[bool]" -> mkBoolArrayVar
-      _        -> error $ "unsupported type: " ++ show t
-  where mkArrayVar mkValSort symbol = do
-          intSort <- mkIntSort
-          valSort <- mkValSort
-          arraySort <- mkArraySort intSort valSort
-          mkVar symbol arraySort
-        mkRealArrayVar = mkArrayVar mkRealSort
-        mkIntArrayVar = mkArrayVar mkIntSort
-        mkBoolArrayVar = mkArrayVar mkBoolSort
+genVar (Var t x) = do
+  symbol <- mkStringSymbol x
+  typ <- sort t
+  mkVar symbol typ
+  where sort typ = case typ of
+          "int"    -> mkIntSort
+          "bool"   -> mkBoolSort
+          "real"   -> mkRealSort
+          TArray typ' -> do
+            intSort <- mkIntSort
+            valSort <- sort typ'
+            mkArraySort intSort valSort
+          _ -> error $ "unsupported type: " ++ show t
+
 genNullVar :: String -> Z3 AST
 genNullVar s = genVar $ Var "bool" (s ++ "?null")
 genLenVar :: String -> Z3 AST

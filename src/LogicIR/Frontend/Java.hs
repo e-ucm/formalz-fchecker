@@ -9,10 +9,10 @@ import Language.Java.Syntax
 
 import           Control.Monad.State
 import qualified Data.Map            as M
-import           Data.String
 
 import LogicIR.Expr
-import LogicIR.Parser ()
+import LogicIR.Parser      ()
+import LogicIR.TypeChecker (typeOf)
 
 -- Convert a Java expression to a LIR expression.
 -- The transformation is stateful, since we need to generate fresh variables
@@ -64,8 +64,10 @@ javaExpToLExprAlgebra =
             _       -> error $ "Unsupported operation: " ++ prettyPrint op
     fExpName name env decls = return $
       case name of
-        Name [Ident a, Ident "length"] -> LLen $ nameToVar (Name [Ident a]) env decls
-        _ -> LVar $ nameToVar name env decls
+        Name [Ident a, Ident "length"] ->
+          LLen $ nameToVar (Name [Ident a]) env decls
+        _ ->
+          LVar $ nameToVar name env decls
     fArrayAccess arrayIndex env decls =
       case arrayIndex of
         ArrayIndex (ExpName name) [expr] ->
@@ -80,12 +82,14 @@ javaExpToLExprAlgebra =
         -- Java: with(exp1, bound -> exp2);
         -- NOTE: Need to introduce a fresh variable here
         MethodCall (Name [Ident "with"]) [exp1, Lambda (LambdaSingleParam x) (LambdaExpression exp2)] -> do
-          x' <- (Ident . ("TEMP_" ++) . show) <$> get
+          x' <- (("TEMP_" ++) . show) <$> get
           modify (+ 1)
-          let sMap = M.singleton x x'
+          let sMap = M.singleton x (Ident x')
           e1 <- refold $ substExp exp1 sMap
-          e2 <- refold $ substExp exp2 sMap
-          return $ (LVar (nameToVar (Name [x']) env decls) .== e1) .==> e2
+          let (Right typ) = typeOf e1
+          let env' = env ++ [(Name [Ident x'], typeToType' typ)]
+          e2 <- foldExp javaExpToLExprAlgebra (substExp exp2 sMap) env' decls
+          return $ (LVar (var x' typ) .== e1) .==> e2
         -- Java: method(name, bound -> expr);
         MethodCall (Name [Ident method]) [ExpName name, Lambda (LambdaSingleParam (Ident bound)) (LambdaExpression expr)]
             -> quant method name bound expr
@@ -131,12 +135,13 @@ substExp e substMap =
   let sb ex = substExp ex substMap
   in case e of
     Lit l              -> Lit l
-    ExpName (Name [x]) -> ExpName $ Name [M.findWithDefault x x substMap]
     PrePlus e'         -> PrePlus (sb e')
     PreMinus e'        -> PreMinus (sb e')
     PreNot e'          -> PreNot (sb e')
     BinOp e1 op e2     -> BinOp (sb e1) op (sb e2)
     Cond e1 e2 e3      -> Cond (sb e1) (sb e2) (sb e3)
+    ExpName (Name xs) ->
+      ExpName $ Name $ (\x -> M.findWithDefault x x substMap) <$> xs
     MethodInv (MethodCall f args) ->
       MethodInv $ MethodCall f (sb <$> args)
     ArrayAccess (ArrayIndex eArr eIs) ->
@@ -148,18 +153,30 @@ substExp e substMap =
 -- Converts a name to a LogicIR.Var, it queries the type environment to find the correct type.
 nameToVar :: Name -> TypeEnv -> [TypeDecl] -> Var
 nameToVar name env decls =
-    case type_ of
-        PrimType BooleanT                       -> fromString(symbol ++ ":bool")
-        PrimType ShortT                         -> fromString(symbol ++ ":int")
-        PrimType IntT                           -> fromString(symbol ++ ":int")
-        PrimType LongT                          -> fromString(symbol ++ ":int")
-        PrimType FloatT                         -> fromString(symbol ++ ":real")
-        PrimType DoubleT                        -> fromString(symbol ++ ":real")
-        RefType (ArrayType (PrimType ShortT))   -> fromString(symbol ++ ":[int]")
-        RefType (ArrayType (PrimType IntT))     -> fromString(symbol ++ ":[int]")
-        RefType (ArrayType (PrimType LongT))    -> fromString(symbol ++ ":[int]")
-        RefType (ArrayType (PrimType FloatT))   -> fromString(symbol ++ ":[real]")
-        RefType (ArrayType (PrimType DoubleT))  -> fromString(symbol ++ ":[real]")
-        _ -> error $ "Unsupported type: " ++ prettyPrint type_ ++ " " ++ prettyPrint name
-    where
-      (type_, symbol) = (lookupType decls env name, prettyPrint name)
+  var (prettyPrint name) (typeToType $ lookupType decls env name)
+
+-- Lookup the LogicIR type of a Java variable (in scope).
+typeToType :: Language.Java.Syntax.Type -> LogicIR.Expr.Type
+typeToType typ = case typ of
+  PrimType c -> TPrim $
+    case c of
+      BooleanT -> PBool
+      ShortT   -> PInt
+      IntT     -> PInt
+      LongT    -> PInt
+      FloatT   -> PReal
+      DoubleT  -> PReal
+      _        -> unsupported
+  RefType (ArrayType t') -> TArray $ typeToType t'
+  _ -> unsupported
+  where
+    unsupported = error $ "Unsupported type: " ++ prettyPrint typ
+
+typeToType' :: LogicIR.Expr.Type -> Language.Java.Syntax.Type
+typeToType' typ = case typ of
+  TPrim c -> PrimType $
+    case c of
+      PBool -> BooleanT
+      PInt  -> LongT
+      PReal -> DoubleT
+  TArray t' -> RefType $ ArrayType $ typeToType' t'

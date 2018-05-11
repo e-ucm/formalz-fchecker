@@ -25,28 +25,31 @@ testEquiv b s s' = do
 
 examples :: [Assertion]
 examples =
-  [ "empty1" .== "empty2"
-  , "arr1" .!= "arr2"
-  , "swap_spec1" .== "swap_spec1"
-  , "swap_spec1" .!= "swap_spec2"
-  , "getMax_spec1" .!= "getMax_spec2"
-  , "test1" .!= "test2"
-  , "blob1" .== "blob1"
-  , "test1_" .!= "test2"
-  , "null1" .!= "null2"
-  , "swap_spec1" .!= "swap_spec3"
-  , "swap_spec1" .!= "swap_spec4"
-  , "null3" .!= "test2"
-  , "sorted1" .!= "test2"
-  , "sorted1" .!= "sorted2"
-  , "sorted2".!= "sorted3"
-  , "sorted1".!= "sorted3"
-  , "test2" .!= "sorted3"
-  , "sorted3" .!= "sorted4"
-  , "sorted1" .== "sorted4"
-  , "imp1" .!= "imp2"
-  , "varIntro11" .!= "varIntro12" -- TODO fix test backend
-  , "varIntro21" .== "varIntro22"
-  , "varIntro31" .== "varIntro32"
-  , "arr11" .== "arr12" -- TODO fix test backend
+  [ "empty1" .== "empty2" -- #1
+  , "arr1" .!= "arr2" -- #2
+  , "swap_spec1" .== "swap_spec1" -- #3
+  , "swap_spec1" .!= "swap_spec2" -- #4
+  , "getMax_spec1" .!= "getMax_spec2" -- #5
+  , "test1" .!= "test2" -- #6
+  , "blob1" .== "blob1" -- #7
+  , "test1_" .!= "test2" -- #8
+  , "null1" .!= "null2" -- #9
+  , "swap_spec1" .!= "swap_spec3" -- #10
+  , "swap_spec1" .!= "swap_spec4" -- #11
+  , "null3" .!= "test2" -- #12
+  , "sorted1" .!= "test2" -- #13
+  , "sorted1" .!= "sorted2" -- #14
+  , "sorted2".!= "sorted3" -- #15
+  , "sorted1".!= "sorted3" -- #16
+  , "test2" .!= "sorted3" -- #17
+  , "sorted3" .!= "sorted4" -- #18
+  , "sorted1" .== "sorted4" -- #19
+  , "imp1" .!= "imp2" -- #20
+  , "varIntro11" .!= "varIntro12" -- #21 TODO fix test backend
+  , "varIntro21" .== "varIntro22" -- #22
+  , "varIntro31" .== "varIntro32" -- #23
+  , "varIntro41" .== "varIntro42" -- #24
+  , "array2d11" .== "array2d12" -- #25
+  , "array2d21" .!= "array2d22" -- #26
+  , "arr11" .== "arr12" -- #27 TODO fix test backend
   ]

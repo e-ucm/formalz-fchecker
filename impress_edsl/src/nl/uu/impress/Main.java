@@ -258,4 +258,35 @@ public class Main {
         pre(imp((1 + a.length) == 2 , a[0] >= 1));
         post(true);
     }
+
+    public static void varIntro41(int[] a) {
+      pre(with(a[0], x -> a[0] == x));
+      post();
+    }
+    public static void varIntro42(int y) {
+      pre();
+      post();
+    }
+
+    public static void array2d11(int[][] a) {
+      pre(a.length == 1);
+      pre(with(a[0], a0 -> a0.length == 1));
+      post();
+    }
+    public static void array2d12(int[][] a) {
+      pre(a.length == (2 - 1));
+      pre(with(a[1 - 1], aa -> aa.length == (2 - 1)));
+      post();
+    }
+
+    public static void array2d21(int[][] a) {
+      pre(a.length == 1);
+      pre(with(a[0], a0 -> a0.length == 1 && (a0[0] == 9)));
+      post();
+    }
+    public static void array2d22(int[][] a) {
+      pre(a.length == (2 - 1));
+      pre(with(a[1 - 1], aa -> aa.length == (2 - 1) && (aa[0] == 8)));
+      post();
+    }
 }

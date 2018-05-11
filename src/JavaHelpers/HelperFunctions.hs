@@ -15,16 +15,18 @@ module JavaHelpers.HelperFunctions where
 import Data.IORef
 import Data.List
 import Data.Maybe
-import Language.Java.Parser
-import Language.Java.Syntax
 import System.IO.Unsafe
+
+import Language.Java.Parser
+import Language.Java.Pretty
+import Language.Java.Syntax
 
 
 type TypeEnv    = [(Name, Type)]
 type CallCount  = [(Ident, Int)]
 
 prettyprintTypeEnv :: TypeEnv -> String
-prettyprintTypeEnv env = intercalate "\n" $ map show env
+prettyprintTypeEnv env = "{" ++ intercalate "\n" (map (\(x, y) -> prettyPrint x ++ " :: " ++ prettyPrint y) env) ++ "}"
 
 -- | Retrieves the type from the environment
 lookupType :: [TypeDecl] -> TypeEnv -> Name -> Type
@@ -32,7 +34,7 @@ lookupType decls _ (Name (Ident s@('$':_) : idents)) = getFieldType decls (getRe
 lookupType _ _ (Name (Ident ('#':_) : _)) = PrimType undefined -- Names starting with a '#' symbol are generated and represent a variable introduced by handling operators
 lookupType decls env (Name idents) = case lookup (Name [head idents]) env of
                                         Just t  -> getFieldType decls t (Name (tail idents))
-                                        Nothing -> PrimType IntT -- For now we assume library variables to be ints      error ("can't find type of " ++ prettyPrint (Name idents) ++ "\r\n TypeEnv: " ++ show env)
+                                        Nothing -> PrimType IntT -- error ("can't find type of " ++ prettyPrint (Name idents) ++ " in " ++ prettyprintTypeEnv env)
 
 -- | Gets the type of a field of an object of given type
 getFieldType :: [TypeDecl] -> Type -> Name -> Type

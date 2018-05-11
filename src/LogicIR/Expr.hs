@@ -38,9 +38,8 @@ data LBinop =
             | LAnd -- a && b
             | LOr -- a || b
             | LImpl -- a ==> b
-            | LEqual -- a <==> b
             -- comparisons
-            | CEqual -- a == b
+            | CEqual -- a == b (NOTE: equality for all types)
             | CLess -- a < b
             | CGreater -- a > b
             deriving (Show, Eq, Read, Generic, NFData)
@@ -75,7 +74,7 @@ instance Ord Var where
 -- | EDSL.
 forall = LQuant QAll
 exists = LQuant QAny
-var x t = Var t x
+var = flip Var
 v = LVar
 r = LConst . CReal
 n = LConst . CInt
@@ -99,4 +98,4 @@ infix 6 .+ ; infix 6 .-
 (.<)   = binOp CLess    ; (.<=) x y = x .< y .|| x .== y
 (.>)   = binOp CGreater ; (.>=) x y = x .> y .|| x .== y
 (.&&)  = binOp LAnd     ; (.||)     = binOp LOr
-(.==>) = binOp LImpl    ; (.<==>)   = binOp LEqual
+(.==>) = binOp LImpl    ; (.<==>)   = binOp CEqual
