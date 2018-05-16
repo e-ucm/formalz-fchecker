@@ -15,11 +15,16 @@ import Model
 
 testEquiv :: Response -> String -> String -> String -> Assertion
 testEquiv b src s s' = do
-  res <- hSilence [stdout, stderr] $ compareSpec Debug File (src, s) (src, s')
+  -- We run these tests in SoftDebug mode, because it's not feasible to expect
+  -- from QuickCheck that it calculates feedback that is exactly right every time,
+  -- due to the enormous search space of reals. Therefore we only check if
+  -- both Z3 and QuickCheck say eq / neq, and not if they give the same feedback model.
+  res <- hSilence [stdout, stderr] $ compareSpec SoftDebug File (src, s) (src, s')
   (case res of
     NotEquivalent _ _ -> NotEquivalent emptyModel defFeedback'
-    x               -> x) @?= b
-(.==) = testEquiv Equivalent
+    Equivalent    _   -> Equivalent defFeedback')
+      @?= b
+(.==) = testEquiv $ Equivalent    defFeedback'
 (.!=) = testEquiv $ NotEquivalent emptyModel defFeedback'
 
 genEquivTests edslSrc =

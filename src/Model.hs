@@ -37,7 +37,7 @@ defFeedback' :: Feedback
 defFeedback' = Feedback { pre = defFeedback, post = defFeedback }
 
 -- | Response type.
-data Response = Equivalent
+data Response = Equivalent    Feedback
               | NotEquivalent Model Feedback
               | ErrorResponse String
               | Undefined
@@ -45,14 +45,19 @@ data Response = Equivalent
               deriving (Eq, Show)
 
 (<>) :: Response -> Response -> Response
-NotEquivalent s (Feedback pre' _) <>
-  NotEquivalent _ (Feedback _ post') = NotEquivalent s (Feedback pre' post')
-ErrorResponse e <> _               = ErrorResponse e
-_               <> ErrorResponse e = ErrorResponse e
-Timeout         <> _               = Timeout
-Undefined       <> _               = Undefined
-Equivalent      <> r               = r
-r               <> _               = r
+Equivalent      f1 <> Equivalent      f2 = Equivalent      (f1 <+> f2)
+Equivalent      f1 <> NotEquivalent s f2 = NotEquivalent s (f1 <+> f2)
+NotEquivalent s f1 <> Equivalent f2      = NotEquivalent s (f1 <+> f2)
+NotEquivalent s f1 <> NotEquivalent _ f2 = NotEquivalent s (f1 <+> f2)
+ErrorResponse e <> _                     = ErrorResponse e
+_               <> ErrorResponse e       = ErrorResponse e
+Timeout         <> _                     = Timeout
+_               <> Timeout               = Timeout
+Undefined       <> _                     = Undefined
+_               <> Undefined             = Undefined
+
+(<+>) :: Feedback -> Feedback -> Feedback
+(<+>) (Feedback prefb _) (Feedback postfb _) = Feedback prefb postfb
 
 -- | Model type.
 data ModelVal = BoolVal Bool

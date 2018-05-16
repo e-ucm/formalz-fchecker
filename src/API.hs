@@ -27,7 +27,12 @@ import Control.DeepSeq
 import Control.Exception.Base
 
 -- | Data types.
-data Mode = Debug | Release deriving (Eq, Show)
+
+-- | Soft debug mode means that the results from Z3 and QuickCheck will be
+--   compared (Equiv / NEquiv), but not the Feedback. This Mode is used when
+--   debugging programs with reals, because QuickCheck is not very accurate
+--   when there are reals involved.
+data Mode = SoftDebug | Debug | Release deriving (Eq, Show)
 
 data ParseMode = Raw | File
 
@@ -52,22 +57,22 @@ compareSpec m pMode methodA methodB = do
   log "\n********************************************************************"
   log $ "MethodA:\n" ++ ppMethodDef mA ++ "\n"
   log $ "MethodB:\n" ++ ppMethodDef mB ++ "\n"
+  log $ "Pre\n" ++ "~~~\n"
   res <- methodDefToLExpr mA mB "pre"
   case res of
     Left e -> do
       log $ "*** ERROR: " ++ show e
       return $ mkErrorResponse e
     Right (preL, preL') -> do
-      log $ "Pre\n" ++ "~~~\n"
       log $ "LExprA:\n" ++ prettyLExpr preL ++ "\n"
       log $ "LExprB:\n" ++ prettyLExpr preL' ++ "\n"
+      log $ "Post\n" ++ "~~~~\n"
       res' <- methodDefToLExpr mA mB "post"
       case res' of
         Left e' -> do
           log $ "*** ERROR: " ++ show e'
           return $ mkErrorResponse e'
         Right (postL, postL') -> do
-          log $ "Post\n" ++ "~~~~\n"
           log $ "LExprA:\n" ++ prettyLExpr postL ++ "\n"
           log $ "LExprB:\n" ++ prettyLExpr postL' ++ "\n"
 
@@ -98,8 +103,8 @@ minifyResponse _    res                   = res
 
 -- Waits (blocking) until it has a Response to return.
 waitForResult :: Mode -> MVar Response -> MVar Response -> IO Response
-waitForResult Debug   = waitForResultDebug
 waitForResult Release = waitForResultRelease
+waitForResult _       = waitForResultDebug
 
 -- | Run both `Z3` and `Test`, wait for their responses (no matter how slow they
 --   are) and compare them.
@@ -128,15 +133,27 @@ waitForResultRelease z3mv testmv = do
 --   the first given Response (that of the theorem prover) will be
 --   returned because the mistake will generally be in testSpec.
 getRes :: Mode     -- ^ True if debug mode, False otherwise
-       -> Response -- ^ The response from proveSpec
-       -> Response -- ^ The response from testSpec
+       -> Response -- ^ The response from proveSpec (Z3)
+       -> Response -- ^ The response from testSpec  (Testing library)
        -> Response -- ^ The final response.
-getRes _        Timeout             testRes             = testRes
-getRes _        Undefined           testRes             = testRes
-getRes _        Equivalent          Equivalent          = Equivalent
-getRes _        (NotEquivalent m f) (NotEquivalent _ _) = NotEquivalent m f
+getRes m Timeout testRes
+  | m == Release = testRes
+  | otherwise    = error $ "proveSpec timed out, testSpec says " ++ show testRes
+getRes m Undefined testRes
+  | m == Release = testRes
+  | otherwise    = error $ "proveSpec says Undefined, testSpec says " ++ show testRes
+getRes m (Equivalent f1) (Equivalent f2)
+  | m == Debug && f1 == f2 = Equivalent f1
+  | m == Debug             = error $ "testSpec says " ++ show (Equivalent f2) ++
+                                     " but it should've been " ++ show (Equivalent f1)
+  | otherwise              = Equivalent f1
+getRes m (NotEquivalent m1 f1) (NotEquivalent m2 f2)
+  | m == Debug && f1 == f2 = NotEquivalent m1 f1
+  | m == Debug             = error $ "testSpec says " ++ show (NotEquivalent m2 f2) ++
+                                     " but it should've been " ++ show (NotEquivalent m1 f1)
+  | otherwise = NotEquivalent m1 f1
 getRes Release  resp                _                   = resp
-getRes Debug    resp                resp'               =
+getRes _        resp                resp'               =
   error $ "proveSpec says " ++ show resp ++ ", testSpec says " ++ show resp'
 
 -- | Check if two logic statements are equivalent.

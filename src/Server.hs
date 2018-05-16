@@ -83,7 +83,7 @@ getCompareResponse :: ApiReqBody -> Handler ApiResponse
 getCompareResponse ApiReqBody {sourceA = srcA, sourceB = srcB} = do
     resp <- liftIO $ compareSpec Release Raw (wrap srcA) (wrap srcB)
     return $ case resp of
-                  Equivalent ->
+                  Equivalent _ ->
                     defResp { responseType = Equiv }
                   NotEquivalent m f ->
                     defResp { responseType = NotEquiv

@@ -14,10 +14,11 @@ testEquiv b s s' = do
   res <- hSilence [stdout, stderr] $ compareSpec Release File (src, s) (src, s')
   (case res of
     NotEquivalent _ _ -> NotEquivalent emptyModel defFeedback'
-    x                 -> x) @?= b
+    Equivalent    _   -> Equivalent defFeedback')
+      @?= b
 
 (.==), (.!=), (.??) :: String -> String -> Assertion
-(.==) = testEquiv Equivalent
+(.==) = testEquiv (Equivalent defFeedback')
 (.!=) = testEquiv $ NotEquivalent emptyModel defFeedback'
 (.??) = testEquiv Timeout
 

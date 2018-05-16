@@ -14,11 +14,11 @@ equivalentTo :: LExprTeacher -> LExprStudent -> IO Response
 equivalentTo lexpr lexpr' = do
     let iters = max (iterations lexpr) (iterations lexpr')
     (feedbackCount, counterModel) <- testEquality iters lexpr lexpr'
+    let fb = toSingleFeedback feedbackCount
+    let feedback = Feedback { pre = fb, post = defFeedback }
     if equal feedbackCount then
-      return Equivalent
+      return $ Equivalent feedback
     else do
-      let fb = toSingleFeedback feedbackCount
-      let feedback = Feedback { pre = fb, post = defFeedback }
       return $ NotEquivalent (toZ3Model counterModel) feedback
 
 toSingleFeedback :: FeedbackCount -> SingleFeedback

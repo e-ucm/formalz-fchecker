@@ -35,8 +35,11 @@ equivalentTo l l' = do
         [l .&& l', l .&& lnot l', lnot l .&& l', lnot l .&& lnot l']
       let feedback = mkFeedback $ toBool <$> res
       return $ NotEquivalent m Feedback {pre = feedback, post = defFeedback}
-    Unsatisfiable -> return Equivalent
-    Undecidable -> return Undefined
+    Unsatisfiable -> do
+      res <- sequence $ checkZ3 <$> [l .&& l', lnot l .&& lnot l']
+      let feedback = (head (toBool <$> res), False, False, last (toBool <$> res))
+      return $ Equivalent Feedback {pre = feedback, post = defFeedback}
+    Undecidable   -> return   Undefined
   where
     mkFeedback :: [Bool] -> SingleFeedback
     mkFeedback [b1, b2, b3, b4] = (b1, b2, b3, b4)
