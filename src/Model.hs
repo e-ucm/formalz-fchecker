@@ -99,8 +99,11 @@ sanitize model =
 
 -- | Exclude model's variables that are not actual input arguments.
 minify :: TypeEnv -> Model -> Model
-minify typeEnv = M.filterWithKey (\k _ -> k `elem` vars)
+minify typeEnv = M.filterWithKey (\k _ -> (name k) `elem` vars)
   where vars = concatMap (\(Name ids, _) -> (\(Ident s) -> s) <$> ids) typeEnv
+        -- `vars` is a list of var names, but the keys in the Map have names
+        -- formatted as "<name>:<type>".
+        name = fst . span (\x -> x /= ':')
 
 -- | Parsers.
 modelP :: Parser ModelVal
