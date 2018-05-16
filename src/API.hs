@@ -78,10 +78,10 @@ compareSpec m pMode methodA methodB = do
 
           -- Run Z3 with mv1 and Test with mv2. If Release, they both get the same
           -- mvar and whoever finishes first will therefore write to both
-          -- mv1 and mv2. If Debug, they both get a different MVar, we wait for
+          -- mv1 and mv2. If Debug/SoftDebug, they both get a different MVar, we wait for
           -- both and then compare their results.
           mv1 <- newEmptyMVar
-          mv2 <- if m == Debug then newEmptyMVar else return mv1
+          mv2 <- if m == Release then return mv1 else newEmptyMVar
           mapM_ compareSpecHelper [ (mv1, "Z3",   Z3.equivalentTo)
                                   , (mv2, "Test", Test.equivalentTo)
                                   ]
