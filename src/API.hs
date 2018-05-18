@@ -55,6 +55,7 @@ compareSpec m pMode methodA methodB = do
   -- Parsing.
   [mA, mB] <- mapM (parseMethod pMode) [methodA, methodB]
   log "\n********************************************************************"
+  log $ "Input\n" ++ "~~~~\n"
   log $ "MethodA:\n" ++ ppMethodDef mA ++ "\n"
   log $ "MethodB:\n" ++ ppMethodDef mB ++ "\n"
   log $ "Pre\n" ++ "~~~\n"
@@ -73,6 +74,7 @@ compareSpec m pMode methodA methodB = do
           log $ "*** ERROR: " ++ show e'
           return $ mkErrorResponse e'
         Right (postL, postL') -> do
+          log $ "Result\n" ++ "~~~~\n"
           log $ "LExprA:\n" ++ prettyLExpr postL ++ "\n"
           log $ "LExprB:\n" ++ prettyLExpr postL' ++ "\n"
 
