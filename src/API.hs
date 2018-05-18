@@ -86,15 +86,14 @@ compareSpec m pMode methodA methodB = do
                                   , (mv2, "Test", Test.equivalentTo)
                                   ]
           resp <- waitForResult m mv1 mv2
-          let ((_, _, tenvA), (_, _, tenvB)) = (mA, mB)
-          let minResp = minifyResponse (tenvA ++ tenvB) resp
-          log $ "FinalResponse: " ++ show minResp
-          return minResp
-          where -- | Runs f on a separate thread and stores the result in mv.
+          log $ "FinalResponse: " ++ show resp
+          return resp
+          where ((_, _, tenvA), (_, _, tenvB)) = (mA, mB)
+                -- | Runs f on a separate thread and stores the result in mv.
                 compareSpecHelper :: (MVar Response, String, EquivImpl) -> IO ThreadId
                 compareSpecHelper (mv, name, impl) = forkIO $ do
                   resp <- checkEquiv name impl (preL, preL') (postL, postL')
-                  resp `seq` putMVar mv resp
+                  resp `seq` putMVar mv (minifyResponse (tenvA ++ tenvB) resp)
 
 -- Exclude internal variables in Response's model.
 minifyResponse :: TypeEnv -> Response -> Response
@@ -104,15 +103,16 @@ minifyResponse _    res                   = res
 -- Waits (blocking) until it has a Response to return.
 waitForResult :: Mode -> MVar Response -> MVar Response -> IO Response
 waitForResult Release = waitForResultRelease
-waitForResult _       = waitForResultDebug
+waitForResult m       = waitForResultDebug m
 
 -- | Run both `Z3` and `Test`, wait for their responses (no matter how slow they
 --   are) and compare them.
-waitForResultDebug :: MVar Response -> MVar Response -> IO Response
-waitForResultDebug z3mv testmv = do
+waitForResultDebug :: Mode -- ^ Either `Debug` or `SoftDebug`
+                   -> MVar Response -> MVar Response -> IO Response
+waitForResultDebug debugMode z3mv testmv = do
   z3res   <- readMVar z3mv
   testres <- readMVar testmv
-  return $ getRes Debug z3res testres
+  return $ getRes debugMode z3res testres
 
 -- | Try to compare using Z3 first. If timeout is reached, fall back on Test. If
 --   test is too slow as well, give up.
