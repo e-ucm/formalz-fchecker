@@ -4,11 +4,11 @@ import Control.Monad
 import Data.Semigroup ((<>))
 import Options.Applicative
 
-import API (Mode (..), ParseMode (..), compareSpec)
+import API (Options (..), Mode (..), ParseMode (..), compareSpec)
 import Server (runApi)
 
 -- | Command-line options.
-data Options = Options
+data MainOptions = MainOptions
   { sourceA   :: String
   , sourceB   :: String
   , methodA   :: String
@@ -19,8 +19,8 @@ data Options = Options
   }
 
 -- | Parsing of command-line options.
-parseOptions :: Parser Options
-parseOptions = Options
+parseOptions :: Parser MainOptions
+parseOptions = MainOptions
   <$> strOption
       (  long "srcA"
       <> showDefault
@@ -78,11 +78,11 @@ main :: IO ()
 main = runMain =<< execParser (parseOptions `withInfo` "Java WLP")
 
 -- | Run.
-runMain :: Options -> IO ()
-runMain (Options srcA srcB methA methB serverFlag portNo runMode) =
+runMain :: MainOptions -> IO ()
+runMain (MainOptions srcA srcB methA methB serverFlag portNo runMode) =
   if serverFlag then
     runApi portNo
   else do
     when (methA == "_default_") $ fail "No files given."
-    response <- compareSpec runMode File (srcA, methA) (srcB, methB)
+    response <- compareSpec (Options runMode File True True) (srcA, methA) (srcB, methB)
     print response

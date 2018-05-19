@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module API where
 
@@ -5,6 +6,7 @@ import Control.Concurrent
 import Data.List          (intercalate)
 import Data.List.Split    (splitOn)
 import Data.Maybe
+import GHC.Generics
 import Prelude            hiding (log)
 import System.IO
 import System.Timeout
@@ -27,11 +29,12 @@ import Control.DeepSeq
 import Control.Exception.Base
 
 -- | Data types.
-data Options = Options { mode      :: Mode
-                       , parseMode :: ParseMode
-                       , pre       :: Bool
-                       , post      :: Bool
+data Options = Options { mode      :: Mode      -- ^ The execution mode
+                       , parseMode :: ParseMode -- ^ The parsing mode
+                       , checkPre  :: Bool      -- ^ check pre-condition?
+                       , checkPost :: Bool      -- ^ check post-condition?
                        }
+                       deriving (Eq, Show, Generic)
 
 defOptions :: Options
 defOptions = Options Release Raw True True
@@ -40,9 +43,11 @@ defOptions = Options Release Raw True True
 --   compared (Equiv / NEquiv), but not the Feedback. This Mode is used when
 --   debugging programs with reals, because QuickCheck is not very accurate
 --   when there are reals involved.
-data Mode = SoftDebug | Debug | Release deriving (Eq, Show)
+data Mode = SoftDebug | Debug | Release
+            deriving (Eq, Show, Generic)
 
 data ParseMode = Raw | File
+                 deriving (Eq, Show, Generic)
 
 type Source = String
 
@@ -54,18 +59,18 @@ type EquivImpl = LExpr -> LExpr -> IO Response
 --   their response. If the function is called in debug mode, it
 --   compares the result of testSpec and proveSpec. Otherwise, it
 --   returns the answer of the fastest method of the two.
-compareSpec :: Mode               -- ^ The execution mode
-            -> ParseMode          -- ^ The parsing mode
+compareSpec :: Options            -- ^ Comparison options
             -> (FilePath, String) -- ^ Specification 1
             -> (FilePath, String) -- ^ Specification 2
             -> IO Response        -- ^ Result of spec comparison.
-compareSpec m pMode methodA methodB = do
+compareSpec opts@(Options m pMode toPre toPost) methodA methodB = do
   -- Parsing.
   [mA, mB] <- mapM (parseMethod pMode) [methodA, methodB]
   log "\n********************************************************************"
   log $ "Input\n" ++ "~~~~\n"
   log $ "MethodA:\n" ++ ppMethodDef mA ++ "\n"
   log $ "MethodB:\n" ++ ppMethodDef mB ++ "\n"
+  log $ "Options:\n" ++ show opts
   log $ "Pre\n" ++ "~~~\n"
   res <- methodDefToLExpr mA mB "pre"
   case res of
@@ -104,7 +109,7 @@ compareSpec m pMode methodA methodB = do
                 -- | Runs f on a separate thread and stores the result in mv.
                 compareSpecHelper :: (MVar Response, String, EquivImpl) -> IO ThreadId
                 compareSpecHelper (mv, name, impl) = forkIO $ do
-                  resp <- checkEquiv name impl (preL, preL') (postL, postL')
+                  resp <- checkEquiv toPre toPost name impl (preL, preL') (postL, postL')
                   resp `seq` putMVar mv resp
 
 -- Exclude internal variables in Response's model.
@@ -169,13 +174,18 @@ getRes _        resp                resp'               =
   error $ "proveSpec says " ++ show resp ++ ", testSpec says " ++ show resp'
 
 -- | Check if two logic statements are equivalent.
-checkEquiv :: String -> EquivImpl -> (LExpr, LExpr) -> (LExpr, LExpr) -> IO Response
-checkEquiv name equivTo (preL, preL') (postL, postL') = do
-  preRes <- preL `equivTo` preL'
+checkEquiv :: Bool -> Bool -> String -> EquivImpl
+          -> (LExpr, LExpr) -> (LExpr, LExpr) -> IO Response
+checkEquiv toPre toPost name equivTo (preL, preL') (postL, postL') = do
+  preRes  <- if toPre then preL `equivTo` preL' else return Undefined
+  postRes <- if toPost then postL `equivTo` postL' else return Undefined
   log $ "PreResponse (" ++ name ++ "):\n" ++ show preRes ++ "\n"
-  postRes <- postL `equivTo` postL'
   log $ "PostResponse (" ++ name ++ "):\n" ++ show postRes ++ "\n"
-  return $ preRes <> postRes
+  return $ case (toPre, toPost) of
+    (True,  True)  -> preRes <> postRes
+    (True,  False) -> preRes
+    (False, True)  -> postRes
+    (False, False) -> Undefined
 
 --------------------------------------------------------------------------------
 

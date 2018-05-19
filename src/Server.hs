@@ -17,7 +17,7 @@ module Server
 
 import           Control.Monad.Trans     (liftIO)
 import           Data.Aeson
-import           Data.Aeson.Types
+import           Data.Aeson.Types        hiding (Options)
 import           Data.ByteString.Lazy    (ByteString)
 import           Data.List.Split         (splitOn)
 import qualified Data.Map                as Map
@@ -40,14 +40,21 @@ import Data.Swagger       hiding (port)
 import Servant.Swagger
 import Servant.Swagger.UI
 
-import API   (Mode (..), ParseMode (..), compareSpec)
+import API   (Options (..), defOptions, Mode (..), ParseMode (..), compareSpec)
 import Model
 
 -- | Data types.
 data ApiReqBody = ApiReqBody
   { sourceA :: String
   , sourceB :: String
+  , options :: Options
   } deriving (Eq, Show, Generic)
+instance FromJSON Mode
+instance ToJSON   Mode
+instance FromJSON ParseMode
+instance ToJSON   ParseMode
+instance FromJSON Options
+instance ToJSON   Options
 instance FromJSON ApiReqBody
 instance ToJSON   ApiReqBody
 
@@ -103,8 +110,8 @@ serverCompare :: Server CompareApi
 serverCompare = getCompareResponse
 
 getCompareResponse :: ApiReqBody -> Handler ApiResponse
-getCompareResponse ApiReqBody {sourceA = srcA, sourceB = srcB} = do
-    resp <- liftIO $ compareSpec Release Raw (wrap srcA) (wrap srcB)
+getCompareResponse (ApiReqBody srcA srcB opts) = do
+    resp <- liftIO $ compareSpec opts (wrap srcA) (wrap srcB)
     return $ case resp of
                   Equivalent _ ->
                     defResp { responseType = Equiv }
@@ -124,7 +131,7 @@ getCompareResponse ApiReqBody {sourceA = srcA, sourceB = srcB} = do
 
 -- | API documentation (Markdown).
 instance ToSample ApiReqBody where
-  toSamples _ = singleSample $ ApiReqBody srcA srcB
+  toSamples _ = singleSample $ ApiReqBody srcA srcB defOptions
     where srcA = "public static float real1(float a) {\
                   \ pre(a >= (2 - 1 + 1));\
                   \ a += a;\
@@ -155,6 +162,9 @@ docsBS = encodeUtf8
 
 -- | API documentation (Swagger).
 instance ToSchema Feedback
+instance ToSchema Mode
+instance ToSchema ParseMode
+instance ToSchema Options
 instance ToSchema ApiReqBody
 instance ToSchema ApiResponseType
 instance ToSchema ApiResponse

@@ -44,6 +44,7 @@ data Response = Equivalent    Feedback
               | Timeout
               deriving (Eq, Show)
 
+-- | Combine the responses for pre/post-conditions.
 (<>) :: Response -> Response -> Response
 Equivalent      f1 <> Equivalent      f2 = Equivalent      (f1 <+> f2)
 Equivalent      f1 <> NotEquivalent s f2 = NotEquivalent s (f1 <+> f2)
@@ -56,6 +57,8 @@ _               <> Timeout               = Timeout
 Undefined       <> _                     = Undefined
 _               <> Undefined             = Undefined
 
+-- | Combine feedback for pre/post-conditions.
+-- ASSUMPTION: Each one holds its result in the first element of the tuple.
 (<+>) :: Feedback -> Feedback -> Feedback
 (<+>) (Feedback prefb _) (Feedback postfb _) = Feedback prefb postfb
 

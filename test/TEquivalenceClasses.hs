@@ -17,7 +17,8 @@ testEquiv b src s s' = do
   -- from QuickCheck that it calculates feedback that is exactly right every time,
   -- due to the enormous search space of reals. Therefore we only check if
   -- both Z3 and QuickCheck say eq / neq, and not if they give the same feedback model.
-  res <- hSilence [stdout, stderr] $ compareSpec SoftDebug File (src, s) (src, s')
+  res <- hSilence [stdout, stderr] $
+          compareSpec (Options SoftDebug File True True) (src, s) (src, s')
   (case res of
     NotEquivalent _ _ -> NotEquivalent emptyModel defFeedback'
     Equivalent    _   -> Equivalent defFeedback'
