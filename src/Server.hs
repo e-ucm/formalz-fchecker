@@ -55,7 +55,16 @@ instance FromJSON ParseMode
 instance ToJSON   ParseMode
 instance FromJSON Options
 instance ToJSON   Options
-instance FromJSON ApiReqBody
+instance FromJSON ApiReqBody where
+  parseJSON (Object o) = do
+    srcA   <- o .: "sourceA"
+    srcB   <- o .: "sourceB"
+    toPre  <- o .:? "checkPre" .!= True
+    toPost <- o .:? "checkPost" .!= True
+    m      <- o .:? "mode" .!= Release
+    pm     <- o .:? "parseMode" .!= Raw
+    return $ ApiReqBody srcA srcB (Options m pm toPre toPost)
+  parseJSON invalid = typeMismatch "ApiReqBody" invalid
 instance ToJSON   ApiReqBody
 
 data ApiResponseType = Equiv | NotEquiv | Undef | ResponseErr
