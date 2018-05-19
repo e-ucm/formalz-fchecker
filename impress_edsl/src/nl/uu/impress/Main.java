@@ -207,7 +207,6 @@ public class Main {
         pre((a.length == 2) && forall(a, i -> forallr(a, i, a.length, j -> a[i] <= a[j])));
         post(true);
     }
-
     public static void arr2(double[] a) {
         // pre(a.length == 2);
         // pre(forall(a, i -> forallr(a, i, a.length, j -> a[j] >= a[i])));
@@ -249,5 +248,14 @@ public class Main {
     public static void varIntro32(int y) {
       pre(with(10, x -> with(1, x -> with(0, y -> x > y))));
       post();
+    }
+
+    public static void arr11(int[] a) {
+        pre(imp(a.length == 1, forall(a, i -> a[i] > 0)));
+        post(1.0 == (2.1 - 1.1));
+    }
+    public static void arr12(int[] a) {
+        pre(imp((1 + a.length) == 2 , a[0] >= 1));
+        post(true);
     }
 }

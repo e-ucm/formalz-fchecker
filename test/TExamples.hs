@@ -11,11 +11,11 @@ src = "impress_edsl/src/nl/uu/impress/Main.java"
 
 testEquiv :: Response -> String -> String -> Assertion
 testEquiv b s s' = do
-  res <- hSilence [stdout, stderr] $ compareSpec Release File (src, s) (src, s')
+  res <- hSilence [stdout, stderr] $ compareSpec SoftDebug File (src, s) (src, s')
   (case res of
     NotEquivalent _ _ -> NotEquivalent emptyModel defFeedback'
-    Equivalent    _   -> Equivalent defFeedback')
-      @?= b
+    Equivalent    _   -> Equivalent defFeedback'
+    r                 -> error $ "unexpected response: " ++ show r) @?= b
 
 (.==), (.!=), (.??) :: String -> String -> Assertion
 (.==) = testEquiv (Equivalent defFeedback')
@@ -44,7 +44,8 @@ examples =
   , "sorted3" .!= "sorted4"
   , "sorted1" .== "sorted4"
   , "imp1" .!= "imp2"
-  , "varIntro11" .!= "varIntro12"
+  , "varIntro11" .!= "varIntro12" -- TODO fix test backend
   , "varIntro21" .== "varIntro22"
   , "varIntro31" .== "varIntro32"
+  , "arr11" .== "arr12" -- TODO fix test backend
   ]

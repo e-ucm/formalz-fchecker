@@ -70,8 +70,6 @@ type Model = M.Map String ModelVal
 
 emptyModel :: Model
 emptyModel = M.empty
--- emptyFeedback :: (Feedback, Feedback)
--- emptyFeedback = (NoFeedback, NoFeedback)
 
 -- | Pretty-printing.
 instance Show ModelVal where
@@ -99,13 +97,13 @@ sanitize model =
 
 -- | Exclude model's variables that are not actual input arguments.
 minify :: TypeEnv -> Model -> Model
-minify typeEnv = M.filterWithKey (\k _ -> (removeType k) `elem` vars)
+minify typeEnv = M.filterWithKey (\k _ -> removeType k `elem` vars)
   where vars = concatMap (\(Name ids, _) -> (\(Ident s) -> s) <$> ids) typeEnv
 
 -- | Gets a pretty printed var name (like "a:int[]" or "b:bool") and returns
 --   everything before the colon (so resp. "a" or "b")
 removeType :: String -> String
-removeType = fst . span (\x -> x /= ':')
+removeType = fst . span (/= ':')
 
 -- | Parsers.
 modelP :: Parser ModelVal

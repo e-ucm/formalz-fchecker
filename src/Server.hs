@@ -9,17 +9,23 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE UndecidableInstances  #-}
-module Server (runApi) where
+module Server
+  ( app, compareApp, runApi       -- spawn server
+  , compareApi, swagApi, wholeApi -- API proxies
+  , ApiReqBody (..), ApiResponse (..), ApiResponseType (..)
+  ) where
 
 import           Control.Monad.Trans     (liftIO)
 import           Data.Aeson
+import           Data.Aeson.Types
 import           Data.ByteString.Lazy    (ByteString)
 import           Data.List.Split         (splitOn)
 import qualified Data.Map                as Map
 import           Data.Proxy
+import           Data.Scientific
 import           Data.Text.Lazy          (pack)
 import           Data.Text.Lazy.Encoding (encodeUtf8)
-import           Data.Vector             (fromList)
+import qualified Data.Vector             as Vec
 
 import GHC.Generics
 import System.IO
@@ -43,7 +49,7 @@ data ApiReqBody = ApiReqBody
   , sourceB :: String
   } deriving (Eq, Show, Generic)
 instance FromJSON ApiReqBody
-instance ToJSON ApiReqBody
+instance ToJSON   ApiReqBody
 
 data ApiResponseType = Equiv | NotEquiv | Undef | ResponseErr
   deriving (Eq, Show, Generic)
@@ -55,14 +61,28 @@ data ApiResponse = ApiResponse
   , feedback     :: Maybe Feedback
   }
   deriving (Eq, Show, Generic)
-instance ToJSON Feedback
-instance ToJSON ApiResponseType
-instance ToJSON ApiResponse
+instance FromJSON Feedback
+instance ToJSON   Feedback
+
+instance ToJSON   ApiResponseType
+instance FromJSON ApiResponseType
+
+instance ToJSON   ApiResponse
+instance FromJSON ApiResponse
+
+instance FromJSON ModelVal where
+  parseJSON (Bool b) = return $ BoolVal b
+  parseJSON (Number n) = return $
+    case floatingOrInteger n of
+      Left f  -> RealVal f
+      Right i -> IntVal i
+  parseJSON (Array a) = (ManyVal . Vec.toList) <$> Vec.sequence (parseJSON <$> a)
+  parseJSON invalid = typeMismatch "ModelVal" invalid
 instance ToJSON ModelVal where
   toJSON (BoolVal b)  = toJSON b
   toJSON (IntVal n)   = toJSON n
   toJSON (RealVal n)  = toJSON n
-  toJSON (ManyVal vs) = Array $ fromList $ map toJSON vs
+  toJSON (ManyVal vs) = Array $ Vec.fromList $ map toJSON vs
 
 -- | Default API response.
 defResp :: ApiResponse
@@ -75,6 +95,9 @@ defResp = ApiResponse { responseType = Undef
 type CompareApi = "compare"
   :> ReqBody '[JSON] ApiReqBody
   :> Post '[JSON] ApiResponse
+
+compareApi :: Proxy CompareApi
+compareApi = Proxy
 
 serverCompare :: Server CompareApi
 serverCompare = getCompareResponse
@@ -126,7 +149,7 @@ docsBS :: ByteString
 docsBS = encodeUtf8
        . pack
        . markdown
-       $ docsWith opts [intro] mempty (Proxy :: Proxy CompareApi)
+       $ docsWith opts [intro] mempty compareApi
   where intro = DocIntro "Welcome" ["This is our webservice's API.", "Enjoy!"]
         opts = DocOptions 1
 
@@ -141,8 +164,11 @@ instance ToSchema ModelVal where
 
 type SwagApi = SwaggerSchemaUI "api-swagger" "swagger.json"
 
+swagApi :: Proxy SwagApi
+swagApi = Proxy
+
 serverSwagger :: Server SwagApi
-serverSwagger = swaggerSchemaUIServer (toSwagger (Proxy :: Proxy CompareApi))
+serverSwagger = swaggerSchemaUIServer (toSwagger compareApi)
 
 -- | Server.
 runApi :: Int -> IO ()
@@ -153,8 +179,14 @@ runApi port = runSettings settings app
 
 type WholeApi = CompareApi :<|> SwagApi :<|> Raw
 
+wholeApi :: Proxy WholeApi
+wholeApi = Proxy
+
+compareApp :: Application
+compareApp = serve compareApi serverCompare
+
 app :: Application
-app = serve (Proxy :: Proxy WholeApi) $
+app = serve wholeApi $
         serverCompare :<|> serverSwagger :<|> Tagged serveDocs
       where serveDocs _ respond = respond $
               responseLBS ok200 [("Content-Type", "text/plain")] docsBS

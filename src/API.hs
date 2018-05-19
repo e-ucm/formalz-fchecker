@@ -27,6 +27,14 @@ import Control.DeepSeq
 import Control.Exception.Base
 
 -- | Data types.
+data Options = Options { mode      :: Mode
+                       , parseMode :: ParseMode
+                       , pre       :: Bool
+                       , post      :: Bool
+                       }
+
+defOptions :: Options
+defOptions = Options Release Raw True True
 
 -- | Soft debug mode means that the results from Z3 and QuickCheck will be
 --   compared (Equiv / NEquiv), but not the Feedback. This Mode is used when
@@ -88,14 +96,16 @@ compareSpec m pMode methodA methodB = do
                                   , (mv2, "Test", Test.equivalentTo)
                                   ]
           resp <- waitForResult m mv1 mv2
-          log $ "FinalResponse: " ++ show resp
-          return resp
+          log $ "FullReponse: " ++ show resp
+          let finalResp = minifyResponse (tenvA ++ tenvB) resp
+          log $ "FinalResponse: " ++ show finalResp
+          return finalResp
           where ((_, _, tenvA), (_, _, tenvB)) = (mA, mB)
                 -- | Runs f on a separate thread and stores the result in mv.
                 compareSpecHelper :: (MVar Response, String, EquivImpl) -> IO ThreadId
                 compareSpecHelper (mv, name, impl) = forkIO $ do
                   resp <- checkEquiv name impl (preL, preL') (postL, postL')
-                  resp `seq` putMVar mv (minifyResponse (tenvA ++ tenvB) resp)
+                  resp `seq` putMVar mv resp
 
 -- Exclude internal variables in Response's model.
 minifyResponse :: TypeEnv -> Response -> Response

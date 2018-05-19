@@ -1,9 +1,7 @@
 module TEquivalenceClasses where
 
-import Control.Monad
 import Data.List          (elemIndex)
 import Data.List.Split    (splitOn)
-import Data.Maybe
 import System.IO          (stderr, stdout)
 import System.IO.Silently (hSilence)
 import System.IO.Unsafe   (unsafePerformIO)
@@ -22,11 +20,14 @@ testEquiv b src s s' = do
   res <- hSilence [stdout, stderr] $ compareSpec SoftDebug File (src, s) (src, s')
   (case res of
     NotEquivalent _ _ -> NotEquivalent emptyModel defFeedback'
-    Equivalent    _   -> Equivalent defFeedback')
-      @?= b
+    Equivalent    _   -> Equivalent defFeedback'
+    r                 -> error $ "unexpected response: " ++ show r) @?= b
+
+(.==), (.!=) :: String -> String -> String -> Assertion
 (.==) = testEquiv $ Equivalent    defFeedback'
 (.!=) = testEquiv $ NotEquivalent emptyModel defFeedback'
 
+genEquivTests :: FilePath -> [Assertion]
 genEquivTests edslSrc =
   let methodIds = unsafePerformIO (hSilence [stdout, stderr] $ parseMethodIds edslSrc)
       getClass = last . splitOn "_"
