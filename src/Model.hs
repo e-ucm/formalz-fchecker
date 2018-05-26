@@ -100,7 +100,7 @@ sanitize model =
 
 -- | Exclude model's variables that are not actual input arguments.
 minify :: TypeEnv -> Model -> Model
-minify typeEnv = M.filterWithKey (\k _ -> removeType k `elem` vars)
+minify typeEnv = id -- M.filterWithKey (\k _ -> removeType k `elem` vars)
   where vars = concatMap (\(Name ids, _) -> (\(Ident s) -> s) <$> ids) typeEnv
 
 -- | Gets a pretty printed var name (like "a:int[]" or "b:bool") and returns

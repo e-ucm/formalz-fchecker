@@ -27,7 +27,8 @@ serverTests =
       let srcA = constructSrc preA
       let srcB = constructSrc preB
       let opts = defOptions {mode = SoftDebug, checkPost = False}
-      (ApiResponse typ' _ e' fb') <- port <@ compareClient (ApiReqBody srcA srcB opts)
+      let req  = ApiReqBody srcA srcB opts
+      (ApiResponse typ' _ e' fb') <- port <@ compareClient req
       case e' of
         Just e  -> error e
         Nothing -> (typ', fb') @?= (typ, fb)
@@ -38,10 +39,9 @@ serverTests =
         -- 3, 4. Real arithmetic
       , (("(float x)", "true", "0 == 0.0"), Equiv, Nothing)
       , (("(double x)", "(x * 1.1) == 0.0", "(x * 2) == (1 - 1)"), Equiv, Nothing)
-      , -- 5. Simple feedback
-        (("()", "true", "false || false")
-        , NotEquiv, Just defFeedback' { pre = (False, True, False, False) }
-        )
+       -- 5. Simple feedback
+      , (("()", "true", "false || false")
+        , NotEquiv, Just defFeedback' { pre = (False, True, False, False) })
       , -- 6. Example with 1D int arrays (TODO fix test backend)
         (( "(int[] a)"
          , "imp(a.length == 1, forall(a, i -> a[i] > 0))"
@@ -50,15 +50,14 @@ serverTests =
         -- 7. Example with 1D real arrays (TODO fix)
       , (( "(double[] a)"
          , "imp(a.length == 1, forall(a, i -> a[i] > 0.1))"
-         , "imp((1 + a.length) == 2, a[0] > (2.1 - 2.0))"
+         , "imp((1 + a.length) == 2, forall(a, i -> a[i] > (0.2 - 0.1)))" -- a[0] > (2.1 - 2.0))
          ), Equiv, Nothing)
         -- 8. Reported bug (TODO fix test backend)
-      , (( "(int[] a, int i, int j)"
+       (( "(int[] a, int i, int j)"
          , "false"
          , "a[j] == oldai && a[i] == oldaj"
          )
-        , NotEquiv, Just defFeedback' { pre  = (False, False, True, True) }
-        )
+        , NotEquiv, Just defFeedback' { pre  = (False, False, True, True) })
       ]
   ]
   -- ++ TODO check errors as well (type-checking, etc...)

@@ -53,18 +53,14 @@ instance FromJSON Mode
 instance ToJSON   Mode
 instance FromJSON ParseMode
 instance ToJSON   ParseMode
-instance FromJSON Options
+instance FromJSON Options where
+  parseJSON (Object o) = Options <$> o .:? "mode"      .!= Release
+                                 <*> o .:? "parseMode" .!= Raw
+                                 <*> o .:? "checkPre"  .!= True
+                                 <*> o .:? "checkPost" .!= True
+  parseJSON invalid    = typeMismatch "Options" invalid
 instance ToJSON   Options
-instance FromJSON ApiReqBody where
-  parseJSON (Object o) = do
-    srcA   <- o .: "sourceA"
-    srcB   <- o .: "sourceB"
-    toPre  <- o .:? "checkPre" .!= True
-    toPost <- o .:? "checkPost" .!= True
-    m      <- o .:? "mode" .!= Release
-    pm     <- o .:? "parseMode" .!= Raw
-    return $ ApiReqBody srcA srcB (Options m pm toPre toPost)
-  parseJSON invalid = typeMismatch "ApiReqBody" invalid
+instance FromJSON ApiReqBody
 instance ToJSON   ApiReqBody
 
 data ApiResponseType = Equiv | NotEquiv | Undef | ResponseErr
@@ -124,9 +120,9 @@ getCompareResponse (ApiReqBody srcA srcB opts) = do
     return $ case resp of
                   Equivalent _ ->
                     defResp { responseType = Equiv }
-                  NotEquivalent m f ->
+                  NotEquivalent mdl f ->
                     defResp { responseType = NotEquiv
-                            , model = Just m
+                            , model = Just mdl
                             , feedback = Just f
                             }
                   ErrorResponse e ->

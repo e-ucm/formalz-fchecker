@@ -67,6 +67,7 @@ compareSpec opts@(Options m pMode toPre toPost) methodA methodB = do
   -- Parsing.
   [mA, mB] <- mapM (parseMethod pMode) [methodA, methodB]
   log "\n********************************************************************"
+  log $ "toPre: " ++ show toPre ++ ", toPost: " ++ show toPost
   log $ "Input\n" ++ "~~~~\n"
   log $ "MethodA:\n" ++ ppMethodDef mA ++ "\n"
   log $ "MethodB:\n" ++ ppMethodDef mB ++ "\n"
@@ -177,15 +178,12 @@ getRes _        resp                resp'               =
 checkEquiv :: Bool -> Bool -> String -> EquivImpl
           -> (LExpr, LExpr) -> (LExpr, LExpr) -> IO Response
 checkEquiv toPre toPost name equivTo (preL, preL') (postL, postL') = do
-  preRes  <- if toPre then preL `equivTo` preL' else return Undefined
-  postRes <- if toPost then postL `equivTo` postL' else return Undefined
+  let ignore = return $ Equivalent defFeedback'
+  preRes  <- if toPre then  preL `equivTo` preL'   else ignore
+  postRes <- if toPost then postL `equivTo` postL' else ignore
   log $ "PreResponse (" ++ name ++ "):\n" ++ show preRes ++ "\n"
   log $ "PostResponse (" ++ name ++ "):\n" ++ show postRes ++ "\n"
-  return $ case (toPre, toPost) of
-    (True,  True)  -> preRes <> postRes
-    (True,  False) -> preRes
-    (False, True)  -> postRes
-    (False, False) -> Undefined
+  return $ preRes <> postRes
 
 --------------------------------------------------------------------------------
 

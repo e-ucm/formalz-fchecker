@@ -34,7 +34,7 @@ add (w,x,y,z) (w',x',y',z') = (w+w',x+x',y+y',z+z')
 
 -- | Converts two Bools to FeedbackCount. First Bool is the Bool you get when
 --   the TeacherLExpr was evaluated using some Model+ArrayModel m, the second
---   one the bool you get when you evaluate te StudentLExpr using m.
+--   one the bool you get when you evaluate the StudentLExpr using m.
 toFeedbackCount :: Bool -> Bool -> FeedbackCount
 toFeedbackCount True  True  = (1,0,0,0)
 toFeedbackCount True  False = (0,1,0,0)
@@ -51,7 +51,7 @@ testEquality :: Int -> LExprTeacher -> LExprStudent -> IO (FeedbackCount, (Model
 testEquality 0 _ _ = error "testEquality won't work with 0 iterations."
 testEquality iters e1 e2 = do
   results <- testAsync iters e1 e2 --  mapM (const (test e1 e2)) [1..iters]
-  let feedback = foldr add defFbCount (map fst results) -- sum of feedbacks
+  let feedback = foldr (add . fst) defFbCount results -- sum of feedbacks
   -- get list of counter models where
   let counters = map snd (filter (not . equal . fst) results)
   if null counters then
@@ -62,16 +62,16 @@ testEquality iters e1 e2 = do
 testAsync :: Int -> LExprTeacher -> LExprStudent -> IO [(FeedbackCount, (Model, ArrayModel))]
 testAsync iters e1 e2 = do
   let granularity = 50 :: Double
-  let nrThreads = ceiling ((fromIntegral iters) / granularity) :: Integer
+  let nrThreads = ceiling (fromIntegral iters / granularity) :: Integer
   let threads = [1..nrThreads]
   results <- mapConcurrently (const (mapM (const (test e1 e2)) [(1::Integer)..50])) threads
   return $ concat results
 
 test :: LExprTeacher -> LExprStudent -> IO (FeedbackCount, (Model, ArrayModel))
 test e1 e2 = do
-    ((CBool res1),(m,arrM,_)) <- testLExpr e1
-    evalInfo'                 <- expandEvalInfo e2 (m, arrM)
-    (CBool res2)              <- testModel e2 evalInfo'
+    (CBool res1, (m,arrM,_)) <- testLExpr e1
+    evalInfo'                <- expandEvalInfo e2 (m, arrM)
+    (CBool res2)             <- testModel e2 evalInfo'
     let (primitivesModel, arrayModel, _) = evalInfo'
     let fb = toFeedbackCount res1 res2
     return (fb, (primitivesModel, arrayModel))

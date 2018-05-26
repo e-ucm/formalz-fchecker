@@ -12,7 +12,7 @@ src = "impress_edsl/src/nl/uu/impress/Main.java"
 testEquiv :: Response -> String -> String -> Assertion
 testEquiv b s s' = do
   res <- hSilence [stdout, stderr] $
-          compareSpec (Options SoftDebug File True True) (src, s) (src, s')
+          compareSpec (Options Release File True True) (src, s) (src, s')
   (case res of
     NotEquivalent _ _ -> NotEquivalent emptyModel defFeedback'
     Equivalent    _   -> Equivalent defFeedback'
@@ -48,8 +48,8 @@ examples =
   , "varIntro11" .!= "varIntro12" -- #21 TODO fix test backend
   , "varIntro21" .== "varIntro22" -- #22
   , "varIntro31" .== "varIntro32" -- #23
-  , "varIntro41" .== "varIntro42" -- #24
-  , "array2d11" .== "array2d12" -- #25
-  , "array2d21" .!= "array2d22" -- #26
+  , "varIntro41" .== "varIntro42" -- #24 TODO fix test backend
+  , "array2d11" .== "array2d12" -- #25 TODO fix test backend
+  , "array2d21" .!= "array2d22" -- #26 TODO fix test backend
   , "arr11" .== "arr12" -- #27 TODO fix test backend
   ]
