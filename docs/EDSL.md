@@ -78,19 +78,24 @@ public static void fun(boolean b) {
 
 There is a fairly minimal syntax for array operations:
  * `a.length`: retrieving the length of an array **variable**, e.g.
+
  ```java
  public static void fun(double[] a, boolean b)
  pre(imp(b, a.length > 0));
  post();
  ```
+
  * `a[...]`: indexing an array **variable** with an expression of type `Integer`, e.g.
+
  ```java
  public static void fun(double[] a)
  pre(a[0] == 0);
  a[0] = 2 * a[0] + 5
  post(a[1 - 1] == 5);
  ```
+
  * `forall`: asserting a property of all elements of an array **variable**, e.g.
+
  ```java
  public static void fun(int[] a)
  pre(forall(a, i -> a[i] == 0));
