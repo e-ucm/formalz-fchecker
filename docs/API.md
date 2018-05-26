@@ -60,6 +60,7 @@ The JSON response has the following format:
 
 There are 3 possible responses:
   1. The specification are equivalent:
+
   ```javascript
   { "responseType": "Equiv",
          "model": null,
@@ -67,7 +68,9 @@ There are 3 possible responses:
          "err": null
   }
   ```
+
   2. The specification are not equivalent:
+
   ```javascript
   { "responseType": "NotEquiv",
          "model": {"x": -10},
@@ -78,7 +81,9 @@ There are 3 possible responses:
          "err": null
   }
   ```
+
   3. An error occurred:
+
   ```javascript
   { "responseType": "ResponseErr",
          "err": "(==): heterogeneous types",
