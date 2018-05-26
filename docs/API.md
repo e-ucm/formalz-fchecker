@@ -12,8 +12,7 @@ Enjoy!
     - `application/json`
 
 ```javascript
-{
-  // teacher's specification
+{ // teacher's specification
   "sourceA":
     "public static float real1(float a) { \
        pre(a >= (2 - 1 + 1)); \
@@ -61,29 +60,29 @@ The JSON response has the following format:
 
 There are 3 possible responses:
   1. The specification are equivalent:
-```javascript
-{ "responseType": "Equiv",
-       "model": null,
-       "feedback": null,
-       "err": null
-}
-```
+  ```javascript
+  { "responseType": "Equiv",
+         "model": null,
+         "feedback": null,
+         "err": null
+  }
+  ```
   2. The specification are not equivalent:
-```javascript
-{ "responseType": "NotEquiv",
-       "model": {"x": -10},
-       "feedback": {
-         "pre": [true, false, false, false],
-         "post": [true, true, false, false]
-       },
-       "err": null
-}
-```
+  ```javascript
+  { "responseType": "NotEquiv",
+         "model": {"x": -10},
+         "feedback": {
+           "pre": [true, false, false, false],
+           "post": [true, true, false, false]
+         },
+         "err": null
+  }
+  ```
   3. An error occurred:
-```javascript
-{ "responseType": "ResponseErr",
-       "err": "(==): heterogeneous types",
-       "model": null,
-       "feedback": null
-}
-```
+  ```javascript
+  { "responseType": "ResponseErr",
+         "err": "(==): heterogeneous types",
+         "model": null,
+         "feedback": null
+  }
+  ```
