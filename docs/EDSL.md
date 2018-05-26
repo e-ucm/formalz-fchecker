@@ -39,17 +39,21 @@ We support the standard operations on arithmetic types (`Integer`, `Real`):
 
 ### Polymorphic equality
 
-Any supported type can be compared for equality using the `==` operator, e.g.
+Any supported type can be compared for equality using the `==`/`!=` operator, e.g.
 ```java
 public static void fun(int x, boolean b) {
   pre(x == 1);
   pre(b == true);
   if (x == 1) {
     b = !b;
+    x--;
   }
   post(b == false);
+  post(x != 1);
 }
 ```
+
+There is also a special form for performing null-checking on array **variables**, e.g. `arr != null`
 
 ### Boolean expressions
 
@@ -58,6 +62,7 @@ Every pre/post-condition must be of `Boolean` type.
 The operations allowed on Booleans are:
  * `&&`: logical conjunction, e.g. `true && false`
  * `||`: logical disjunction, e.g. `true || false`
+ * `!`: logical negation, e.g. `!(true || false)`
  * `imp`: logical implication, e.g. `imp(false, true && false)`
 
 Here is an example specification making use of these operators:

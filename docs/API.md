@@ -26,7 +26,7 @@ Enjoy!
        pre(a > 2 || a == 2); \
        a = a * 2; \
        post(a > 4 || a == 4); \
-     }"
+     }",
   // optional control of which conditions to check
   "options": {"checkPre": true, "checkPost": false}
 }
@@ -49,12 +49,12 @@ The JSON response has the following format:
     <var1>: <value1>
     <var2>: <value2>
     ...
-  }
+  },
   /* in case of non-equivalence, we give all possible truth value-pairs of the specifications */
   "feedback": {
     "pre":  [/*both true*/, /*true, false*/, /*false, true*/, /*both false*/],
     "post": [/*both true*/, /*true, false*/, /*false, true*/, /*both false*/]
-  }
+  },
   "err": /* an error occurred! */
 }
 ```
@@ -83,7 +83,7 @@ There are 3 possible responses:
 ```javascript
 { "responseType": "ResponseErr",
        "err": "(==): heterogeneous types",
-       "model": null.
+       "model": null,
        "feedback": null
 }
 ```
