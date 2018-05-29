@@ -53,7 +53,7 @@ serverTests =
          , "imp((1 + a.length) == 2, forall(a, i -> a[i] > (0.2 - 0.1)))" -- a[0] > (2.1 - 2.0))
          ), Equiv, Nothing)
         -- 8. Reported bug (TODO fix test backend)
-       (( "(int[] a, int i, int j)"
+      , (( "(int[] a, int i, int j)"
          , "false"
          , "a[j] == oldai && a[i] == oldaj"
          )
