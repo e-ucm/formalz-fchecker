@@ -5,17 +5,29 @@ module LogicIR.Backend.QuickCheck.Test ( testEquality
                                        , equal
                                        ) where
 
-import LogicIR.Expr
+import LogicIR.Expr hiding (b)
 import LogicIR.Fold
 import LogicIR.Eval
 import LogicIR.Backend.QuickCheck.ModelGenerator
 import Data.Maybe (fromMaybe, isNothing, fromJust)
 import Data.List (find, (\\))
 import qualified Data.Map.Lazy as M
+import qualified Control.Exception as E
 import Control.Concurrent.Async (mapConcurrently)
 
 type LExprTeacher = LExpr
 type LExprStudent = LExpr
+
+-- |Thrown when the runtime system detects that the computation is
+-- guaranteed not to terminate. Note that there is no guarantee that
+-- the runtime system will notice whether any given computation is
+-- guaranteed to terminate or not.
+data Unevaluatable = Unevaluatable
+
+instance Show Unevaluatable where
+    showsPrec _ Unevaluatable = showString "Unevaluatable expression"
+
+instance E.Exception Unevaluatable
 
 -- | Contains how often any type of feedback occured over x runs (where x is
 --   obviously the sum of the four integers). Order of Integers in tuple
@@ -32,14 +44,20 @@ defFbCount = (0,0,0,0)
 add :: FeedbackCount -> FeedbackCount -> FeedbackCount
 add (w,x,y,z) (w',x',y',z') = (w+w',x+x',y+y',z+z')
 
--- | Converts two Bools to FeedbackCount. First Bool is the Bool you get when
+-- | Converts two bools to FeedbackCount. First bool is the bool you get when
 --   the TeacherLExpr was evaluated using some Model+ArrayModel m, the second
---   one the bool you get when you evaluate the StudentLExpr using m.
-toFeedbackCount :: Bool -> Bool -> FeedbackCount
-toFeedbackCount True  True  = (1,0,0,0)
-toFeedbackCount True  False = (0,1,0,0)
-toFeedbackCount False True  = (0,0,1,0)
-toFeedbackCount False False = (0,0,0,1)
+--   one the bool you get when you evaluate the StudentLExpr using m. If one
+--   of the bools is Nothing, then it means that thate expression could not
+--   be evaluated and that it should therefore be ignored.
+toFeedbackCount :: Maybe LConst -> Maybe LConst -> FeedbackCount
+toFeedbackCount Nothing _   = (0,0,0,0)
+toFeedbackCount _ Nothing   = (0,0,0,0)
+toFeedbackCount (Just (CBool a)) (Just (CBool b)) = toFeedbackCount' a b
+  where toFeedbackCount' True  True  = (1,0,0,0)
+        toFeedbackCount' True  False = (0,1,0,0)
+        toFeedbackCount' False True  = (0,0,1,0)
+        toFeedbackCount' False False = (0,0,0,1)
+toFeedbackCount _ _ = error "toFeedbackCount was called with incorrect LConsts"
 
 -- | Returns True if, on we have 0 TF or FT occurences (in other words: occurences
 --   where the teacher and student specification gave a different result)
@@ -69,9 +87,9 @@ testAsync iters e1 e2 = do
 
 test :: LExprTeacher -> LExprStudent -> IO (FeedbackCount, (Model, ArrayModel))
 test e1 e2 = do
-    (CBool res1, (m,arrM,_)) <- testLExpr e1
-    evalInfo'                <- expandEvalInfo e2 (m, arrM)
-    (CBool res2)             <- testModel e2 evalInfo'
+    (res1, (m,arrM,_)) <- testLExpr e1
+    evalInfo'          <- expandEvalInfo e2 (m, arrM)
+    res2               <- testModel e2 evalInfo'
     let (primitivesModel, arrayModel, _) = evalInfo'
     let fb = toFeedbackCount res1 res2
     return (fb, (primitivesModel, arrayModel))
@@ -80,21 +98,21 @@ test e1 e2 = do
 -- and returns whether the formula evaluates to true or to false when that model
 -- is used, and the model itself. If the formula, after substitution, cannot
 -- be evaluated - i.e. there's still a variable in the LExpr - an error will be thrown.
-testLExpr :: LExpr -> IO (LConst, EvalInfo)
+testLExpr :: LExpr -> IO (Maybe LConst, EvalInfo)
 testLExpr e = do
     (primitivesModel, arrayModel, quantVs) <- generateEvalInfo e
     testResult       <- testModel e (primitivesModel, arrayModel, quantVs)
     let evalInfo      = (primitivesModel, arrayModel, quantVs)
     return (testResult, evalInfo)
 
-testModel :: LExpr -> EvalInfo -> IO LConst
+testModel :: LExpr -> EvalInfo -> IO (Maybe LConst)
 testModel e evalInfo = do
     let substitutedE = applyModel e evalInfo
     if evalPossible substitutedE then do
         let res = eval substitutedE
-        return res
+        return $ Just res
     else
-        return $ CBool False
+        return Nothing
 
 -- Applies substitution to an LExpr given the necessary EvalInfo.
 applyModel :: LExpr -> EvalInfo -> LExpr
@@ -122,11 +140,12 @@ subst e@(LArray x indexE) (_,arrayModel,_)
     = if evalPossible indexE then do
           let (CInt index) = eval indexE
           let a            = get x arrayModel
-          let l          = length a
+          let l            = length a
           if index < l && index >= 0 then
               LConst $ a !! index
           else
-              e -- Just return the input LExpr, since the index is out of the domain.
+              E.throw Unevaluatable
+              -- e -- Just return the input LExpr, since the index is out of the domain.
       else
           e
 subst q@(LQuant qop x domain e) evalInfo = do
