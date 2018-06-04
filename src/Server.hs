@@ -54,13 +54,18 @@ instance ToJSON   Mode
 instance FromJSON ParseMode
 instance ToJSON   ParseMode
 instance FromJSON Options where
-  parseJSON (Object o) = Options <$> o .:? "mode"      .!= Release
-                                 <*> o .:? "parseMode" .!= Raw
-                                 <*> o .:? "checkPre"  .!= True
-                                 <*> o .:? "checkPost" .!= True
+  parseJSON (Object o) = Options <$> o .:? "mode"      .!= md
+                                 <*> o .:? "parseMode" .!= pmd
+                                 <*> o .:? "checkPre"  .!= cpr
+                                 <*> o .:? "checkPost" .!= cpo
+                           where (Options md pmd cpr cpo) = defOptions
   parseJSON invalid    = typeMismatch "Options" invalid
 instance ToJSON   Options
-instance FromJSON ApiReqBody
+instance FromJSON ApiReqBody where
+  parseJSON (Object o) = ApiReqBody <$> o .: "sourceA"
+                                    <*> o .: "sourceB"
+                                    <*> o .:? "options" .!= defOptions
+  parseJSON invalid    = typeMismatch "ApiReqBody" invalid
 instance ToJSON   ApiReqBody
 
 data ApiResponseType = Equiv | NotEquiv | Undef | ResponseErr
