@@ -63,6 +63,7 @@ evalBin :: LConst -> LBinop -> LConst -> LConst
 evalBin (CBool x) LAnd  (CBool y) = CBool (x && y)
 evalBin (CBool x) LOr   (CBool y) = CBool (x || y)
 evalBin (CBool x) LImpl (CBool y) = CBool (not x || (x && y))
+evalBin (CBool x) CEqual (CBool y) = CBool (x == y)
 -- Comparison operators
 evalBin (CInt  x) o (CInt  y)
      | o `elem` compOps     = CBool $ compOpF o x y

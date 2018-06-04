@@ -52,4 +52,5 @@ examples =
   , "array2d11" .== "array2d12" -- #25 TODO fix test backend
   , "array2d21" .!= "array2d22" -- #26 TODO fix test backend
   , "arr11" .== "arr12" -- #27 TODO fix test backend
+  , "eq11" .== "eq12" -- #28
   ]

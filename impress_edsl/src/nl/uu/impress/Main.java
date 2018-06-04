@@ -289,4 +289,13 @@ public class Main {
       pre(with(a[1 - 1], aa -> aa.length == (2 - 1) && (aa[0] == 8)));
       post();
     }
+
+    public static void eq11(boolean b1, boolean b2) {
+      pre(imp((b1 && b2) == true, b1 == b2));
+      post();
+    }
+    public static void eq12(boolean b1, boolean b2) {
+      pre();
+      post();
+    }
 }
