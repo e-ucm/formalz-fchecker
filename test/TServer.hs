@@ -47,10 +47,10 @@ serverTests =
          , "imp(a.length == 1, forall(a, i -> a[i] > 0))"
          , "imp((1 + a.length) == 2 , a[0] >= 1)"
          ), Equiv , Nothing)
-        -- 7. Example with 1D real arrays (TODO fix)
+        -- 7. Example with 1D real arrays (TODO fix test backend)
       , (( "(double[] a)"
          , "imp(a.length == 1, forall(a, i -> a[i] > 0.1))"
-         , "imp((1 + a.length) == 2, forall(a, i -> a[i] > (0.2 - 0.1)))" -- a[0] > (2.1 - 2.0))
+         , "imp((1 + a.length) == 2, a[0] > (2.1 - 2.0))"
          ), Equiv, Nothing)
         -- 8. Reported bug (TODO fix test backend)
       , (( "(int[] a, int i, int j)"

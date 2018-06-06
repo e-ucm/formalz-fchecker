@@ -2,6 +2,7 @@
 module LogicIR.Backend.Z3.Z3 where
 
 import qualified Data.Map as M
+import           Data.Ratio
 import           Z3.Monad
 
 import LogicIR.Expr
@@ -15,7 +16,7 @@ lExprToZ3Ast =
     fConst c = case c of
       CBool x -> mkBool x
       CInt x -> mkInteger $ toInteger x
-      CReal f -> mkRealNum f
+      CReal f -> mkRational $ approxRational f 0.0001
       CNil -> error "null constants cannot be used directly with Z3 (see LogicIR.Null)"
     fUnop o a' = do
       a <- a'

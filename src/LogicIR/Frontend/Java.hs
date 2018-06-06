@@ -166,11 +166,9 @@ typeToType typ = case typ of
       LongT    -> PInt
       FloatT   -> PReal
       DoubleT  -> PReal
-      _        -> unsupported
+      _        -> error $ "Unsupported primitive type: " ++ prettyPrint c
   RefType (ArrayType t') -> TArray $ typeToType t'
-  _ -> unsupported
-  where
-    unsupported = error $ "Unsupported type: " ++ prettyPrint typ
+  _ -> error $ "Unsupported type: " ++ prettyPrint typ
 
 typeToType' :: LogicIR.Expr.Type -> Language.Java.Syntax.Type
 typeToType' typ = case typ of
