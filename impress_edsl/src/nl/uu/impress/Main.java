@@ -275,7 +275,7 @@ public class Main {
     }
     public static void array2d12(int[][] a) {
       pre(a.length == (2 - 1));
-      pre(with(a[1 - 1], aa -> aa.length == (2 - 1)));
+      pre(with(a[1 - 1], a0 -> a0.length == (2 - 1)));
       post();
     }
 

@@ -26,11 +26,12 @@ toSingleFeedback (a,b,c,d) = (n a, n b, n c, n d)
   where n = (0<)
 
 toZ3Model :: (QC.Model, QC.ArrayModel) -> Model
-toZ3Model (m, arrayM) =
+toZ3Model (m, (QC.ArrayModel arrs _)) =
     M.fromList $
       map (\(k,val) -> (removeType k,val)) $
         map (prettyLExpr *** toModelVal) m ++
-        map ((prettyLExpr *** toModelVals) . (LVar *** fmap LConst)) (M.toList arrayM)
+        map ((prettyLExpr *** toModelVals) . (LVar *** fmap LConst))
+          undefined -- M.toList arrs
 
 toModelVal :: LExpr -> ModelVal
 toModelVal (LConst (CBool b)) = BoolVal b

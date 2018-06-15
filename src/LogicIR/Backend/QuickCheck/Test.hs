@@ -44,6 +44,12 @@ defFbCount = (0,0,0,0)
 add :: FeedbackCount -> FeedbackCount -> FeedbackCount
 add (w,x,y,z) (w',x',y',z') = (w+w',x+x',y+y',z+z')
 
+-- get :: LExpr -> ArrayModel -> [LConst]
+get :: Var -> ArrayModel -> [Int]
+get x am@(ArrayModel m eqs) = case find (\(v,e) -> v==x) eqs of
+  Nothing    -> error $ "Could not get " ++ show x ++ " from ArrayModel " ++ show am
+  Just (v,e) -> error "I don't return anything yet..."
+
 -- | Converts two bools to FeedbackCount. First bool is the bool you get when
 --   the TeacherLExpr was evaluated using some Model+ArrayModel m, the second
 --   one the bool you get when you evaluate the StudentLExpr using m. If one
@@ -73,7 +79,7 @@ testEquality iters e1 e2 = do
   -- get list of counter models where
   let counters = map snd (filter (not . equal . fst) results)
   if null counters then
-    return (feedback, ([], M.empty))
+    return (feedback, ([], ArrayModel M.empty []))
   else
     return (feedback, head counters)
 
@@ -127,11 +133,15 @@ applyModel e evalInfo = foldLExpr (LAlgebra fcns fvar funi fbin fiff fqnt farr f
           fnll x          = subst (LIsnull x) evalInfo
           flen x          = subst (LLen x) evalInfo
 
-get :: (Ord a, Show b, Show a) => a -> M.Map a [b] -> [b]
-get a model =
-  fromMaybe
-    (error $ "Impossible substitution of Array expression. Array: " ++ show a ++ ", ArrayModel: " ++ show model)
-    (M.lookup a model)
+-- get :: LExpr -> ArrayModel -> [LConst]
+get :: Var -> ArrayModel -> [Int]
+get x am@(ArrayModel m eqs) = case find (\(v,e) -> v==x) eqs of
+  Nothing    -> error $ "Could not get " ++ show x ++ " from ArrayModel " ++ show am
+  Just (_,(LArray v i)) -> case evalPossible of
+    False -> error "Array induction failure with " ++ show x ++ " on " ++ show am
+
+
+       --case error "I don't return anything yet..."
 
 -- Substitutes an LExpr if a valid subst can be found in the given models.
 -- Otherwise simply returns the input expression as output.
@@ -142,10 +152,10 @@ subst e@(LArray x indexE) (_,arrayModel,_)
           let a            = get x arrayModel
           let l            = length a
           if index < l && index >= 0 then
-              LConst $ a !! index
+              undefined -- TODO fix this. -- LConst $ a !! index
           else
-              E.throw Unevaluatable
-              -- e -- Just return the input LExpr, since the index is out of the domain.
+              -- E.throw Unevaluatable
+              e -- Just return the input LExpr, since the index is out of the domain.
       else
           e
 subst q@(LQuant qop x domain e) evalInfo = do

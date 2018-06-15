@@ -12,7 +12,7 @@ src = "impress_edsl/src/nl/uu/impress/Main.java"
 testEquiv :: Response -> String -> String -> Assertion
 testEquiv b s s' = do
   res <- hSilence [stdout, stderr] $
-          compareSpec (Options Release File True True) (src, s) (src, s')
+          compareSpec (Options SoftDebug File True True) (src, s) (src, s')
   (case res of
     NotEquivalent _ _ -> NotEquivalent emptyModel defFeedback'
     Equivalent    _   -> Equivalent defFeedback'
