@@ -6,7 +6,7 @@ packages:
 - .
 
 extra-deps:
-- z3-4.3.1
+- z3-4.2.0
 - language-java-0.2.9
 
 # To upgrade Z3 library version, e.g. z3-4.3.1
