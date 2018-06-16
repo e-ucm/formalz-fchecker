@@ -15,32 +15,33 @@ module Server
   , ApiReqBody (..), ApiResponse (..), ApiResponseType (..)
   ) where
 
-import           Control.Monad.Trans     (liftIO)
-import           Data.Aeson
-import           Data.Aeson.Types        hiding (Options)
-import           Data.ByteString.Lazy    (ByteString)
-import           Data.List.Split         (splitOn)
-import qualified Data.Map                as Map
-import           Data.Proxy
-import           Data.Scientific
-import           Data.Text.Lazy          (pack)
-import           Data.Text.Lazy.Encoding (encodeUtf8)
-import qualified Data.Vector             as Vec
+import Prelude hiding (log)
+import Control.Monad.Trans (liftIO)
+import Data.Aeson
+import Data.Aeson.Types hiding (Options)
+import Data.ByteString.Lazy (ByteString)
+import Data.List.Split (splitOn)
+import qualified Data.Map as Map
+import Data.Proxy
+import Data.Scientific
+import Data.Text.Lazy          (pack)
+import Data.Text.Lazy.Encoding (encodeUtf8)
+import qualified Data.Vector as Vec
 
 import GHC.Generics
 import System.IO
 
 import Network.HTTP.Types
-import Network.Wai
+import Network.Wai hiding (Response)
 import Network.Wai.Handler.Warp
 import Servant
-import Servant.Docs
+import Servant.Docs hiding (Response)
 
-import Data.Swagger       hiding (port)
+import Data.Swagger hiding (port, Response)
 import Servant.Swagger
 import Servant.Swagger.UI
 
-import API   (Options (..), defOptions, Mode (..), ParseMode (..), compareSpec)
+import API
 import Model
 
 -- | Data types.
@@ -48,7 +49,7 @@ data ApiReqBody = ApiReqBody
   { sourceA :: String
   , sourceB :: String
   , options :: Options
-  } deriving (Eq, Show, Generic)
+  } deriving (Eq, Generic)
 instance FromJSON Mode
 instance ToJSON   Mode
 instance FromJSON ParseMode
@@ -67,6 +68,9 @@ instance FromJSON ApiReqBody where
                                     <*> o .:? "options" .!= defOptions
   parseJSON invalid    = typeMismatch "ApiReqBody" invalid
 instance ToJSON   ApiReqBody
+instance Show ApiReqBody where
+  show (ApiReqBody srcA srcB opts) =
+    "srcA: " ++ srcA ++ "\nsrcB: " ++ srcB ++ "\nopts: " ++ show opts
 
 data ApiResponseType = Equiv | NotEquiv | Undef | ResponseErr
   deriving (Eq, Show, Generic)
@@ -77,7 +81,7 @@ data ApiResponse = ApiResponse
   , err          :: Maybe String
   , feedback     :: Maybe Feedback
   }
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Generic)
 instance FromJSON Feedback
 instance ToJSON   Feedback
 
@@ -100,6 +104,10 @@ instance ToJSON ModelVal where
   toJSON (IntVal n)   = toJSON n
   toJSON (RealVal n)  = toJSON n
   toJSON (ManyVal vs) = Array $ Vec.fromList $ map toJSON vs
+instance Show ApiResponse where
+  show (ApiResponse rType mdl e fd) =
+    "type: " ++ show rType ++ "\nmodel: " ++ show mdl ++ "\nerror: "
+      ++ show e ++ "\nfeedback: " ++ show fd
 
 -- | Default API response.
 defResp :: ApiResponse
@@ -120,21 +128,29 @@ serverCompare :: Server CompareApi
 serverCompare = getCompareResponse
 
 getCompareResponse :: ApiReqBody -> Handler ApiResponse
-getCompareResponse (ApiReqBody srcA srcB opts) = do
-    resp <- liftIO $ compareSpec opts (wrap srcA) (wrap srcB)
-    return $ case resp of
-                  Equivalent _ ->
-                    defResp { responseType = Equiv }
-                  NotEquivalent mdl f ->
-                    defResp { responseType = NotEquiv
-                            , model = Just mdl
-                            , feedback = Just f
-                            }
-                  ErrorResponse e ->
-                    defResp { responseType = ResponseErr, err = Just e }
-                  _ ->
-                    defResp { responseType = Undef }
+getCompareResponse req@(ApiReqBody srcA srcB opts) = do
+    liftIO $ log $
+      "\n******************************************************************\n" ++
+      show req ++
+      "\n------------------------------------------------------------------\n"
+    resp <- toResp <$> liftIO (compareSpec opts (wrap srcA) (wrap srcB))
+    liftIO $ log $
+      "\n------------------------------------------------------------------\n" ++
+      show resp ++
+      "\n******************************************************************\n"
+    return resp
     where
+      toResp :: Response -> ApiResponse
+      toResp (NotEquivalent mdl f)
+        = defResp { responseType = NotEquiv
+                  , model = Just mdl, feedback = Just f }
+      toResp (Equivalent _)
+        = defResp { responseType = Equiv }
+      toResp (ErrorResponse e)
+        = defResp { responseType = ResponseErr, err = Just e }
+      toResp _
+        = defResp { responseType = Undef }
+
       wrap s = ( "public class Main {" ++ s ++ "}"
                , last $ splitOn " " $ head $ splitOn "(" s
                )

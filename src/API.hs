@@ -66,8 +66,6 @@ compareSpec :: Options            -- ^ Comparison options
 compareSpec opts@(Options m pMode toPre toPost) methodA methodB = do
   -- Parsing.
   [mA, mB] <- mapM (parseMethod pMode) [methodA, methodB]
-  log "\n********************************************************************"
-  log $ "toPre: " ++ show toPre ++ ", toPost: " ++ show toPost
   log $ "Input\n" ++ "~~~~\n"
   log $ "MethodA:\n" ++ ppMethodDef mA ++ "\n"
   log $ "MethodB:\n" ++ ppMethodDef mB ++ "\n"
