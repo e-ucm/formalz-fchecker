@@ -249,11 +249,11 @@ public class Main {
 
     public static void array2d21(int[][] a) {
       pre(a.length == 1);
-      pre(with(a[0], a0 -> a0.length == 1 && (a0[0] == 9)));
+      pre(a[0].length == 1);
     }
     public static void array2d22(int[][] a) {
       pre(a.length == (2 - 1));
-      pre(with(a[1 - 1], aa -> aa.length == (2 - 1) && (aa[0] == 8)));
+      pre(a[1-1].length == (3 - 1));
     }
 
     public static void eq11(boolean b1, boolean b2) {

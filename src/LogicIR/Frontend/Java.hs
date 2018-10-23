@@ -1,40 +1,44 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 module LogicIR.Frontend.Java (javaExpToLExpr) where
 
+import qualified Data.Map as M
+import Control.Monad.State
+
 import JavaHelpers.Folds
-import JavaHelpers.HelperFunctions
+import JavaHelpers.HelperFunctions hiding (fieldAccess)
 
-import Language.Java.Pretty
 import Language.Java.Syntax
+import Language.Java.Pretty (prettyPrint)
 
-import           Control.Monad.State
-import qualified Data.Map            as M
-
-import LogicIR.Expr
+import LogicIR.Expr hiding (binOp)
 import LogicIR.Parser      ()
 import LogicIR.TypeChecker (typeOf)
+import LogicIR.Normalizer
 
 -- Convert a Java expression to a LIR expression.
 -- The transformation is stateful, since we need to generate fresh variables
 -- when introducing variables with the `with` construct.
 javaExpToLExpr :: Exp -> TypeEnv -> [TypeDecl] -> LExpr
-javaExpToLExpr e env d = evalState (foldExp javaExpToLExprAlgebra e env d) 0
+javaExpToLExpr e env d =
+  evalState (foldExp javaExpToLExprAlgebra ((introduceWiths >>* fixWiths) e) env d) 0
 
 javaExpToLExprAlgebra :: ExpAlgebra (TypeEnv -> [TypeDecl] -> State Int LExpr)
 javaExpToLExprAlgebra =
-  (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualInstanceCreation,
-   fArrayCreate, fArrayCreateInit, fFieldAccess, fMethodInv, fArrayAccess, fExpName,
-   fPostIncrement, fPostDecrement, fPreIncrement, fPreDecrement, fPrePlus, fPreMinus,
-   fPreBitCompl, fPreNot, fCast, fBinOp, fInstanceOf, fCond, fAssign, fLambda, fMethodRef)
+  defExpAlgebra { lit = fLit, prePlus = fPrePlus, preMinus = fPreMinus
+                , preNot = fPreNot, cond = fCond, binOp = fBinOp
+                , expName = fExpName, arrayAccess = fArrayAccess
+                , methodInv = fMethodInv
+                }
   where
-    fLit lit _ _ = return $
-      case lit of
+    fLit lit' _ _ = return $
+      case lit' of
         Boolean t -> b t
         Int i     -> n $ fromInteger i
         Float i   -> r i
         Double i  -> r i
         Null      -> "null"
-        _         -> error $ "Unsupported type: " ++ show lit
+        _         -> error $ "Unsupported type: " ++ show lit'
     fPrePlus e = e
     fPreMinus e env decls = LUnop NNeg <$> e env decls
     fPreNot e env decls = LUnop LNot <$> e env decls
@@ -70,9 +74,11 @@ javaExpToLExprAlgebra =
           LVar $ nameToVar name env decls
     fArrayAccess arrayIndex env decls =
       case arrayIndex of
+        -- ArrayIndex (ExpName name) (e : es) -> do
+        --   e' <- foldExp javaExpToLExprAlgebra expr env decls
+        --   return $ LArray (nameToVar name env decls) es
         ArrayIndex (ExpName name) [expr] ->
-          LArray (nameToVar name env decls) <$>
-            foldExp javaExpToLExprAlgebra expr env decls
+          LArray (nameToVar name env decls) <$> foldExp javaExpToLExprAlgebra expr env decls
         _ -> error $ "Multidimensional arrays are not supported: " ++ prettyPrint arrayIndex
     fMethodInv inv env decls =
       case inv of -- NOTE: EDSL only support single-param expression lambdas
@@ -89,7 +95,7 @@ javaExpToLExprAlgebra =
           let (Right typ) = typeOf e1
           let env' = env ++ [(Name [Ident x'], typeToType' typ)]
           e2 <- foldExp javaExpToLExprAlgebra (substExp exp2 sMap) env' decls
-          return $ (LVar (var x' typ) .== e1) .==> e2
+          return $ (LVar (var x' typ) .== e1) .&& e2
         -- Java: method(name, bound -> expr);
         MethodCall (Name [Ident method]) [ExpName name, Lambda (LambdaSingleParam (Ident bound)) (LambdaExpression expr)]
             -> quant method name bound expr
@@ -116,39 +122,6 @@ javaExpToLExprAlgebra =
                 LQuant op i (LBinop (v i .>= begin) LAnd (LBinop (LVar i) CLess end)) <$> refold expr
               refold expr =
                 foldExp javaExpToLExprAlgebra expr env decls
-    fPreBitCompl _ _ _ = no "PreBitCompl"; fFieldAccess = no "FieldAccess"
-    fInstanceOf = no "InstanceOf"; fAssign = no "Assign"; fLambda = no "Lambda"
-    fMethodRef = no "MethodRef"; fPostIncrement = no "PostIncrement"
-    fPostDecrement = no "PostDecrement"; fPreIncrement = no "PreIncrement"
-    fPreDecrement = no "PreDecrement"; fClassLit = no "ClassLit"
-    fThis = no "This"; fThisClass = no "ThisClass"
-    fInstanceCreation = no "InstanceCreation"; fArrayCreate = no "ArrayCreate"
-    fQualInstanceCreation = no "QualInstanceCreation"; fCast = no "Cast"
-    fArrayCreateInit = no "ArrayCreateInit"
-    no = error . ("[javaExpToLExp] " ++) . (++ " is not supported")
-
--- Substitute a variable for another over a Java expression.
-type Substitution a = M.Map a a
-
-substExp :: Exp -> Substitution Ident -> Exp
-substExp e substMap =
-  let sb ex = substExp ex substMap
-  in case e of
-    Lit l              -> Lit l
-    PrePlus e'         -> PrePlus (sb e')
-    PreMinus e'        -> PreMinus (sb e')
-    PreNot e'          -> PreNot (sb e')
-    BinOp e1 op e2     -> BinOp (sb e1) op (sb e2)
-    Cond e1 e2 e3      -> Cond (sb e1) (sb e2) (sb e3)
-    ExpName (Name xs) ->
-      ExpName $ Name $ (\x -> M.findWithDefault x x substMap) <$> xs
-    MethodInv (MethodCall f args) ->
-      MethodInv $ MethodCall f (sb <$> args)
-    ArrayAccess (ArrayIndex eArr eIs) ->
-      ArrayAccess $ ArrayIndex (sb eArr) (sb <$> eIs)
-    Lambda p@(LambdaSingleParam x) (LambdaExpression e') ->
-      Lambda p (LambdaExpression $ substExp e' (M.delete x substMap))
-    _ -> error "substExp: not supported"
 
 -- Converts a name to a LogicIR.Var, it queries the type environment to find the correct type.
 nameToVar :: Name -> TypeEnv -> [TypeDecl] -> Var

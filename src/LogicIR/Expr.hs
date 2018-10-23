@@ -67,6 +67,10 @@ data LExpr = LConst LConst -- constant
            | LLen Var -- len(array)
            deriving (Show, Eq, Read, Generic, NFData)
 
+-- | Semantic shortcuts.
+type LExprTeacher = LExpr
+type LExprStudent = LExpr
+
 -- Needed for the ArrayModel key ordering in the Map in LogicIR.Backend.ModelGenerator
 instance Ord Var where
   (Var _ name1) `compare` (Var _ name2) = name1 `compare` name2

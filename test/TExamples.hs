@@ -54,4 +54,5 @@ examples =
   , "arr11" .== "arr12" -- #27 TODO fix test backend
   , "eq11" .== "eq12" -- #28
   , "real21" .== "real22" -- #29
+  , "array2d21" .!= "array2d22" -- #30
   ]

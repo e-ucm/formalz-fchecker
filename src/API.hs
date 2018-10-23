@@ -190,7 +190,7 @@ checkEquiv toPre toPost name equivTo (preL, preL') (postL, postL') = do
 parseMethod :: ParseMode -> (Source, String) -> IO MethodDef
 parseMethod pMode (src, name) = do
   decls <- case pMode of
-              Raw  -> parseDeclsRaw src
+              Raw  -> return (parseDeclsRaw src)
               File -> parseDecls src
   -- get the method's body (assuming all methods have different names)
   let mbody = fromJust $ getMethod decls (Ident name)
@@ -207,9 +207,8 @@ methodDefToLExpr m1@(decls1, _, env1) m2@(decls2, _, env2) name = do
     try . evaluate . force $ (javaExpToLExpr e1 env1 decls1, javaExpToLExpr e2 env2 decls2)
   return $ case res of
     Left e ->
-      Left $ show e
+      Left $ show e -- TODO propagate error to API call
     Right (l, l') -> do
-      -- TODO propagate error to API call
       tl <- typeCheck $ preprocess l
       tl' <- typeCheck $ preprocess l'
       return (tl, tl')

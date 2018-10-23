@@ -31,9 +31,9 @@ testEquiv expectedRes s s' = do
 feedbackTests :: [Assertion]
 feedbackTests =
   [ ("true /\\ x:int == 1" !!= "false \\/ x:int >= 1") (True, False, True, True)
-  , ("true /\\ x:int >= 1" !!= "false \\/ x:int == 1") (True, True, False, True)
+  , ("true /\\ x:int >= 1" !!= "false \\/ x:int == 1") (True, True, False, True) -- TODO fix test backend
   , ("x:int == 1 /\\ y:int == 1" !!= "x:int == 2 /\\ y:int == 1")
-      (False, True, True, True) -- | TODO fix test backend
+      (False, True, True, True) -- TODO fix test backend
   , ("x:[int][0] != 0 /\\ x:[int][1] != 0" !!= "x:[int][0] != 0 \\/ x:[int][1] != 0")
-      (True, False, True, True)
+      (True, False, True, True) -- TODO fix test backend
   ]

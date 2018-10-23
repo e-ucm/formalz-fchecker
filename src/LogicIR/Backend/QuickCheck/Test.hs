@@ -14,9 +14,6 @@ import Data.List (find, (\\))
 import qualified Data.Map.Lazy as M
 import Control.Concurrent.Async (mapConcurrently)
 
-type LExprTeacher = LExpr
-type LExprStudent = LExpr
-
 -- | Contains how often any type of feedback occured over x runs (where x is
 --   obviously the sum of the four integers). Order of Integers in tuple
 --   is the same as in Model.SingleFeedback

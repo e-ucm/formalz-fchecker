@@ -246,12 +246,6 @@ e1 ==* e2 = BinOp e1 Equal e2
 (/=*) :: Exp -> Exp -> Exp
 e1 /=* e2 = neg (e1 ==* e2)
 
--- Gets the value from an array
-arrayAccess :: Exp -> [Exp] -> Exp
-arrayAccess a i = case a of
-                    ArrayCreate t exps dim          -> getInitValue t
-                    ArrayCreateInit t dim arrayInit -> getInitValue t
-                    _                               -> ArrayAccess (ArrayIndex a i)
 
 -- Accesses fields of fields
 fieldAccess :: Exp -> Name -> FieldAccess
@@ -403,17 +397,15 @@ parseMethodIds src = do
   -- get the names of all the class methods
   return $ map (\x -> case x of Ident s -> s) (getMethodIds decls)
 
-parseDeclsRaw :: String -> IO [TypeDecl]
-parseDeclsRaw src = do
-  compilationUnit <- parseJavaRaw src
-  return $ getDecls compilationUnit
+parseDeclsRaw :: String -> [TypeDecl]
+parseDeclsRaw = getDecls . parseJavaRaw
   where
     -- parse a Java source file, and extracts the necessary information from the compilation unit
-    parseJavaRaw :: String -> IO CompilationUnit
+    parseJavaRaw :: String -> CompilationUnit
     parseJavaRaw source =
       case parser compilationUnit source of
           Left parseError -> error (show parseError)
-          Right compUnit  -> return compUnit
+          Right compUnit  -> compUnit
 
 -- | Get all the class declarations in the Java source file.
 parseDecls :: FilePath -> IO [TypeDecl]

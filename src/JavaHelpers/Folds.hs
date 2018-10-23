@@ -28,35 +28,74 @@ type StmtAlgebra r = (Block -> r, -- StmtBlock
                       Ident -> r -> r -- Labeled
                       )
 
-type ExpAlgebra r  = (Literal -> r, -- Lit
-                      Maybe Type -> r, -- ClassLit
-                      r, -- This
-                      Name -> r, -- ThisClass
-                      [TypeArgument] -> TypeDeclSpecifier -> [Argument] -> Maybe ClassBody -> r, -- InstanceCreation
-                      r -> [TypeArgument] -> Ident -> [Argument] -> Maybe ClassBody -> r, -- QualInstanceCreation
-                      Type -> [r] -> Int -> r, -- ArrayCreate
-                      Type -> Int -> ArrayInit -> r, -- ArrayCreateInit
-                      FieldAccess -> r, -- FieldAccess
-                      MethodInvocation -> r, -- MethodInv
-                      ArrayIndex -> r, -- ArrayAccess
-                      Name -> r, -- ExpName
-                      r -> r, -- PostIncrement
-                      r -> r, -- PostDecrement
-                      r -> r, -- PreIncrement
-                      r -> r, -- PreDecrement
-                      r -> r, -- PrePlus
-                      r -> r, -- PreMinus
-                      r -> r, -- PreBitCompl
-                      r -> r, -- PreNot
-                      Type -> r -> r, -- Cast
-                      r -> Op -> r -> r, -- BinOp
-                      r -> RefType -> r, -- InstanceOf
-                      r -> r -> r -> r, -- Cond
-                      Lhs -> AssignOp -> r -> r, -- Assign
-                      LambdaParams -> LambdaExpression -> r, -- Lambda
-                      Name -> Ident -> r -- MethodRef
-                      )
+data ExpAlgebra r = ExpAlgebra
+  { lit :: Literal -> r
+  , classLit :: Maybe Type -> r
+  , this :: r
+  , thisClass :: Name -> r
+  , instanceCreation :: [TypeArgument] -> TypeDeclSpecifier -> [Argument] -> Maybe ClassBody -> r
+  , qualInstanceCreation :: r -> [TypeArgument] -> Ident -> [Argument] -> Maybe ClassBody -> r
+  , arrayCreate :: Type -> [r] -> Int -> r
+  , arrayCreateInit :: Type -> Int -> ArrayInit -> r
+  , fieldAccess :: FieldAccess -> r
+  , methodInv :: MethodInvocation -> r
+  , arrayAccess :: ArrayIndex -> r
+  , expName :: Name -> r
+  , postIncrement :: r -> r
+  , postDecrement :: r -> r
+  , preIncrement :: r -> r
+  , preDecrement :: r -> r
+  , prePlus :: r -> r
+  , preMinus :: r -> r
+  , preBitCompl :: r -> r
+  , preNot :: r -> r
+  , cast :: Type -> r -> r
+  , binOp :: r -> Op -> r -> r
+  , instanceOf :: r -> RefType -> r
+  , cond :: r -> r -> r -> r
+  , assign :: Lhs -> AssignOp -> r -> r
+  , lambda :: LambdaParams -> LambdaExpression -> r
+  , methodRef :: Name -> Ident -> r
+  }
 
+defExpAlgebra :: ExpAlgebra a
+defExpAlgebra = ExpAlgebra { lit = no "Lit"
+                           , classLit = no "ClassLit"
+                           , this = no "This"
+                           , thisClass = no "ThisClass"
+                           , instanceCreation = no "InstanceCreation"
+                           , qualInstanceCreation = no "QualInstanceCreation"
+                           , arrayCreate = no "ArrayCreate"
+                           , arrayCreateInit = no "ArrayCreateInit"
+                           , fieldAccess = no "FieldAccess"
+                           , methodInv = no "MethodInv"
+                           , arrayAccess = no "ArrayAccess"
+                           , expName = no "ExpName"
+                           , postIncrement = no "PostIncrement"
+                           , postDecrement = no "PostDecrement"
+                           , preIncrement = no "PreIncrement"
+                           , preDecrement = no "PreDecrement"
+                           , prePlus = no "PrePlus"
+                           , preMinus = no "PreMinus"
+                           , preBitCompl = no "PreBitCompl"
+                           , preNot = no "PreNot"
+                           , cast = no "Cast"
+                           , binOp =  no "BinOp"
+                           , instanceOf = no "InstanceOf"
+                           , cond = no "Cond"
+                           , assign = no "Assign"
+                           , lambda = no "Lambda"
+                           , methodRef = no "MethodRef"
+                           }
+  where no = error . ("[javaExpToLExp] " ++) . (++ " is not supported")
+
+defExpAlgebraExp :: ExpAlgebra Exp
+defExpAlgebraExp =
+  ExpAlgebra Lit ClassLit This ThisClass InstanceCreation QualInstanceCreation
+             ArrayCreate ArrayCreateInit FieldAccess MethodInv ArrayAccess
+             ExpName PostIncrement PostDecrement PreIncrement PreDecrement
+             PrePlus PreMinus PreBitCompl PreNot Cast BinOp InstanceOf Cond
+             Assign Lambda MethodRef
 
 -- | A fold function over a java statement.
 foldStmt :: StmtAlgebra r -> Stmt -> r
@@ -83,7 +122,12 @@ foldStmt (fStmtBlock, fIfThen, fIfThenElse, fWhile, fBasicFor, fEnhancedFor, fEm
 
 -- | A fold function over a java expression.
 foldExp :: ExpAlgebra r -> Exp -> r
-foldExp (fLit, fClassLit, fThis, fThisClass, fInstanceCreation, fQualInstanceCreation, fArrayCreate, fArrayCreateInit, fFieldAccess, fMethodInv, fArrayAccess, fExpName, fPostIncrement, fPostDecrement, fPreIncrement, fPreDecrement, fPrePlus, fPreMinus, fPreBitCompl, fPreNot, fCast, fBinOp, fInstanceOf, fCond, fAssign, fLambda, fMethodRef) = fold where
+foldExp (ExpAlgebra fLit fClassLit fThis fThisClass fInstanceCreation fQualInstanceCreation
+                    fArrayCreate fArrayCreateInit fFieldAccess fMethodInv fArrayAccess
+                    fExpName fPostIncrement fPostDecrement fPreIncrement fPreDecrement
+                    fPrePlus fPreMinus fPreBitCompl fPreNot fCast fBinOp fInstanceOf
+                    fCond fAssign fLambda fMethodRef) = fold
+  where
     fold e = case e of
                   Lit lit -> fLit lit
                   ClassLit mt -> fClassLit mt
