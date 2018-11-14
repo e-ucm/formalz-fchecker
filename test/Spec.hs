@@ -1,4 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 import Test.Framework (defaultMain, testGroup)
 import Test.Framework.Providers.HUnit
 
@@ -19,6 +18,7 @@ main = defaultMain
       , ("EXAMPLES", examples)
       , ("EQUIV_REAL", genEquivTests "test/test_files/Reals.java")
       , ("EQUIV_ARRAY", genEquivTests "test/test_files/Arrays.java")
+      , ("EQUIV_ARRAY2D", genEquivTests "test/test_files/Arrays2d.java")
       , ("FEEDBACK", feedbackTests)
       , ("NORMALIZER", normTests)
       , ("SERVER", serverTests)

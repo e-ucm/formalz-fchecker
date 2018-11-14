@@ -12,7 +12,7 @@ import qualified Text.Parsec.Token as Tokens
 runP :: Parser a -> String -> a
 runP p s =
   case runParser (p <* eof) () "" s of
-        Left err   -> error $ show err
+        Left err   -> error $ "*** ParseError: " ++ show err
         Right x -> x
 
 -- | Useful marcros.

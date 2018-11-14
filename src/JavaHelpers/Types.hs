@@ -85,4 +85,7 @@ getStaticVarsTypeEnv compUnit = concatMap fromTypeDecls (getDecls compUnit) wher
 
 -- Gets the type env for a compilation unit
 getTypeEnv :: CompilationUnit -> [TypeDecl] -> [Ident] -> TypeEnv
-getTypeEnv compUnit decls methods = getStaticVarsTypeEnv compUnit ++ concatMap (getMethodTypeEnv decls) methods ++ concatMap (getStmtTypeEnv . fromJust . getMethod decls) methods
+getTypeEnv compUnit decls methods =
+    getStaticVarsTypeEnv compUnit ++
+    concatMap (getMethodTypeEnv decls) methods ++
+    concatMap (getStmtTypeEnv . fromJust' "getTypeEnv" . getMethod decls) methods

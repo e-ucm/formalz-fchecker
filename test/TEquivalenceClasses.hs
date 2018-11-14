@@ -17,16 +17,14 @@ testEquiv b src s s' = do
   -- from QuickCheck that it calculates feedback that is exactly right every time,
   -- due to the enormous search space of reals. Therefore we only check if
   -- both Z3 and QuickCheck say eq / neq, and not if they give the same feedback model.
+  -- TODO: change mode to SoftDebug
   res <- hSilence [stdout, stderr] $
-          compareSpec (Options SoftDebug File True True) (src, s) (src, s')
-  (case res of
-    NotEquivalent _ _ -> NotEquivalent emptyModel defFeedback'
-    Equivalent    _   -> Equivalent defFeedback'
-    r                 -> error $ "unexpected response: " ++ show r) @?= b
+          compareSpec (Options Z3 File True True) (src, s) (src, s')
+  toDefault res @?= b
 
 (.==), (.!=) :: String -> String -> String -> Assertion
-(.==) = testEquiv $ Equivalent    defFeedback'
-(.!=) = testEquiv $ NotEquivalent emptyModel defFeedback'
+(.==) = testEquiv (Equivalent    defFeedback')
+(.!=) = testEquiv (NotEquivalent emptyModel defFeedback')
 
 genEquivTests :: FilePath -> [Assertion]
 genEquivTests edslSrc =
@@ -39,10 +37,11 @@ genEquivTests edslSrc =
                 , b <- methodIds `tailFrom` a
                 , a /= b
                 , let op = unsafePerformIO $ do
-                        putStrLn $ "  (" ++ a ++ testOpS ++ b ++ ")"
+                        putStrLn $ "  (" ++ a ++ " " ++ testOpS ++ " " ++ b ++ ")"
                         return $ testOp edslSrc
                         where [clA, clB] = getClass <$> [a, b]
                               eq = clA == clB
                               (testOp, testOpS) =
-                                if eq then ((.==), " == ") else ((.!=), " != ")
+                                if eq then ((.==), "==")
+                                else ((.!=), "!=")
                 ]

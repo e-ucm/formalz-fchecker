@@ -1,6 +1,4 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric  #-}
 module LogicIR.Expr where
 
 import GHC.Generics

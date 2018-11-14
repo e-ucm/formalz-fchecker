@@ -5,11 +5,12 @@ module LogicIR.Backend.QuickCheck.Test ( testEquality
                                        , equal
                                        ) where
 
+import JavaHelpers.HelperFunctions (fromJust')
 import LogicIR.Expr
 import LogicIR.Fold
 import LogicIR.Eval
 import LogicIR.Backend.QuickCheck.ModelGenerator
-import Data.Maybe (fromMaybe, isNothing, fromJust)
+import Data.Maybe (fromMaybe, isNothing)
 import Data.List (find, (\\))
 import qualified Data.Map.Lazy as M
 import Control.Concurrent.Async (mapConcurrently)
@@ -133,7 +134,7 @@ subst q@(LQuant qop x domain e) evalInfo = do
     then
         q
     else
-        LConst $ CBool $ op $ map fromJust results
+        LConst $ CBool $ op $ map (fromJust' "subst") results
 subst (LLen x) (_, arrayModel, _) = LConst (CInt (length (get x arrayModel)))
 subst x (model,_,_)               = maybe x snd $ find (\(old, _) -> x == old) model
 

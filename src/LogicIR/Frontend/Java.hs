@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-
 module LogicIR.Frontend.Java (javaExpToLExpr) where
 
 import qualified Data.Map as M
@@ -20,8 +19,10 @@ import LogicIR.Normalizer
 -- The transformation is stateful, since we need to generate fresh variables
 -- when introducing variables with the `with` construct.
 javaExpToLExpr :: Exp -> TypeEnv -> [TypeDecl] -> LExpr
-javaExpToLExpr e env d =
-  evalState (foldExp javaExpToLExprAlgebra ((introduceWiths >>* fixWiths) e) env d) 0
+javaExpToLExpr je env d =
+  let je' = (introduceWiths >>* fixWiths >>* simplify) je
+      e   = evalState (foldExp javaExpToLExprAlgebra je' env d) 0
+  in  {-toCNF-} e
 
 javaExpToLExprAlgebra :: ExpAlgebra (TypeEnv -> [TypeDecl] -> State Int LExpr)
 javaExpToLExprAlgebra =
@@ -92,10 +93,10 @@ javaExpToLExprAlgebra =
           modify (+ 1)
           let sMap = M.singleton x (Ident x')
           e1 <- refold $ substExp exp1 sMap
-          let (Right typ) = typeOf e1
+          let typ = either error id (typeOf e1)
           let env' = env ++ [(Name [Ident x'], typeToType' typ)]
           e2 <- foldExp javaExpToLExprAlgebra (substExp exp2 sMap) env' decls
-          return $ (LVar (var x' typ) .== e1) .&& e2
+          return $ (LVar (var x' typ) .== e1) .==> e2
         -- Java: method(name, bound -> expr);
         MethodCall (Name [Ident method]) [ExpName name, Lambda (LambdaSingleParam (Ident bound)) (LambdaExpression expr)]
             -> quant method name bound expr

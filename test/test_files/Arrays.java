@@ -31,35 +31,35 @@ public class Arrays {
     }
 
     // 3) Quantifying over array (sort)
-    public static void sort1_3(int[] a) {
+    public static void sort1_3(int[] a, int[] sa) {
         pre(a != null && a.length >= 0);
         int[] sa = a.sort();
-        post(forall(a, i ->
-                forallr(a,  i + 1, a.length, j -> a[i] <= a[j])));
+        post(forall(sa, i ->
+                forallr(sa,  i + 1, sa.length, j -> sa[i] <= sa[j])));
     }
-    public static void sort2_3(int[] a) {
+    public static void sort2_3(int[] a, int[] sa) {
         pre(a != null && a.length > -1);
         int[] sa = a.sort();
-        post(forall(a, i ->
-                !existsr(a, i + 1, a.length, j -> a[i] > a[j])));
+        post(forall(sa, i ->
+                !existsr(sa, i + 1, sa.length, j -> sa[i] > sa[j])));
     }
 
     // 4) Quantifying over array (unique sort)
-    public static void sort1_4(int[] a) {
+    public static void sort1_4(int[] a, int[] sa) {
         pre(a != null && a.length > 1);
         pre(forall(a, i ->
               forall(a, j -> i == j || a[i] != a[j])));
         int[] sa = a.sort();
-        post(a.length > 1);
-        post(forallr(a, 0, a.length - 1, i -> a[i] < a[i + 1]));
+        post(sa.length > 1);
+        post(forallr(sa, 0, sa.length - 1, i -> sa[i] < sa[i + 1]));
     }
-    public static void sort2_4(int[] a) {
+    public static void sort2_4(int[] a, int[] sa) {
         pre(a != null);
         pre(a.length >= 2);
         pre(forallr(a, 0, a.length, i ->
               forall(a, j -> i == j || a[i] != a[j])));
         int[] sa = a.sort();
-        post(a.length >= 2);
-        post(forallr(a, 1, a.length, i -> a[i] > a[i - 1]));
+        post(sa.length >= 2);
+        post(forallr(sa, 1, sa.length, i -> sa[i] > sa[i - 1]));
     }
 }

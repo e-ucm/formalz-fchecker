@@ -11,9 +11,9 @@ import           Z3.Monad hiding (Model)
 import           Control.Exception.Base (tryJust)
 import           Control.Monad          (forM)
 import qualified Data.Map               as M
-import           Data.Maybe             (fromJust)
 import           Data.String
 
+import JavaHelpers.HelperFunctions (fromJust')
 import LogicIR.Backend.Z3.Z3
 import LogicIR.Expr          (LExpr, lnot, (.&&), (.<==>))
 import Model
@@ -22,8 +22,11 @@ import Model
 timeoutTime :: Integer
 timeoutTime = 5000
 
-data Z3Response = Satisfiable Model | Unsatisfiable | Undecidable
-                  deriving Show
+data Z3Response = Satisfiable Model
+                | Unsatisfiable
+                | Z3_Undefined
+                | Z3_Timeout
+                deriving (Show)
 
 -- | Determine the equality of two method's pre/post conditions.
 equivalentTo :: LExpr -> LExpr -> IO Response
@@ -39,7 +42,10 @@ equivalentTo l l' = do
       res <- sequence $ checkZ3 <$> [l .&& l', lnot l .&& lnot l']
       let feedback = (head (toBool <$> res), False, False, last (toBool <$> res))
       return $ Equivalent Feedback {pre = feedback, post = defFeedback}
-    Undecidable   -> return   Undefined
+    Z3_Undefined ->
+      return Undefined
+    Z3_Timeout ->
+      return Timeout
   where
     mkFeedback :: [Bool] -> SingleFeedback
     mkFeedback [b1, b2, b3, b4] = (b1, b2, b3, b4)
@@ -60,17 +66,17 @@ checkZ3 l = catchTimeout $ tryZ3 $ do
     Sat   -> do
       -- Construct counter-model
       ms <- local (sanitize . M.fromList <$>
-         forM (M.toList fv) (evalAST fv (fromJust model)))
+         forM (M.toList fv) (evalAST fv (fromJust' "checkZ3" model)))
       return $ Satisfiable ms
     Unsat -> return Unsatisfiable
-    _ -> return Undecidable
+    Undef -> return Z3_Undefined
   solverReset
   return response
   where
     -- Construct model values
     evalAST :: FreeVars -> Z3.Model -> (String, AST) -> Z3 (String, ModelVal)
     evalAST fv m (k, ast) = do
-      v <- fromJust <$> modelEval m ast True
+      v <- fromJust' "evalAST" <$> modelEval m ast True
       sortKind <- getSort v >>= getSortKind
       if sortKind == Z3_ARRAY_SORT then do
         -- Retrieve array's length
@@ -96,7 +102,7 @@ catchTimeout :: IO Z3Response -> IO Z3Response
 catchTimeout prog = do
   res <- tryJust errorSelector prog
   return $ case res of
-    Left () -> Undecidable
+    Left () -> Z3_Timeout
     Right r -> r
     where
       errorSelector :: Z3Error -> Maybe ()
@@ -113,6 +119,9 @@ tryZ3 prog = do
                         +? opt "well_sorted_check" True
                         +? opt "auto_config" True
                         -- +? opt "unsat_core" True
+                        +? opt "trace" True
+                        +? opt "trace_file_name" "z3.log"
+                        -- +? opt "pull-nested-quantifiers" True
                         )
   evalZ3WithEnv prog env
 

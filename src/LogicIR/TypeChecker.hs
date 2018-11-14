@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, ImplicitParams #-}
 module LogicIR.TypeChecker (typeCheck, typeOf) where
 
 import Control.Monad        (unless)
@@ -6,6 +6,7 @@ import Control.Monad.Except
 
 import LogicIR.Expr
 import LogicIR.Parser ()
+import LogicIR.Pretty (prettyLExpr)
 
 -- | Type-check given expression.
 typeCheck :: LExpr -> Either String LExpr
@@ -13,19 +14,19 @@ typeCheck lexp = typeOf lexp >> return lexp
 
 -- | Get the type of an expression or a type error.
 typeOf :: LExpr -> Either String Type
-typeOf lexp = case lexp of
+typeOf lexp = let ?exp = lexp in case lexp of
   LVar (Var t _) -> return t
   LConst c       -> case c of
     CBool _ -> return "bool"
     CInt _  -> return "int"
     CReal _ -> return "real"
-    CNil    -> throwError "Type-checking before preprocessing null checks"
+    CNil    -> throw "Type-checking before preprocessing null checks"
   LArray (Var t _) e -> case t of
     TArray t' -> do
       te <- typeOf e
       te == "int" ?? "(indexing): non-integer index"
       return t'
-    _ -> throwError "(indexing): non-array variable"
+    _ -> throw "(indexing): non-array variable"
   LIsnull (Var t _) -> do
     isArray t ??  "(isNull): non-array argument"
     return "bool"
@@ -47,19 +48,19 @@ typeOf lexp = case lexp of
     case o of
       NAdd -> do
         isNum t && isNum t' ?? "(+): non-numeric arguments"
-        return $ coerce t t'
+        coerce t t'
       NSub -> do
         isNum t && isNum t' ?? "(-): non-numeric arguments"
-        return $ coerce t t'
+        coerce t t'
       NMul -> do
         isNum t && isNum t' ?? "(*): non-numeric arguments"
-        return $ coerce t t'
+        coerce t t'
       NDiv -> do
         isNum t && isNum t' ?? "(/): non-numeric arguments"
-        return $ coerce t t'
+        coerce t t'
       NRem -> do
         isNum t && isNum t' ?? "(%): non-numeric arguments"
-        return $ coerce t t'
+        coerce t t'
       CEqual -> do
         homotypes t t' ?? "(==): heterogeneous types"
         return "bool"
@@ -92,20 +93,32 @@ typeOf lexp = case lexp of
     t == "bool" ?? "(quantifier): non-boolean body"
     return "bool"
   where
+
     infix 2 ??
-    (??) :: Bool -> String -> Either String ()
-    predicate ?? err = unless predicate $ throwError err
+    (??) :: (?exp :: LExpr) => Bool -> String -> Either String ()
+    predicate ?? err = unless predicate $ throw err
+
     isNum :: Type -> Bool
     isNum t = t `elem` ["int", "real"]
+
     isArray :: Type -> Bool
     isArray (TArray _) = True
     isArray _          = False
-    coerce :: Type -> Type -> Type
+
+    coerce :: (?exp :: LExpr) => Type -> Type -> Either String Type
     coerce t t'
-      | t == "bool" && t' == "bool" = "bool"
-      | isNum t && isNum t' = if "real" `elem` [t, t'] then "real" else "int"
-      | isArray t && isArray t' = TArray (coerce t t')
-      | otherwise = error "coerce: invalid types"
+      | t == "bool" && t' == "bool"
+      = return "bool"
+      | isNum t && isNum t'
+      = return $ if "real" `elem` [t, t'] then "real" else "int"
+      | isArray t && isArray t'
+      = TArray <$> coerce t t'
+      | otherwise
+      = throw "coerce: invalid types"
+
     homotypes :: Type -> Type -> Bool
     homotypes (TArray t) (TArray t') = homotypes t t'
     homotypes t t' = (t == t') || (isNum t && isNum t')
+
+    throw :: (?exp :: LExpr) => String -> Either String a
+    throw s = throwError (s ++ " in " ++ prettyLExpr ?exp)

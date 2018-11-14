@@ -1,6 +1,8 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-
-module LogicIR.Backend.QuickCheck.ModelGenerator (generateModel, generateArrayModel, generateEvalInfo, expandEvalInfo, findVariables, Model, ArrayModel, EvalInfo) where
+module LogicIR.Backend.QuickCheck.ModelGenerator
+  ( generateModel, generateArrayModel
+  , generateEvalInfo, expandEvalInfo, findVariables
+  , Model, ArrayModel, EvalInfo
+  ) where
 
 import           Data.List     (nub, (\\))
 import           Data.Map      (Map)

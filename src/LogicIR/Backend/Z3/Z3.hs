@@ -73,17 +73,32 @@ freeVars = foldLExpr freeVarsAlgebra
 freeVarsAlgebra :: LAlgebra (Z3 FreeVars)
 freeVarsAlgebra = LAlgebra fConst fVar fUnop fBinop fIf fQuant fArray fIsnull fLen
   where
-    fConst _ = return M.empty
-    fVar xVar@(Var _ x) = M.singleton x <$> genVar xVar
-    fUnop _ x = x
-    fBinop x _ y = M.unions <$> sequence [x, y]
-    fIf c x y = M.unions <$> sequence [c, x, y]
-    fQuant _ (Var _ x) d a = M.unions . fmap (M.delete x) <$> sequence [a, d]
-    fArray x _ = M.unions <$> sequence [fIsnull x, fLen x, fVar x]
-    fIsnull (Var (TArray _) x) = M.singleton (x ++ "?null") <$> genNullVar x
-    fIsnull _                  = error "unsupported null check"
-    fLen (Var (TArray _) x) = M.singleton (x ++ "?length") <$> genLenVar x
-    fLen _                  = error "unsupported length"
+    fConst _
+      = return M.empty
+    fVar xVar@(Var _ x)
+      = M.unions <$> sequence
+          [ M.singleton x <$> genVar xVar
+          , M.singleton (x ++ "?null")   <$> genNullVar x
+          , M.singleton (x ++ "?length") <$> genLenVar x
+          ]
+    fUnop _ x
+      = x
+    fBinop x _ y
+      = M.unions <$> sequence [x, y]
+    fIf c x y
+      = M.unions <$> sequence [c, x, y]
+    fQuant _ (Var _ x) d a
+      = M.unions . fmap (M.delete x) <$> sequence [a, d]
+    fArray x _
+      = M.unions <$> sequence [fIsnull x, fLen x, fVar x]
+    fIsnull (Var (TArray _) x)
+      = M.singleton (x ++ "?null") <$> genNullVar x
+    fIsnull _
+      = error "unsupported null check"
+    fLen (Var (TArray _) x)
+      = M.singleton (x ++ "?length") <$> genLenVar x
+    fLen _
+      = error "unsupported length"
 
 -- | Generate a new Z3 variable, depending on the expression's type.
 genVar :: Var -> Z3 AST

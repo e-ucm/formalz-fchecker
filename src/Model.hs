@@ -1,7 +1,4 @@
-{-# LANGUAGE DeriveGeneric        #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Model where
 
 import           Data.List            (isSuffixOf)
@@ -50,12 +47,20 @@ Equivalent      f1 <> Equivalent      f2 = Equivalent      (f1 <+> f2)
 Equivalent      f1 <> NotEquivalent s f2 = NotEquivalent s (f1 <+> f2)
 NotEquivalent s f1 <> Equivalent f2      = NotEquivalent s (f1 <+> f2)
 NotEquivalent s f1 <> NotEquivalent _ f2 = NotEquivalent s (f1 <+> f2)
-ErrorResponse e <> _                     = ErrorResponse e
-_               <> ErrorResponse e       = ErrorResponse e
-Timeout         <> _                     = Timeout
-_               <> Timeout               = Timeout
-Undefined       <> _                     = Undefined
-_               <> Undefined             = Undefined
+ErrorResponse e    <> _                  = ErrorResponse e
+_                  <> ErrorResponse e    = ErrorResponse e
+NotEquivalent s f1 <> _                  = NotEquivalent s f1
+_                  <> NotEquivalent s f2 = NotEquivalent s f2
+Timeout            <> _                  = Timeout
+_                  <> Timeout            = Timeout
+Undefined          <> _                  = Undefined
+_                  <> Undefined          = Undefined
+
+-- | Replace response values with defaults.
+toDefault :: Response -> Response
+toDefault (NotEquivalent _ _) = NotEquivalent emptyModel defFeedback'
+toDefault (Equivalent _)      = Equivalent defFeedback'
+toDefault res                 = res
 
 -- | Combine feedback for pre/post-conditions.
 -- ASSUMPTION: Each one holds its result in the first element of the tuple.
@@ -63,13 +68,14 @@ _               <> Undefined             = Undefined
 (<+>) (Feedback prefb _) (Feedback postfb _) = Feedback prefb postfb
 
 -- | Model type.
+type ModelKey = String
 data ModelVal = BoolVal Bool
               | IntVal Integer
               | RealVal Double
               | ManyVal [ModelVal]
               deriving (Eq, Generic)
 
-type Model = M.Map String ModelVal
+type Model = M.Map ModelKey ModelVal
 
 emptyModel :: Model
 emptyModel = M.empty
@@ -85,18 +91,27 @@ instance Show ModelVal where
 sanitize :: Model -> Model
 sanitize model =
   M.filterWithKey isNotLen $ M.filterWithKey isNotNull $ M.mapWithKey f model
-  where f k (ManyVal array) = ManyVal $ take (counts k) array
-        f _ x               = x
-        counts k = fromInteger $
-          case model M.! (k ++ "?length") of
-            (IntVal i) -> i
-            _          -> error "non-int length"
-        isNotNull k _ =
-          ((k ++ "?null") `M.notMember` model) ||
-          case model M.! (k ++ "?null") of
-            (BoolVal b) -> not b
-            _           -> error "non-bool null"
-        isNotLen k _ = not $ "?length" `isSuffixOf` k
+  where
+    f :: ModelKey -> ModelVal -> ModelVal
+    f k (ManyVal array) = ManyVal $ take (counts k) array
+    f _ x               = x
+
+    counts :: ModelKey -> Int
+    counts k = fromInteger $
+      case M.lookup (k ++ "?length") model of
+        Just (IntVal i) -> i
+        Just _          -> error "non-int length"
+        Nothing         -> error $ k ++ ".len not in model"
+
+    isNotNull :: ModelKey -> ModelVal -> Bool
+    isNotNull k _ =
+      case M.lookup (k ++ "?null") model of
+        Just (BoolVal b) -> not b
+        Just _           -> error "non-bool null"
+        Nothing          -> True
+
+    isNotLen :: ModelKey -> ModelVal -> Bool
+    isNotLen k _ = not $ "?length" `isSuffixOf` k
 
 -- | Exclude model's variables that are not actual input arguments.
 minify :: TypeEnv -> Model -> Model

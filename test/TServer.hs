@@ -1,4 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 module TServer where
 
 import Control.Exception  (ErrorCall (..), throwIO)
@@ -26,11 +25,12 @@ serverTests =
       let constructSrc p = "public static void t" ++ args ++ "{pre(" ++ p ++ ");}"
       let srcA = constructSrc preA
       let srcB = constructSrc preB
-      let opts = defOptions {mode = SoftDebug, checkPost = False}
+      let opts = defOptions { mode = Z3 -- TODO: change to SoftDebug
+                            , checkPost = False}
       let req  = ApiReqBody srcA srcB opts
       (ApiResponse typ' _ e' fb') <- port <@ compareClient req
       case e' of
-        Just e  -> error e
+        Just e  -> error $ "*** API Response Error: " ++ e
         Nothing -> (typ', fb') @?= (typ, fb)
   | (i :: Int, ((args, preA, preB), typ, fb)) <- zip [1..]
       [ -- 1, 2. Integer arithmetic

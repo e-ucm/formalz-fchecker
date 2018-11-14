@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric       #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 module API where
 
 import Control.Concurrent
@@ -43,7 +41,7 @@ defOptions = Options Release Raw True True
 --   compared (Equiv / NEquiv), but not the Feedback. This Mode is used when
 --   debugging programs with reals, because QuickCheck is not very accurate
 --   when there are reals involved.
-data Mode = SoftDebug | Debug | Release
+data Mode = Z3 | SoftDebug | Debug | Release
             deriving (Eq, Show, Generic)
 
 data ParseMode = Raw | File
@@ -66,20 +64,24 @@ compareSpec :: Options            -- ^ Comparison options
 compareSpec opts@(Options m pMode toPre toPost) methodA methodB = do
   -- Parsing.
   [mA, mB] <- mapM (parseMethod pMode) [methodA, methodB]
+
   log $ "Input\n" ++ "~~~~\n"
   log $ "MethodA:\n" ++ ppMethodDef mA ++ "\n"
   log $ "MethodB:\n" ++ ppMethodDef mB ++ "\n"
   log $ "Options:\n" ++ show opts
   log $ "Pre\n" ++ "~~~\n"
   res <- methodDefToLExpr mA mB "pre"
+
   case res of
     Left e -> do
       log $ "*** ERROR: " ++ show e
       return $ mkErrorResponse e
+
     Right (preL, preL') -> do
       log $ "LExprA:\n" ++ prettyLExpr preL ++ "\n"
       log $ "LExprB:\n" ++ prettyLExpr preL' ++ "\n"
       log $ "Post\n" ++ "~~~~\n"
+
       res' <- methodDefToLExpr mA mB "post"
       case res' of
         Left e' -> do
@@ -94,22 +96,29 @@ compareSpec opts@(Options m pMode toPre toPost) methodA methodB = do
           -- mvar and whoever finishes first will therefore write to both
           -- mv1 and mv2. If Debug/SoftDebug, they both get a different MVar, we wait for
           -- both and then compare their results.
-          mv1 <- newEmptyMVar
-          mv2 <- if m == Release then return mv1 else newEmptyMVar
-          mapM_ compareSpecHelper [ (mv1, "Z3",   Z3.equivalentTo)
-                                  , (mv2, "Test", Test.equivalentTo)
-                                  ]
-          resp <- waitForResult m mv1 mv2
+          resp <-
+            if m == Z3 then
+              checkEquiv toPre toPost "Z3" Z3.equivalentTo (preL, preL') (postL, postL')
+            else do mv1 <- newEmptyMVar
+                    mv2 <- if m == Release then return mv1 else newEmptyMVar
+                    mapM_ compareSpecHelper [ (mv1, "Z3",   Z3.equivalentTo)
+                                            , (mv2, "Test", Test.equivalentTo)
+                                            ]
+                    waitForResult m mv1 mv2
+
           log $ "FullReponse: " ++ show resp
           let finalResp = minifyResponse (tenvA ++ tenvB) resp
           log $ "FinalResponse: " ++ show finalResp
           return finalResp
-          where ((_, _, tenvA), (_, _, tenvB)) = (mA, mB)
-                -- | Runs f on a separate thread and stores the result in mv.
-                compareSpecHelper :: (MVar Response, String, EquivImpl) -> IO ThreadId
-                compareSpecHelper (mv, name, impl) = forkIO $ do
-                  resp <- checkEquiv toPre toPost name impl (preL, preL') (postL, postL')
-                  resp `seq` putMVar mv resp
+
+          where
+            ((_, _, tenvA), (_, _, tenvB)) = (mA, mB)
+
+            -- | Runs f on a separate thread and stores the result in mv.
+            compareSpecHelper :: (MVar Response, String, EquivImpl) -> IO ThreadId
+            compareSpecHelper (mv, name, impl) = forkIO $ do
+              resp <- checkEquiv toPre toPost name impl (preL, preL') (postL, postL')
+              resp `seq` putMVar mv resp
 
 -- Exclude internal variables in Response's model.
 minifyResponse :: TypeEnv -> Response -> Response
@@ -193,7 +202,7 @@ parseMethod pMode (src, name) = do
               Raw  -> return (parseDeclsRaw src)
               File -> parseDecls src
   -- get the method's body (assuming all methods have different names)
-  let mbody = fromJust $ getMethod decls (Ident name)
+  let mbody = fromJust' "parseMethod" $ getMethod decls (Ident name)
   -- get the method's formal parameters:
   let env = getMethodTypeEnv decls (Ident name)
   -- return the relevant data
@@ -207,14 +216,13 @@ methodDefToLExpr m1@(decls1, _, env1) m2@(decls2, _, env2) name = do
     try . evaluate . force $ (javaExpToLExpr e1 env1 decls1, javaExpToLExpr e2 env2 decls2)
   return $ case res of
     Left e ->
-      Left $ show e -- TODO propagate error to API call
+      Left $ "methodDefToLExpr: " ++ show e
     Right (l, l') -> do
       tl <- typeCheck $ preprocess l
       tl' <- typeCheck $ preprocess l'
       return (tl, tl')
   where extractCond :: MethodDef -> String -> Exp
         extractCond m x = extractExpr $ getMethodCalls m x
-
 
 -- Get a list of all calls to a method of a specific name from a method definition.
 getMethodCalls :: MethodDef -> String -> [MethodInvocation]

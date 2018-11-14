@@ -11,17 +11,15 @@ src = "impress_edsl/src/nl/uu/impress/Main.java"
 
 testEquiv :: Response -> String -> String -> Assertion
 testEquiv b s s' = do
+  -- TODO: change mode to SoftDebug
   res <- hSilence [stdout, stderr] $
-          compareSpec (Options SoftDebug File True True) (src, s) (src, s')
-  (case res of
-    NotEquivalent _ _ -> NotEquivalent emptyModel defFeedback'
-    Equivalent    _   -> Equivalent defFeedback'
-    r                 -> error $ "unexpected response: " ++ show r) @?= b
+          compareSpec (Options Z3 File True True) (src, s) (src, s')
+  toDefault res @?= b
 
 (.==), (.!=), (.??) :: String -> String -> Assertion
 (.==) = testEquiv (Equivalent defFeedback')
 (.!=) = testEquiv $ NotEquivalent emptyModel defFeedback'
-(.??) = testEquiv Timeout
+(.??) = testEquiv Undefined
 
 examples :: [Assertion]
 examples =
@@ -50,9 +48,16 @@ examples =
   , "varIntro31" .== "varIntro32" -- #23
   , "varIntro41" .== "varIntro42" -- #24 TODO fix test backend
   , "array2d11" .== "array2d12" -- #25 TODO fix test backend
-  , "array2d21" .!= "array2d22" -- #26 TODO fix test backend
-  , "arr11" .== "arr12" -- #27 TODO fix test backend
-  , "eq11" .== "eq12" -- #28
-  , "real21" .== "real22" -- #29
-  , "array2d21" .!= "array2d22" -- #30
+  , "arr11" .== "arr12" -- #26 TODO fix test backend
+  , "eq11" .== "eq12" -- #27
+  , "real21" .== "real22" -- #28
+  , "array2d21" .!= "array2d22" -- #29 TODO fix test backend
+  , "swap2d" .!= "sort2d"
+  , "max2d_1" .== "max2d_2a"
+  , "max2d_1" .== "max2d_2b"
+  , "max2d_2a" .== "max2d_2b"
+  , "sortbylength_1" .== "sortbylength_2a"
+  , "sortbylength_1" .== "sortbylength_2b"
+  , "sortbylength_2a" .== "sortbylength_2b"
   ]
+
