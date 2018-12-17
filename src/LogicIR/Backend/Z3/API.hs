@@ -29,7 +29,7 @@ data Z3Response = Satisfiable Model
                 deriving (Show)
 
 -- | Determine the equality of two method's pre/post conditions.
-equivalentTo :: LExpr -> LExpr -> IO Response
+equivalentTo :: LExprTeacher -> LExprStudent -> IO Response
 equivalentTo l l' = do
   equiv <- checkZ3 $ lnot (l .<==> l')
   case equiv of

@@ -46,7 +46,7 @@ pattern Fun f x xVar e =
   MethodInv (MethodCall (Name [Ident f]) [x, Lam xVar e])
 
 -- | Pattern synonym for three-argument DSL functions.
--- i.e. forallr, exists
+-- i.e. forallr, existsr
 pattern Fun3 :: String -> Argument -> Exp -> Exp -> Ident -> Exp -> Exp
 pattern Fun3 f x begin end xVar e =
   MethodInv (MethodCall (Name [Ident f]) [x, begin, end, Lam xVar e])

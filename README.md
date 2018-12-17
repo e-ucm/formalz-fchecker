@@ -213,14 +213,19 @@ a = inconsistent array representation
 ```
 
 #### Type checking and type limitations
-Currently the implementation only supports the following types:
+Currently the implementation supports the following **base** types:
 
 - `int`
 - `real`
 - `bool`
+
+and multidimentional **array** types of such base types:
+
 - `int[]`
 - `bool[]`
 - `real[]`
+- `int[][]`
+- ...
 
 #### Side effects
 Expressions like `i++ > 0 && i > 1` are not supported because they are considered out of scope for this project.
