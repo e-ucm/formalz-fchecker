@@ -15,7 +15,7 @@ import           Data.String
 
 import JavaHelpers.HelperFunctions (fromJust')
 import LogicIR.Backend.Z3.Z3
-import LogicIR.Expr          (LExpr, lnot, (.&&), (.<==>))
+import LogicIR.Expr (LExpr, LExprTeacher, LExprStudent, lnot, (.&&), (.<==>))
 import Model
 
 -- The timeout time in milliseconds.
