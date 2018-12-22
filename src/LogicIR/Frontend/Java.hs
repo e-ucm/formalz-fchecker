@@ -55,7 +55,6 @@ javaExpToLExprAlgebra =
             Rem     -> (.%)
             Add     -> (.+)
             Sub     -> (.-)
-            RRShift -> undefined
             -- Logical
             CAnd    -> (.&&)
             COr     -> (.||)
@@ -92,10 +91,10 @@ javaExpToLExprAlgebra =
           x' <- (("TEMP_" ++) . show) <$> get
           modify (+ 1)
           let sMap = M.singleton x (Ident x')
-          e1 <- refold $ substExp exp1 sMap
+          e1 <- refold $ substIdent exp1 sMap
           let typ = either error id (typeOf e1)
           let env' = env ++ [(Name [Ident x'], typeToType' typ)]
-          e2 <- foldExp javaExpToLExprAlgebra (substExp exp2 sMap) env' decls
+          e2 <- foldExp javaExpToLExprAlgebra (substIdent exp2 sMap) env' decls
           return $ (LVar (var x' typ) .== e1) .==> e2
         -- Java: method(name, bound -> expr);
         MethodCall (Name [Ident method]) [ExpName name, Lambda (LambdaSingleParam (Ident bound)) (LambdaExpression expr)]

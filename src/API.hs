@@ -6,7 +6,7 @@ import Data.List.Split    (splitOn)
 import Data.Maybe
 import GHC.Generics
 import Prelude            hiding (log)
-import System.IO
+import System.IO          (hPutStrLn, stderr)
 import System.Timeout
 
 import JavaHelpers.HelperFunctions

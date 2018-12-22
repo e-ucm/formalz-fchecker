@@ -3,6 +3,7 @@ module LogicIR.Backend.Z3.Z3 where
 
 import qualified Data.Map as M
 import           Data.Ratio
+import           Data.List (isPrefixOf)
 import           Z3.Monad
 
 import LogicIR.Expr
@@ -34,7 +35,7 @@ lExprToZ3Ast =
         NRem     -> mkRem x y
         LAnd     -> mkAnd [x, y]
         LOr      -> mkOr [x, y]
-        LImpl    -> mkImplies x y
+        LImpl    -> mkImplies x y >>= substTempVars
         CEqual   -> mkEq x y
         CLess    -> mkLt x y
         CGreater -> mkGt x y
@@ -64,6 +65,56 @@ lExprToZ3Ast =
     fLen (Var (TArray _) x) = genLenVar x -- TODO: support proper array lengths
     fLen _                  = error "unsupported length"
 
+-- | Rewrite temporary variables, since it is not semantically correct to treat
+-- them as ordinary variables.
+--
+-- i.e.
+--   for an expression `with(1, x -> e[x])` Z3 will produce counter-examples
+--   where `TEMP_x != 1`
+substTempVars :: AST -> Z3 AST
+substTempVars ast = do
+  is_app <- isApp ast
+  onlyWhen is_app $ do
+    app <- toApp ast
+    op <- getSymbolString =<< getDeclName =<< getAppDecl app
+    onlyWhen (op == "=>") $ do
+      [lhs, rhs] <- getAppArgs app
+      is_app' <- isApp lhs
+      onlyWhen is_app' $ do
+        app' <- toApp lhs
+        op' <- getSymbolString =<< getDeclName =<< getAppDecl app'
+        onlyWhen (op' == "=") $ do
+          [x', e] <- getAppArgs app'
+          mx <- getTempVar x'
+          case mx of
+            Just x  -> substZ3 (x, e) rhs
+            Nothing -> return ast
+  where
+    onlyWhen guard cont = if guard then cont else return ast
+
+getTempVar :: AST -> Z3 (Maybe String)
+getTempVar ast = do
+  ast_str <- astToString ast
+  if "TEMP_" `isPrefixOf` ast_str then
+    return (Just ast_str)
+  else
+    return Nothing
+
+substZ3 :: (String, AST) -> AST -> Z3 AST
+substZ3 (x, e) ast = do
+  ast_str <- astToString ast
+  is_app <- isApp ast
+  if ast_str == x then
+    return e
+  else if is_app then do
+    app <- toApp ast
+    fun <- getAppDecl app
+    args <- getAppArgs app
+    args' <- substZ3 (x, e) `mapM` args
+    mkApp fun args'
+  else
+    return ast
+
 -- | Get formula's free variables (to be included in model).
 type FreeVars = M.Map String AST
 freeVars2 :: LExpr -> LExpr -> Z3 FreeVars
@@ -75,12 +126,14 @@ freeVarsAlgebra = LAlgebra fConst fVar fUnop fBinop fIf fQuant fArray fIsnull fL
   where
     fConst _
       = return M.empty
-    fVar xVar@(Var _ x)
-      = M.unions <$> sequence
-          [ M.singleton x <$> genVar xVar
-          , M.singleton (x ++ "?null")   <$> genNullVar x
-          , M.singleton (x ++ "?length") <$> genLenVar x
-          ]
+    fVar xVar@(Var t x)
+      = case t of
+          TArray _ -> M.unions <$> sequence
+                        [ M.singleton x                <$> genVar xVar
+                        , M.singleton (x ++ "?null")   <$> genNullVar x
+                        , M.singleton (x ++ "?length") <$> genLenVar x
+                        ]
+          _        -> M.singleton x <$> genVar xVar
     fUnop _ x
       = x
     fBinop x _ y

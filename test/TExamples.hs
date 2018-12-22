@@ -47,17 +47,18 @@ examples =
   , "varIntro21" .== "varIntro22" -- #22
   , "varIntro31" .== "varIntro32" -- #23
   , "varIntro41" .== "varIntro42" -- #24 TODO fix test backend
-  , "array2d11" .== "array2d12" -- #25 TODO fix test backend
-  , "arr11" .== "arr12" -- #26 TODO fix test backend
-  , "eq11" .== "eq12" -- #27
-  , "real21" .== "real22" -- #28
-  , "array2d21" .!= "array2d22" -- #29 TODO fix test backend
-  , "swap2d" .!= "sort2d"
-  , "max2d_1" .== "max2d_2a"
-  , "max2d_1" .== "max2d_2b"
-  , "max2d_2a" .== "max2d_2b"
-  , "sortbylength_1" .== "sortbylength_2a"
-  , "sortbylength_1" .== "sortbylength_2b"
-  , "sortbylength_2a" .== "sortbylength_2b"
+  , "varIntro51" .== "varIntro52" -- #25
+  , "varIntro61" .== "varIntro62" -- #26
+  , "array2d11" .== "array2d12" -- #27 TODO fix test backend
+  , "arr11" .== "arr12" -- #28 TODO fix test backend
+  , "eq11" .== "eq12" -- #29
+  , "real21" .== "real22" -- #30
+  , "array2d21" .!= "array2d22" -- #31 TODO fix test backend
+  , "swap2d" .!= "sort2d" -- #32
+  , "max2d_1" .== "max2d_2a" -- #33
+  , "max2d_1" .== "max2d_2b" -- #34
+  , "max2d_2a" .== "max2d_2b" -- #35
+  , "sortbylength_1" .== "sortbylength_2a" -- #36
+  , "sortbylength_1" .== "sortbylength_2b" -- #37
+  , "sortbylength_2a" .== "sortbylength_2b" -- #38
   ]
-

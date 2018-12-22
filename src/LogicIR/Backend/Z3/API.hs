@@ -18,6 +18,8 @@ import LogicIR.Backend.Z3.Z3
 import LogicIR.Expr (LExpr, LExprTeacher, LExprStudent, lnot, (.&&), (.<==>))
 import Model
 
+import System.IO (hPutStrLn, stderr)
+
 -- The timeout time in milliseconds.
 timeoutTime :: Integer
 timeoutTime = 5000
@@ -31,6 +33,12 @@ data Z3Response = Satisfiable Model
 -- | Determine the equality of two method's pre/post conditions.
 equivalentTo :: LExprTeacher -> LExprStudent -> IO Response
 equivalentTo l l' = do
+  [z, z'] <- tryZ3 $ do { ll <- astToString =<< lExprToZ3Ast l
+                        ; ll' <- astToString =<< lExprToZ3Ast l'
+                        ; return [ll, ll']
+                        }
+  hPutStrLn stderr $ "Z3ExprA:\n" ++ z ++ "\n"
+  hPutStrLn stderr $ "Z3ExprB:\n" ++ z' ++ "\n"
   equiv <- checkZ3 $ lnot (l .<==> l')
   case equiv of
     Satisfiable m -> do

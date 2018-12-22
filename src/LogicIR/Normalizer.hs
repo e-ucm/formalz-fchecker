@@ -184,20 +184,21 @@ fixWiths = foldExp $
       = BinOp e1 op e2
 
     fMethodInv inv
-      -- Optimize multiple `withs` that hold the same expression
+      -- Optimize multiple `withs` that hold the same expression.
       | With x xVar (With y yVar e) <- MethodInv inv
       , x == y
-      = With x xVar (substExp e $ M.singleton yVar xVar)
+      = With x xVar (substIdent e $ M.singleton yVar xVar)
 
       -- Sort consecutive withs, so as to have a canonical form.
       | With x xVar (With y yVar e) <- MethodInv inv
       , x /= y
       , xVar /= yVar
       , [(x', xVar'), (y', yVar')] <- sortOn (show . fst) [(x, xVar), (y, yVar)]
+      , yVar' `notIn` x'
       = With x' xVar' $ With y' yVar' e
 
       -- A `with` statement can only escape a single-argument lambda expression
-      -- (i.e. with/forall/exists), if it does not refer to the bound variable .
+      -- (i.e. with/forall/exists), if it does not refer to the bound variable.
       | Fun f x xVar (With y yVar e) <- MethodInv inv
       , xVar `notIn` y
       , xVar /= yVar
@@ -317,13 +318,10 @@ simplify = foldExp $
       | otherwise
       = error $ "Unsupported λ-expression: " ++ prettyPrint (Lambda xs es)
 
--- | A substitution maps elements to their substitution (preserving the type).
-type Substitution a = M.Map a a
-
 -- | Substitute a variable for another over a Java expression.
-substExp :: Exp -> Substitution Ident -> Exp
-substExp e substMap =
-  let sb ex = substExp ex substMap
+substIdent :: Exp -> M.Map Ident Ident -> Exp
+substIdent e substMap =
+  let sb = flip substIdent substMap
   in case e of
     Lit l              -> Lit l
     PrePlus e'         -> PrePlus (sb e')
@@ -338,12 +336,12 @@ substExp e substMap =
     ArrayAccess (ArrayIndex eArr eIs) ->
       ArrayAccess $ ArrayIndex (sb eArr) (sb <$> eIs)
     Lam x e' ->
-      Lam x (substExp e' $ M.delete x substMap)
-    _ -> error $ "substExp: not supported (" ++ prettyPrint e ++ ")"
+      Lam x (substIdent e' $ M.delete x substMap)
+    _ -> error $ "substIdent: not supported (" ++ prettyPrint e ++ ")"
 
--- | Check whether a variable *does not* in a Java expression.
+-- | Check whether a variable *does not* appear in a Java expression.
 notIn :: Ident -> Exp -> Bool
-notIn x e = e == substExp e (M.singleton x (Ident "$$"))
+notIn x e = e == substIdent e (M.singleton x (Ident "$$"))
 
 -- | Check whether a Java expression is not trivial.
 isNonTrivial :: Exp -> Bool

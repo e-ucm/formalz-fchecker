@@ -225,6 +225,31 @@ public class Main {
       pre(with(-1, x -> with(1, x -> with(0, y -> x > y))));
     }
 
+    public static void varIntro41(int[] a) {
+      pre(with(a[0], x -> a[0] == x));
+    }
+    public static void varIntro42(int[] a) {}
+
+    public static void varIntro51() {
+      pre(false == true);
+    }
+    public static void varIntro52() {
+      pre(with(false, i -> i == true));
+    }
+
+    public static void varIntro61(int[][] a) {
+      pre( a.length > 0
+        && a[0].length > 0
+        && with(0, x -> a[x][x] == 0)
+      );
+    }
+    public static void varIntro62(int[][] a) {
+      pre( a.length > 0
+        && a[0].length > 0
+        && a[0][0] == 0
+      );
+    }
+
     public static void arr11(int[] a) {
       pre(imp(a.length == 1, forall(a, i -> a[i] > 0)));
       post(1.0 == (2.1 - 1.1));
@@ -232,11 +257,6 @@ public class Main {
     public static void arr12(int[] a) {
       pre(imp((1 + a.length) == 2 , a[0] >= 1));
     }
-
-    public static void varIntro41(int[] a) {
-      pre(with(a[0], x -> a[0] == x));
-    }
-    public static void varIntro42(int y) {}
 
     public static void array2d11(int[][] a) {
       pre(a.length == 1);
