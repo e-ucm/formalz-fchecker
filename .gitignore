@@ -14,5 +14,6 @@ tests/org/
 .idea/
 # Output logs
 *.log
+*.log.*
 *.out
 *.backup
