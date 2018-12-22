@@ -7,7 +7,7 @@ RELEASE_PATH=${INSTALL_DIR}/${RELEASE}
 sudo wget -P ${INSTALL_DIR} https://github.com/Z3Prover/z3/releases/download/z3-4.7.1/${RELEASE}.zip \
   && sudo unzip ${RELEASE_PATH}.zip -d ${RELEASE_PATH} \
   && sudo rm ${RELEASE_PATH}.zip \
-  && sudo mv ${RELEASE_PATH}/${RELEASE}/ ${INSTALL_DIR}/z3 \
+  && sudo mv ${RELEASE_PATH}/${RELEASE} ${INSTALL_DIR}/z3 \
   && sudo rm -rf ${RELEASE_PATH} \
   && sudo mv \
     ${INSTALL_DIR}/z3/bin/libz3.so \
