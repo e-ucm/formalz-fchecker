@@ -1,6 +1,6 @@
 ## Deployment Instructions
 
-1. Clone the `javawlp` repository in `/root/javawlp/immortal`.
+1. Clone the `javawlp` repository in `/root/javawlp/`.
 
 2. Install `immortal` ([instructions](https://immortal.run/post/how-to-install/))
 
