@@ -1,15 +1,12 @@
 resolver: lts-9.17
-# resolver: lts-9.21
-# resolver: lts-10.7
 
 packages:
 - .
 
 extra-deps:
-- z3-4.3
+- z3-4.2
 - language-java-0.2.9
 
-# To upgrade Z3 library version, e.g. z3-4.3.1
 extra-include-dirs:
   - /usr/lib/z3/include/
 extra-lib-dirs:
