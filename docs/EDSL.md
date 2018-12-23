@@ -17,8 +17,8 @@ public static void fun(int x) {
 
 **NOTES**
 - The inner expression in a pre/post-condition must be of type `Boolean`.
-- If the argument to `pre`(`post`) is left empty or there is no definition, the logical expression is
-defaulted to `true`.
+- If the argument to `pre`(`post`) is left empty or there is no definition, the
+logical expression is defaulted to `true`.
 - Multiple declaration of a pre/post-conditions will be combined with Logical
 conjunction.
 
@@ -121,3 +121,12 @@ for (int i = 0; i < a.length ; i++) {
 }
 post(forall(a, i -> with(a[i], ai -> forall(ai, j -> ai[j] == 1)));
 ```
+
+**NOTES**
+- End-users never need to write `with` expressions actually. Multi-dimentional
+notation is internally desugared into with expressions, where we introduce
+intermediate variables (called `TEMP_<n>`) to bind left-hand expressions in
+places where only variables are allowed (e.g. array indexing, length).
+- Backends should make sure these `TEMP` variables are not handled in the same
+way as ordinary variables, since we do not want to get a counter model where
+these variables are assigned different values than the ones they are bound to.
