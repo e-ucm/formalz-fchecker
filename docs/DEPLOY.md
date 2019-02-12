@@ -23,6 +23,6 @@ User=root
 WantedBy=multi-user.target
 ```
 
-4. Make sure the `immortaldir` service is running: `servicectl start immortaldir`
+4. Make sure the `immortaldir` service is running: `systemctl start immortaldir`
 
 5. Everytime you need to deploy, run `deploy.sh` which will also pull the latest commit.
